@@ -1,0 +1,11 @@
+{
+  "_note": "Marketing kit: engineering 'ceremony' hooks inherited from prep-kit are disabled here. They only nudged toward removed /prep-* commands and a product-skill learning loop this kit doesn't use. Read by .claude/hooks/lib/hook-toggle.cjs and propagated to PREP_DISABLED_HOOKS by session-init.cjs. Remove a name from 'disabled' to turn that hook back on.",
+  "disabled": [
+    "learning-lifecycle",
+    "session-capture",
+    "subagent-stop",
+    "post-edit-nudge",
+    "permission-denied",
+    "plan-status-guard"
+  ]
+}

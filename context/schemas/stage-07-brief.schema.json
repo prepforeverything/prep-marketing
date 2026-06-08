@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/stage-07-brief.schema.json",
+  "title": "Stage 07 — Per-persona creative brief",
+  "description": "Typed I/O contract for /mkt-creative-run Stage 07 (design §2/§6.1 — no free-text handoffs). Stage 07 turns the approved persona + segment + force-map into a tight per-persona brief that the Stage-08 script consumes. non_negotiables is the brand-safety floor seed — the standing constraints (e.g. muted-first, never lead with an unverified guarantee, never ask for payment up front) that every downstream stage inherits. Each persona's single-minded proposition (smp) is exactly ONE sentence. Copy-bearing proof + cta carry claim_refs. provenance: run_id + generated_at.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "generated_at", "non_negotiables", "personas"],
+  "$defs": {
+    "claimRef": {
+      "type": "string",
+      "pattern": "^CLM-[0-9]{3,}$",
+      "description": "A reference to one approved/declared claim id in context/claims.json (e.g. \"CLM-008\"). The bare id only — render markers ([[...]]/{{...}}) are presentation. The deterministic claims floor reads these to fail-close on unverified claims."
+    },
+    "claimRefs": {
+      "type": "array",
+      "description": "Every claim id this copy-bearing object asserts (may be empty). Typed surface for the claims gate — never inferred from prose.",
+      "items": { "$ref": "#/$defs/claimRef" },
+      "uniqueItems": true
+    }
+  },
+  "properties": {
+    "run_id": { "type": "string", "description": "Timestamped run id (e.g. 20260608-072919) — ties this artifact to the run manifest." },
+    "generated_at": { "type": "string", "format": "date-time", "description": "ISO timestamp this brief was produced." },
+    "non_negotiables": {
+      "type": "array",
+      "description": "Brand-safety floor SEED — the standing non-negotiable constraints every downstream creative stage must honor (e.g. 'muted-first', 'never lead with an unverified guarantee', 'no price in a cold attention ad', 'never ask for payment up front'). Each entry is one constraint string.",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "personas": {
+      "type": "array",
+      "description": "One brief entry per persona this run targets. Each is the single-minded direction the Stage-08 script must execute.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["persona_ref", "segment_ref", "territory", "smp", "objective", "tone", "format", "proof_claim_refs", "cta"],
+        "properties": {
+          "persona_ref": { "type": "string", "description": "Persona this brief targets, referencing context/proposed/audience-personas.md (e.g. \"Persona 4 — Thảo\")." },
+          "segment_ref": { "type": "string", "description": "Segment the persona traces to, referencing context/proposed/audience-segments.md (e.g. \"Segment A\")." },
+          "territory": { "type": "string", "description": "The creative territory / angle this brief stakes out (the strategic lane the creative occupies)." },
+          "smp": { "type": "string", "description": "Single-minded proposition — exactly ONE sentence. The one idea the ad must land." },
+          "objective": { "type": "string", "description": "The campaign objective this brief serves (e.g. cold-prospecting attention + free-band-check lead). Names the objective so Tier-B outcome claims stay honest." },
+          "tone": { "type": "string", "description": "Brand voice / tone for this persona (per context brand-voice), e.g. 'urgent-but-reassuring mentor, no hype'." },
+          "format": { "type": "string", "description": "Format spec the script must hit (e.g. '9:16 vertical, muted-first, ≤15s, hook on-screen text in first 2s')." },
+          "proof_claim_refs": {
+            "allOf": [{ "$ref": "#/$defs/claimRefs" }],
+            "description": "The claim id(s) backing this brief's proof point (e.g. [\"CLM-008\"]). Empty when the brief asserts no PrepEdu claim. Copy-bearing → typed for the claims gate."
+          },
+          "cta": { "type": "string", "description": "The call-to-action direction (e.g. 'Kiểm tra band miễn phí' → inline band-check → Zalo OA). Copy-bearing; any claim it carries is listed in proof_claim_refs." }
+        }
+      }
+    }
+  }
+}

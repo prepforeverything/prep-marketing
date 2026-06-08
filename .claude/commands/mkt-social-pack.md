@@ -1,0 +1,1 @@
+../../.prepkit/packs/marketing/commands/mkt-social-pack.md

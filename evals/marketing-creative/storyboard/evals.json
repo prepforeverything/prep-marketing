@@ -1,0 +1,29 @@
+{
+  "dimension": "storyboard",
+  "mode": "calibration",
+  "judge": "marketing-creative-scorer",
+  "scale": "x/4 (mean of Performance-signal, Untested-territory, Market-timing — each 1–4)",
+  "max": 4,
+  "tolerance": 0.5,
+  "scorer_prompt_version": "marketing-creative-scorer@v2-sonnet",
+  "rubric_ref": ".prepkit/packs/marketing/agents/marketing-creative-scorer.md — Rubric: Stage 09 storyboard",
+  "agreement": {
+    "metric": "share of exemplars where |judge_score - human_score| <= tolerance",
+    "promote": 0.75,
+    "monitor": 0.65,
+    "noise_below": 0.65,
+    "alpha_high_confidence": 0.8,
+    "note": "promote >= 0.75; 0.65–0.75 = monitor; < 0.65 = noise (do not gate on this prompt version). Krippendorff alpha >= 0.8 is the high-confidence bar but needs repeated/multi-rater runs — out of scope for this single-pass harness; documented as the stricter target."
+  },
+  "howToRun": "For each exemplar: give marketing-creative-scorer the file BODY (upstream + frames) WITHOUT the frontmatter human_score, have it score per its Stage-09 rubric (reasoning before score), and record {id: judge_score} into this dir's grading.json. Then `node evals/marketing-creative/run.mjs` computes judge-human agreement vs the pinned scores. Pin the scorer prompt version to its agreement result (a prompt version's identity is its eval score).",
+  "exemplars": [
+    { "id": "sb-1-off-signal",        "file": "files/sb-1-off-signal.md",        "human_score": 1, "score_level": "poor" },
+    { "id": "sb-1b-fatigued",         "file": "files/sb-1b-fatigued.md",         "human_score": 1, "score_level": "poor" },
+    { "id": "sb-2-generic-twist",     "file": "files/sb-2-generic-twist.md",     "human_score": 2, "score_level": "weak" },
+    { "id": "sb-2b-discount",         "file": "files/sb-2b-discount.md",         "human_score": 2, "score_level": "weak" },
+    { "id": "sb-3-solid-signal",      "file": "files/sb-3-solid-signal.md",      "human_score": 3, "score_level": "solid" },
+    { "id": "sb-3b-diagnostic",       "file": "files/sb-3b-diagnostic.md",       "human_score": 3, "score_level": "solid" },
+    { "id": "sb-4-deadline-whitespace","file": "files/sb-4-deadline-whitespace.md","human_score": 4, "score_level": "exemplary" },
+    { "id": "sb-4b-countdown",        "file": "files/sb-4b-countdown.md",        "human_score": 4, "score_level": "exemplary" }
+  ]
+}

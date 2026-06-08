@@ -1,0 +1,12 @@
+{
+  "_note": "Written by /mkt-setup. The kit reads these instead of hardcoding anything. Delete this file to fall back to neutral defaults (primaryMarket 'VN', publishGate 'warn').",
+  "companyName": "{{YOUR COMPANY}}",
+  "primaryLocale": "{{e.g. en-US, vi-VN, th-TH}}",
+  "primaryMarket": "{{e.g. US, VN, TH}}",
+  "markets": ["{{PRIMARY MARKET}}"],
+  "businessType": "{{e.g. SaaS, DTC e-commerce, education/test-prep}}",
+  "governance": {
+    "publishGate": "warn",
+    "_publishGate_values": "off = no gate | warn = flag but allow (advisory default) | deny = block publish-ready writes with unverified claims (opt-in strict)"
+  }
+}

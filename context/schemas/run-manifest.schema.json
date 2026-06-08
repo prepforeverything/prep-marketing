@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/run-manifest.schema.json",
+  "title": "Creative-run manifest",
+  "description": "Reproducibility + provenance record for one /mkt-creative-run (design §6.4). Records the Stage-00 input source, the brand-context snapshot + age, model ids, and every stage's artifact + prompt/skill version. Phase 1 populates Stages 00–05; per-stage scores and the claims-gate verdict are nullable here and populated by Phase 2 (the three-tier gate). Forward-compatible: nullable fields let Phase 2 fill them in without a schema change.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "created_at", "command", "phase", "source", "brand_context_snapshot", "model_ids", "stages", "checkpoints"],
+  "properties": {
+    "run_id": { "type": "string", "description": "Timestamped run id, e.g. 20260608-071500." },
+    "created_at": { "type": "string", "description": "ISO timestamp the run started." },
+    "command": { "const": "/mkt-creative-run" },
+    "focus": { "type": ["string", "null"], "description": "Free-text run focus (product / objective)." },
+    "phase": { "type": "integer", "description": "Which build phase's stages this run exercised (1 = Stages 00–05)." },
+    "locale": { "type": ["string", "null"], "description": "primaryLocale from marketing.config.json." },
+    "market": { "type": ["string", "null"], "description": "primaryMarket from marketing.config.json." },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Stage-00 input provenance — Meta MCP (read-only) or a user-provided export file. Never a secret.",
+      "required": ["stage_00_input", "connector_wired"],
+      "properties": {
+        "stage_00_input": { "enum": ["meta-mcp", "user-file"] },
+        "input_ref": { "type": ["string", "null"], "description": "File path or MCP account id — never a token/secret." },
+        "connector_wired": { "type": "boolean", "description": "Whether the meta MCP was actually wired this run." }
+      }
+    },
+    "brand_context_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Brand-context freshness gate (design §3c/§5.4) — recorded into the manifest, not just warned.",
+      "required": ["source", "updated", "age_days", "freshness"],
+      "properties": {
+        "source": { "type": "string", "description": "Which context file/set the snapshot age is read from." },
+        "updated": { "type": ["string", "null"], "description": "Last-updated date of the brand context." },
+        "age_days": { "type": ["number", "null"] },
+        "freshness": { "enum": ["OK", "STALE", "UNKNOWN"] }
+      }
+    },
+    "model_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generator"],
+      "properties": {
+        "generator": { "type": ["string", "null"], "description": "Model id that generated the narrative/creative." },
+        "judge": { "type": ["string", "null"], "description": "Rubric-judge model id — null until Phase 2 scoring." }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "description": "One entry per stage exercised. Phase 1 = stages 00–05.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage", "name", "status", "output_path"],
+        "properties": {
+          "stage": { "type": "string", "description": "Stage number as a string, e.g. \"00\", \"01\"." },
+          "name": { "type": "string" },
+          "status": { "enum": ["done", "pending", "skipped", "blocked"] },
+          "skill_or_agent": { "type": ["string", "null"] },
+          "prompt_version": { "type": ["string", "null"], "description": "Version/id of the prompt or skill ref used (reproducibility)." },
+          "schema_ref": { "type": ["string", "null"], "description": "Path of the schema this stage's output validates against." },
+          "output_path": { "type": ["string", "null"], "description": "Path of the stage artifact (or null for compute-only Stage 00)." },
+          "score": { "type": ["number", "null"], "description": "Rubric score — null until Phase 2 scoring." },
+          "claims_verdict": { "type": ["string", "null"], "enum": [null, "pass", "fail", "n/a"], "description": "Per-stage claims-gate verdict — null until Phase 2." }
+        }
+      }
+    },
+    "claims_verdict": { "type": ["string", "null"], "enum": [null, "pass", "fail", "pending"], "description": "Overall claims-gate verdict — populated when the deterministic floor runs (Phase 2)." },
+    "checkpoints": {
+      "type": "array",
+      "description": "Human checkpoints in the chain and their state.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "enum": ["pending", "reached", "approved", "revised"] }
+        }
+      }
+    }
+  }
+}

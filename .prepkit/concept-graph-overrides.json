@@ -1,0 +1,302 @@
+{
+  "domains": {
+    "product": {
+      "concepts": {
+        "jtbd": {
+          "primerText": "When [situation], I want [motivation], so I can [outcome]. Users hire products to make progress -- frame needs as jobs, not features.",
+          "skillId": "product-discovery-synthesis"
+        },
+        "evidence-quality": {
+          "primerText": "Evidence grades: anecdotal (1 report) to pattern (3+ signals) to quantified (metric-backed) to validated (tested). The grade determines your next move, not your confidence level.",
+          "crossCutting": true,
+          "skillId": "product-facilitation"
+        },
+        "switching-forces": {
+          "primerText": "Four forces explain adoption: Push (pain of current), Pull (appeal of new), Anxiety (fear of change), Habit (comfort of status quo). All four must be understood.",
+          "skillId": "product-discovery-synthesis"
+        },
+        "mom-test": {
+          "primerText": "Ask about past behavior, not future intentions. 'Would you use this?' is always wrong -- people are polite. Ask what they actually did.",
+          "skillId": "product-user-interview-design"
+        },
+        "pursue-monitor-defer": {
+          "primerText": "Every opportunity gets an explicit decision: pursue (invest now), monitor (watch for signals), or defer (not now, with a revisit trigger). Defer without a trigger is a silent discard.",
+          "skillId": "product-opportunity-mapping"
+        },
+        "given-when-then": {
+          "primerText": "Given [context], When [action], Then [outcome]. If you can't write it, you haven't defined it. Engineers know what to build, QA knows what to test.",
+          "crossCutting": true,
+          "skillId": "product-prd-authoring"
+        },
+        "non-goals": {
+          "primerText": "Explicit statements of what you're NOT building, with rationale. Without them, scope expands through 'while we're at it' thinking.",
+          "skillId": "product-prd-authoring"
+        },
+        "rice-ice-moscow": {
+          "primerText": "Reach x Impact x Confidence / Effort. Confidence must match evidence grade -- anecdotal=50%, pattern=80%, quantified=100%. Inflated confidence is self-deception.",
+          "skillId": "product-prioritization"
+        },
+        "kano-model": {
+          "primerText": "Basic needs (expected, anger if absent), Performance needs (more is better), Excitement needs (delight). Fix basics before building excitement -- you can't compensate for broken foundations.",
+          "skillId": "product-prioritization"
+        },
+        "north-star-metric": {
+          "primerText": "One metric capturing core value delivered to users. Not revenue (lagging). Must be: user-value, leading, team-influenced, simple, stable.",
+          "skillId": "product-metrics-analysis"
+        },
+        "counter-metrics": {
+          "primerText": "Every target metric needs a guardrail. Optimizing scoring speed without a counter-metric for accuracy will sacrifice quality for speed.",
+          "crossCutting": true,
+          "skillId": "product-metrics-analysis"
+        },
+        "hook-model": {
+          "primerText": "Trigger to Action to Variable Reward to Investment. External triggers build internal triggers. If the product only works with push notifications, the loop is weak.",
+          "skillId": "product-engagement-design"
+        },
+        "cheapest-next-move": {
+          "primerText": "Always ask: what's the cheapest way to learn if this assumption is true? A $200 fake door test can prevent an $80K feature nobody wants.",
+          "crossCutting": true,
+          "skillId": "product-validation"
+        },
+        "build-measure-learn": {
+          "primerText": "Build the smallest thing, measure against pre-defined metrics, learn from data, build next thing. The loop runs continuously, not once.",
+          "skillId": "product-continuous-improvement"
+        },
+        "assumption-mapping": {
+          "primerText": "List assumptions, rate on criticality times uncertainty. Test the ones that are both critical AND uncertain first.",
+          "crossCutting": true,
+          "skillId": "product-validation"
+        },
+        "acceptance-criteria": {
+          "skillId": "product-prd-authoring"
+        },
+        "a-b-testing": {
+          "skillId": "product-validation"
+        },
+        "aarrr-pirate-metrics": {
+          "skillId": "product-metrics-analysis"
+        },
+        "behavioral-design": {
+          "skillId": "product-engagement-design"
+        },
+        "cannibalization-analysis": {
+          "skillId": "product-opportunity-mapping"
+        },
+        "cohort-analysis": {
+          "skillId": "product-metrics-analysis"
+        },
+        "confidence-calibration": {
+          "skillId": "product-prioritization"
+        },
+        "dependency-mapping": {
+          "skillId": "product-opportunity-mapping"
+        },
+        "evidence-linked-requirements": {
+          "skillId": "product-prd-authoring"
+        },
+        "hippo-problem": {
+          "skillId": "product-prioritization"
+        },
+        "hypothesis-labeling": {
+          "skillId": "product-prd-authoring"
+        },
+        "interview-types": {
+          "skillId": "product-user-interview-design"
+        },
+        "iteration-vs-pivot": {
+          "skillId": "product-continuous-improvement"
+        },
+        "kaizen-mindset": {
+          "skillId": "product-continuous-improvement"
+        },
+        "moscow": {
+          "skillId": "product-prioritization"
+        },
+        "mvp-mlp": {
+          "skillId": "product-validation"
+        },
+        "octalysis-core-drives": {
+          "skillId": "product-engagement-design"
+        },
+        "opportunity-mapping": {
+          "skillId": "product-opportunity-mapping"
+        },
+        "prd-structure": {
+          "skillId": "product-prd-authoring"
+        },
+        "problem-vs-solution-framing": {
+          "skillId": "product-discovery-synthesis"
+        },
+        "qualitative-vs-quantitative": {
+          "skillId": "product-user-interview-design"
+        },
+        "scope-management": {
+          "skillId": "product-prd-authoring"
+        },
+        "screener-design": {
+          "skillId": "product-user-interview-design"
+        },
+        "user-stories": {
+          "skillId": "product-prd-authoring"
+        },
+        "validation-methods-spectrum": {
+          "skillId": "product-validation"
+        },
+        "value-effort-matrix": {
+          "skillId": "product-prioritization"
+        },
+        "working-backwards": {
+          "skillId": "product-validation"
+        }
+      }
+    },
+    "engineering": {
+      "concepts": {
+        "slo-error-budgets": {
+          "id": "slo-error-budgets",
+          "domain": "engineering",
+          "crossCutting": true,
+          "primerText": "SLOs define acceptable failure rates; error budgets are the margin before an alert fires. Same guardrail thinking as counter-metrics -- both prevent optimizing one thing at the expense of another."
+        },
+        "spike-prototype": {
+          "id": "spike-prototype",
+          "domain": "engineering",
+          "crossCutting": true,
+          "primerText": "A time-boxed investigation to reduce uncertainty before committing to a full build. Same risk-reduction pattern as cheapest-next-move in product validation."
+        },
+        "test-coverage-confidence": {
+          "id": "test-coverage-confidence",
+          "domain": "engineering",
+          "crossCutting": true,
+          "primerText": "Test coverage measures how much code is exercised by tests. Like evidence grading in product -- high coverage = higher confidence, but coverage alone doesn't guarantee correctness."
+        },
+        "technical-debt": {
+          "id": "technical-debt",
+          "domain": "engineering",
+          "crossCutting": true,
+          "primerText": "Shortcuts that were necessary at the time but now slow iteration. Product teams should care because it directly affects how fast new features can ship."
+        },
+        "observability": {
+          "id": "observability",
+          "domain": "engineering",
+          "crossCutting": true,
+          "primerText": "The ability to understand system behavior from external outputs (logs, metrics, traces). Connects to product metrics -- you can't measure what you can't observe."
+        },
+        "feature-flags": {
+          "id": "feature-flags",
+          "domain": "engineering",
+          "crossCutting": true,
+          "primerText": "Toggles that control feature rollout independently of deployment. Enables product validation experiments (A/B tests) without requiring separate releases."
+        },
+        "incident-response": {
+          "id": "incident-response",
+          "domain": "engineering",
+          "crossCutting": true,
+          "primerText": "Structured process for handling production failures. Connects to continuous improvement -- post-incident reviews produce the same insights as product retrospectives."
+        }
+      }
+    },
+    "marketing": {
+      "concepts": {
+        "attribution-modeling": {
+          "id": "attribution-modeling",
+          "domain": "marketing",
+          "crossCutting": true,
+          "primerText": "Determining which marketing touchpoints contributed to a conversion. Same evidence-quality challenge as product evidence grading -- correlation isn't causation."
+        },
+        "conversion-funnel": {
+          "id": "conversion-funnel",
+          "domain": "marketing",
+          "crossCutting": true,
+          "primerText": "The stages users pass through from awareness to purchase. Maps directly to AARRR pirate metrics -- both track drop-off between stages."
+        },
+        "cac-ltv-ratio": {
+          "id": "cac-ltv-ratio",
+          "domain": "marketing",
+          "crossCutting": true,
+          "primerText": "Customer Acquisition Cost vs Lifetime Value. Connects to PLG strategy -- PLG aims to reduce CAC by making the product itself the growth engine."
+        },
+        "positioning": {
+          "id": "positioning",
+          "domain": "marketing",
+          "crossCutting": true,
+          "primerText": "How your product is perceived relative to alternatives. Connects to switching forces -- positioning addresses the Pull force (why switch to us)."
+        },
+        "channel-mix": {
+          "id": "channel-mix",
+          "domain": "marketing",
+          "crossCutting": true,
+          "primerText": "Distribution of marketing investment across channels. Requires the same prioritization discipline as product backlog -- finite resources, infinite options."
+        }
+      }
+    },
+    "qa": {
+      "concepts": {
+        "acceptance-testing": {
+          "id": "acceptance-testing",
+          "domain": "qa",
+          "crossCutting": true,
+          "primerText": "Verifying that a feature meets its acceptance criteria. Directly connected to Given/When/Then -- acceptance tests ARE the executable version of acceptance criteria."
+        },
+        "regression-testing": {
+          "id": "regression-testing",
+          "domain": "qa",
+          "crossCutting": true,
+          "primerText": "Ensuring new changes don't break existing functionality. Connects to continuous improvement -- the more you iterate, the more important regression safety becomes."
+        },
+        "exploratory-testing": {
+          "id": "exploratory-testing",
+          "domain": "qa",
+          "crossCutting": true,
+          "primerText": "Unscripted testing to discover unexpected behaviors. Same discovery mindset as product problem discovery -- both seek unknown unknowns."
+        },
+        "test-pyramid": {
+          "id": "test-pyramid",
+          "domain": "qa",
+          "crossCutting": true,
+          "primerText": "Unit tests at the base, integration in the middle, E2E at the top. Connects to validation spectrum -- cheapest tests first, expensive tests for high-risk areas."
+        },
+        "accessibility-testing": {
+          "id": "accessibility-testing",
+          "domain": "qa",
+          "crossCutting": true,
+          "primerText": "Verifying that products work for users with disabilities. Connects to ethical guardrails -- accessibility is a basic need (Kano), not an excitement feature."
+        }
+      }
+    }
+  },
+  "edges": [
+    { "from": "evidence-quality", "to": "pursue-monitor-defer", "type": "prerequisite" },
+    { "from": "evidence-quality", "to": "confidence-calibration", "type": "prerequisite" },
+    { "from": "evidence-quality", "to": "assumption-mapping", "type": "prerequisite" },
+    { "from": "evidence-quality", "to": "cheapest-next-move", "type": "prerequisite" },
+    { "from": "jtbd", "to": "user-stories", "type": "prerequisite" },
+    { "from": "jtbd", "to": "opportunity-mapping", "type": "prerequisite" },
+    { "from": "jtbd", "to": "north-star-metric", "type": "prerequisite" },
+    { "from": "problem-vs-solution-framing", "to": "non-goals", "type": "prerequisite" },
+    { "from": "problem-vs-solution-framing", "to": "hypothesis-labeling", "type": "prerequisite" },
+    { "from": "north-star-metric", "to": "metric-tree", "type": "prerequisite" },
+    { "from": "north-star-metric", "to": "counter-metrics", "type": "prerequisite" },
+    { "from": "counter-metrics", "to": "ethical-guardrails", "type": "prerequisite" },
+    { "from": "counter-metrics", "to": "a-b-testing", "type": "prerequisite" },
+    { "from": "switching-forces", "to": "hook-model", "type": "informs" },
+    { "from": "kano-model", "to": "rice-ice-moscow", "type": "informs" },
+    { "from": "slo-error-budgets", "to": "counter-metrics", "type": "bridges", "bridgeRationale": "Both are guardrails that prevent optimizing one metric at the expense of another." },
+    { "from": "spike-prototype", "to": "cheapest-next-move", "type": "bridges", "bridgeRationale": "Both reduce uncertainty through the smallest possible investment before committing." },
+    { "from": "test-coverage-confidence", "to": "evidence-quality", "type": "bridges", "bridgeRationale": "Both measure how confident you can be in a claim -- one about code, one about users." },
+    { "from": "technical-debt", "to": "build-measure-learn", "type": "bridges", "bridgeRationale": "Technical shortcuts compound like product debt -- both require deliberate improvement cycles." },
+    { "from": "observability", "to": "north-star-metric", "type": "bridges", "bridgeRationale": "You can't track product metrics without engineering observability -- they're two sides of measurement." },
+    { "from": "feature-flags", "to": "a-b-testing", "type": "bridges", "bridgeRationale": "Feature flags are the engineering mechanism that makes product A/B tests possible." },
+    { "from": "incident-response", "to": "iteration-vs-pivot", "type": "bridges", "bridgeRationale": "Post-incident reviews and product retrospectives use the same structure: expected vs actual vs why vs next." },
+    { "from": "attribution-modeling", "to": "evidence-quality", "type": "bridges", "bridgeRationale": "Attribution faces the same evidence-quality challenge -- distinguishing correlation from causation." },
+    { "from": "conversion-funnel", "to": "aarrr-pirate-metrics", "type": "bridges", "bridgeRationale": "Marketing conversion funnels and AARRR pirate metrics track the same user journey from different lenses." },
+    { "from": "cac-ltv-ratio", "to": "hook-model", "type": "bridges", "bridgeRationale": "Product-led growth targets CAC reduction by making the product the acquisition engine -- the Hook Model is its behavioral mechanism." },
+    { "from": "positioning", "to": "switching-forces", "type": "bridges", "bridgeRationale": "Positioning addresses the Pull force -- why users should switch to your product." },
+    { "from": "channel-mix", "to": "rice-ice-moscow", "type": "bridges", "bridgeRationale": "Channel allocation requires the same prioritization discipline as product backlog -- finite resources, infinite options." },
+    { "from": "acceptance-testing", "to": "given-when-then", "type": "bridges", "bridgeRationale": "Acceptance tests are the executable version of Given/When/Then acceptance criteria." },
+    { "from": "regression-testing", "to": "build-measure-learn", "type": "bridges", "bridgeRationale": "Iteration velocity depends on regression safety -- both are part of sustainable improvement." },
+    { "from": "exploratory-testing", "to": "problem-vs-solution-framing", "type": "bridges", "bridgeRationale": "Both seek unknown unknowns through structured but open-ended investigation." },
+    { "from": "test-pyramid", "to": "cheapest-next-move", "type": "bridges", "bridgeRationale": "Both prioritize the cheapest validation first -- unit tests before E2E, desk research before beta." },
+    { "from": "accessibility-testing", "to": "kano-model", "type": "bridges", "bridgeRationale": "Accessibility is a basic need in Kano terms -- users with disabilities expect it, absence is a failure." }
+  ]
+}

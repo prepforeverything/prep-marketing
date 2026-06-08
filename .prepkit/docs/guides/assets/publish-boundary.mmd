@@ -1,0 +1,11 @@
+%% Purpose: the four conditions that must ALL hold before anything is publish-ready
+flowchart TD
+    Asset["A drafted asset"] --> C1{"Claims gate passes?<br/>(publish mode)"}
+    C1 -->|"No"| Draft["DRAFT only --<br/>lists which claims to approve"]
+    C1 -->|"Yes"| C2{"Claims-judge: wording<br/>matches the evidence?"}
+    C2 -->|"No"| Draft
+    C2 -->|"Yes"| C3{"Brand + quality<br/>review clean?"}
+    C3 -->|"No"| Draft
+    C3 -->|"Yes"| C4{"A human approves?"}
+    C4 -->|"No"| Draft
+    C4 -->|"Yes"| Pub["Publish-ready"]

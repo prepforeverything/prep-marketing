@@ -1,0 +1,319 @@
+{
+  "name": "marketing",
+  "version": "2.3.0",
+  "description": "Marketing overlay for PrepKit with context-driven positioning, clarity-first copywriting, ORB channel strategy, decision-linked measurement, phased GTM delivery workflows, actionable reference libraries, marketing psychology models, ads management, content quality scoring, provider-agnostic image/video asset generation with a quality loop, end-to-end HTML landing-page/article assembly with screenshot preview-verify, a brand-neutral landing-page system (9 design-system styles, conversion form with Meta/TikTok CAPI, VietQR payment, a 138-icon SVG library, and auto-generated Nghị định 13/2023 policy pages), and automated brand context injection.",
+  "claude": {
+    "commandScope": "on-activation"
+  },
+  "requires": {
+    "coreVersion": "^1.5.0",
+    "capabilities": [
+      {
+        "type": "agent",
+        "id": "planner"
+      },
+      {
+        "type": "process-skill",
+        "id": "context-collection"
+      },
+      {
+        "type": "process-skill",
+        "id": "knowledge-capture"
+      }
+    ]
+  },
+  "planPresets": [
+    {
+      "id": "marketing",
+      "description": "Marketing preset with product context, positioning, audience, message, content strategy, channels, approvals, performance, and growth sections.",
+      "slots": {
+        "preContext": ".prepkit/packs/marketing/plan-presets/marketing/pre-context.md",
+        "postFiles": ".prepkit/packs/marketing/plan-presets/marketing/post-files.md"
+      },
+      "specTemplates": [
+        {
+          "source": ".prepkit/packs/marketing/skills/domain/marketing-product-context/references/marketing-context-template.md",
+          "target": "marketing-context.md"
+        }
+      ],
+      "requiredHeadings": [
+        "## Audience",
+        "## Positioning",
+        "## Message",
+        "## Content Strategy",
+        "## Channels",
+        "## Approvals",
+        "## Performance Framework",
+        "## Success Metrics",
+        "## Growth Metrics"
+      ]
+    }
+  ],
+  "capabilities": {
+    "toolAdapters": [],
+    "skills": {
+      "domain": [
+        {
+          "id": "marketing-claims",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-claims/SKILL.md"
+        },
+        {
+          "id": "marketing-product-context",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-product-context/SKILL.md"
+        },
+        {
+          "id": "marketing-campaign-planning",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-campaign-planning/SKILL.md"
+        },
+        {
+          "id": "marketing-copywriting",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-copywriting/SKILL.md"
+        },
+        {
+          "id": "marketing-seo",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-seo/SKILL.md"
+        },
+        {
+          "id": "marketing-cro",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-cro/SKILL.md"
+        },
+        {
+          "id": "marketing-channel-optimization",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-channel-optimization/SKILL.md"
+        },
+        {
+          "id": "marketing-performance-analysis",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-performance-analysis/SKILL.md"
+        },
+        {
+          "id": "marketing-positioning",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-positioning/SKILL.md"
+        },
+        {
+          "id": "marketing-growth",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-growth/SKILL.md"
+        },
+        {
+          "id": "marketing-psychology",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-psychology/SKILL.md"
+        },
+        {
+          "id": "marketing-ads",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-ads/SKILL.md"
+        },
+        {
+          "id": "marketing-social",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-social/SKILL.md"
+        },
+        {
+          "id": "marketing-content-strategy",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-content-strategy/SKILL.md"
+        },
+        {
+          "id": "marketing-gtm",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-gtm/SKILL.md"
+        },
+        {
+          "id": "marketing-lifecycle",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-lifecycle/SKILL.md"
+        },
+        {
+          "id": "marketing-reporting",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-reporting/SKILL.md"
+        },
+        {
+          "id": "marketing-asset-generation",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-asset-generation/SKILL.md"
+        },
+        {
+          "id": "marketing-landing-page",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-landing-page/SKILL.md"
+        },
+        {
+          "id": "sea-prep-gtm",
+          "path": ".prepkit/packs/marketing/skills/domain/sea-prep-gtm/SKILL.md"
+        }
+      ],
+      "process": [
+        {
+          "id": "marketing-facilitation",
+          "path": ".prepkit/packs/marketing/skills/process/marketing-facilitation/SKILL.md"
+        }
+      ]
+    }
+  },
+  "agents": [
+    {
+      "id": "marketing-reviewer",
+      "path": ".prepkit/packs/marketing/agents/marketing-reviewer.md"
+    },
+    {
+      "id": "marketing-copywriter",
+      "path": ".prepkit/packs/marketing/agents/marketing-copywriter.md"
+    },
+    {
+      "id": "marketing-content-reviewer",
+      "path": ".prepkit/packs/marketing/agents/marketing-content-reviewer.md"
+    },
+    {
+      "id": "marketing-campaign-diagnostician",
+      "path": ".prepkit/packs/marketing/agents/marketing-campaign-diagnostician.md"
+    },
+    {
+      "id": "marketing-strategist",
+      "path": ".prepkit/packs/marketing/agents/marketing-strategist.md"
+    },
+    {
+      "id": "marketing-performance-marketer",
+      "path": ".prepkit/packs/marketing/agents/marketing-performance-marketer.md"
+    },
+    {
+      "id": "marketing-seo-specialist",
+      "path": ".prepkit/packs/marketing/agents/marketing-seo-specialist.md"
+    },
+    {
+      "id": "marketing-growth-analyst",
+      "path": ".prepkit/packs/marketing/agents/marketing-growth-analyst.md"
+    },
+    {
+      "id": "marketing-content-strategist",
+      "path": ".prepkit/packs/marketing/agents/marketing-content-strategist.md"
+    },
+    {
+      "id": "marketing-social-media-manager",
+      "path": ".prepkit/packs/marketing/agents/marketing-social-media-manager.md"
+    },
+    {
+      "id": "marketing-gtm-manager",
+      "path": ".prepkit/packs/marketing/agents/marketing-gtm-manager.md"
+    },
+    {
+      "id": "marketing-lifecycle-strategist",
+      "path": ".prepkit/packs/marketing/agents/marketing-lifecycle-strategist.md"
+    },
+    {
+      "id": "marketing-ops-analyst",
+      "path": ".prepkit/packs/marketing/agents/marketing-ops-analyst.md"
+    },
+    {
+      "id": "marketing-media-designer",
+      "path": ".prepkit/packs/marketing/agents/marketing-media-designer.md"
+    },
+    {
+      "id": "marketing-claims-judge",
+      "path": ".prepkit/packs/marketing/agents/marketing-claims-judge.md"
+    },
+    {
+      "id": "marketing-creative-scorer",
+      "path": ".prepkit/packs/marketing/agents/marketing-creative-scorer.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "mkt",
+      "path": ".prepkit/packs/marketing/commands/mkt.md"
+    },
+    {
+      "id": "mkt-campaign",
+      "path": ".prepkit/packs/marketing/commands/mkt-campaign.md"
+    },
+    {
+      "id": "mkt-setup",
+      "path": ".prepkit/packs/marketing/commands/mkt-setup.md"
+    },
+    {
+      "id": "mkt-connect",
+      "path": ".prepkit/packs/marketing/commands/mkt-connect.md"
+    },
+    {
+      "id": "mkt-research",
+      "path": ".prepkit/packs/marketing/commands/mkt-research.md"
+    },
+    {
+      "id": "mkt-build-landing-page",
+      "path": ".prepkit/packs/marketing/commands/mkt-build-landing-page.md"
+    },
+    {
+      "id": "mkt-write-blog",
+      "path": ".prepkit/packs/marketing/commands/mkt-write-blog.md"
+    },
+    {
+      "id": "mkt-social-pack",
+      "path": ".prepkit/packs/marketing/commands/mkt-social-pack.md"
+    },
+    {
+      "id": "mkt-seo-audit",
+      "path": ".prepkit/packs/marketing/commands/mkt-seo-audit.md"
+    },
+    {
+      "id": "mkt-launch",
+      "path": ".prepkit/packs/marketing/commands/mkt-launch.md"
+    },
+    {
+      "id": "mkt-ads",
+      "path": ".prepkit/packs/marketing/commands/mkt-ads.md"
+    },
+    {
+      "id": "mkt-email-sequence",
+      "path": ".prepkit/packs/marketing/commands/mkt-email-sequence.md"
+    },
+    {
+      "id": "mkt-report",
+      "path": ".prepkit/packs/marketing/commands/mkt-report.md"
+    },
+    {
+      "id": "mkt-measure",
+      "path": ".prepkit/packs/marketing/commands/mkt-measure.md"
+    },
+    {
+      "id": "mkt-generate-asset",
+      "path": ".prepkit/packs/marketing/commands/mkt-generate-asset.md"
+    },
+    {
+      "id": "mkt-creative-run",
+      "path": ".prepkit/packs/marketing/commands/mkt-creative-run.md"
+    },
+    {
+      "id": "mkt-eval-calibrate",
+      "path": ".prepkit/packs/marketing/commands/mkt-eval-calibrate.md"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "mkt-campaign-golden",
+      "path": ".prepkit/packs/marketing/workflows/mkt-campaign-golden.md"
+    },
+    {
+      "id": "marketing-launch",
+      "path": ".prepkit/packs/marketing/workflows/marketing-launch.md"
+    },
+    {
+      "id": "marketing-go-to-market",
+      "path": ".prepkit/packs/marketing/workflows/marketing-go-to-market.md"
+    },
+    {
+      "id": "marketing-content-pipeline",
+      "path": ".prepkit/packs/marketing/workflows/marketing-content-pipeline.md"
+    },
+    {
+      "id": "marketing-conversion-optimization",
+      "path": ".prepkit/packs/marketing/workflows/marketing-conversion-optimization.md"
+    },
+    {
+      "id": "marketing-growth-loop",
+      "path": ".prepkit/packs/marketing/workflows/marketing-growth-loop.md"
+    },
+    {
+      "id": "marketing-campaign-sprint",
+      "path": ".prepkit/packs/marketing/workflows/marketing-campaign-sprint.md"
+    },
+    {
+      "id": "marketing-lifecycle-flow",
+      "path": ".prepkit/packs/marketing/workflows/marketing-lifecycle-flow.md"
+    },
+    {
+      "id": "mkt-creative-run-pipeline",
+      "path": ".prepkit/packs/marketing/workflows/mkt-creative-run-pipeline.md"
+    }
+  ]
+}

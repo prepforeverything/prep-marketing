@@ -1,0 +1,15 @@
+{
+  "scorer_prompt_version": "marketing-creative-scorer@v2-sonnet",
+  "graded_at": "2026-06-08",
+  "blind": true,
+  "judge_model": "claude-sonnet-4-6",
+  "note": "Thickened to 6 anchors (>=2 per band; the *b anchors are status:draft pending human ratification). Re-graded after downgrading marketing-creative-scorer opus->sonnet (cost). Truly-blind bodies (concept description only; score heading + rationale stripped). BOTH opus and sonnet scored 6/6 within the +/-1 tolerance: sonnet diverged only on img-8b-literal (7 vs human 8; opus 8) and the two strong anchors (12 vs human 11), all inside tolerance. Single-rater pass; multi-rater Krippendorff alpha >= 0.8 out of scope (documented target). Re-grade monthly / on any prompt or model change.",
+  "scores": {
+    "img-4-weak": 4,
+    "img-4b-artifacts": 4,
+    "img-8-competent": 8,
+    "img-8b-literal": 7,
+    "img-11-strong": 12,
+    "img-11b-typographic": 12
+  }
+}

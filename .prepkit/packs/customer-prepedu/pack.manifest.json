@@ -1,0 +1,20 @@
+{
+  "name": "customer-prepedu",
+  "version": "1.0.0",
+  "description": "Optional customer-specific PrepEdu product context overlay. Provides company strategy, markets, squads, north stars, and active problems via teamContext for product skills when explicitly selected. Activate by adding \"customer-prepedu\" to selectedPacks in .prepkit/pack-selection.json, then rebuild with: node .prepkit/scripts/build-pack.mjs --packs <existing-packs>,customer-prepedu",
+  "claude": {
+    "commandScope": "on-activation"
+  },
+  "teamContext": ".prepkit/packs/customer-prepedu/references/prepedu-context.md",
+  "requires": {
+    "coreVersion": "^1.5.0",
+    "capabilities": []
+  },
+  "capabilities": {
+    "toolAdapters": [],
+    "skills": {
+      "domain": [],
+      "process": []
+    }
+  }
+}

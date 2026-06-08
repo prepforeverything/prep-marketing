@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/stage-08-script.schema.json",
+  "title": "Stage 08 — Timed ad script (typed beats)",
+  "description": "Typed I/O contract for /mkt-creative-run Stage 08 (design §2/§6.1 — no free-text handoffs). Stage 08 turns the Stage-07 brief + persona + force-map into a timed, beat-by-beat script. This schema formalizes the hand-built CHECKPOINT-1 sample (context/proposed/creative-runs/20260608-072919/sample-stage-08-script.md) into typed fields: each beat names its shot, on-screen text, VO, motion, the JTBD force it serves (force_ref), the motivator(s) it pulls (motivator_refs), and every claim it asserts (claim_refs). The on_screen_text is the surface the deterministic claims floor runs publish-mode against. provenance: run_id + persona_ref; spec pins aspect_ratio / duration_s / muted_first.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "persona_ref", "spec", "beats"],
+  "$defs": {
+    "claimRef": {
+      "type": "string",
+      "pattern": "^CLM-[0-9]{3,}$",
+      "description": "A reference to one approved/declared claim id in context/claims.json (e.g. \"CLM-008\"). The bare id only — render markers ([[...]]/{{...}}) are presentation. The deterministic claims floor reads these to fail-close on unverified claims."
+    },
+    "claimRefs": {
+      "type": "array",
+      "description": "Every claim id this beat's copy asserts (empty when the beat makes no PrepEdu claim — e.g. an end-card or agitate beat). Typed surface for the claims gate — never inferred from prose.",
+      "items": { "$ref": "#/$defs/claimRef" },
+      "uniqueItems": true
+    },
+    "forceRef": {
+      "type": "string",
+      "enum": ["PUSH", "PULL", "ANXIETY", "HABIT"],
+      "description": "The single JTBD force this beat primarily serves (push / pull / anxiety / habit), per context/proposed/motivator-map.md Stage-04 force-map."
+    },
+    "motivatorRef": {
+      "type": "string",
+      "pattern": "^[A-Z][0-9]+$",
+      "description": "A motivator id from context/proposed/motivator-map.md (segment letter + number, e.g. \"A1\", \"A2\", \"B6\", \"C3\")."
+    }
+  },
+  "properties": {
+    "run_id": { "type": "string", "description": "Timestamped run id (e.g. 20260608-072919) — ties this artifact to the run manifest." },
+    "persona_ref": { "type": "string", "description": "Persona this script targets, referencing context/proposed/audience-personas.md (e.g. \"Persona 4 — Thảo (Segment A)\")." },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Production spec pinned for the whole script.",
+      "required": ["aspect_ratio", "duration_s", "muted_first"],
+      "properties": {
+        "aspect_ratio": { "type": "string", "description": "Canvas aspect ratio (e.g. \"9:16\")." },
+        "duration_s": { "type": "number", "minimum": 0, "description": "Total runtime in seconds (e.g. 15). Beats should sum to ≤ this." },
+        "muted_first": { "type": "boolean", "description": "Whether the script is muted-first — every spoken line is also burned-in on-screen text so the message lands with sound off." }
+      }
+    },
+    "beats": {
+      "type": "array",
+      "description": "The ordered beats of the script. Each beat is the typed form of one '**Beat N — …**' block in the hand-built sample.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["seq", "timecode", "shot", "on_screen_text", "vo", "motion", "force_ref", "motivator_refs", "claim_refs"],
+        "properties": {
+          "seq": { "type": "integer", "minimum": 1, "description": "1-based beat sequence number (Beat 1, Beat 2, …)." },
+          "timecode": { "type": "string", "description": "The beat's time window as authored (e.g. \"0.0-2.0s\" / \"9.0–11.5s\"). A label, not parsed — accepts the sample's en-dash or hyphen form." },
+          "shot": { "type": "string", "description": "The visual shot description for this beat." },
+          "on_screen_text": { "type": "string", "description": "Burned-in on-screen text (locale-native, muted-first). This is the surface the deterministic claims floor runs publish-mode against. Use an empty string for a beat with no on-screen text." },
+          "vo": { "type": "string", "description": "Voice-over line (locale-native). Empty string when the beat has no VO (e.g. an end-card that holds, muted-safe)." },
+          "motion": { "type": "string", "description": "Sound / motion / transition direction for the beat." },
+          "force_ref": { "$ref": "#/$defs/forceRef" },
+          "motivator_refs": {
+            "type": "array",
+            "description": "The motivator id(s) this beat pulls (e.g. [\"A1\", \"A2\"]). Empty allowed for a pure brand/end-card beat that serves no specific motivator.",
+            "items": { "$ref": "#/$defs/motivatorRef" },
+            "uniqueItems": true
+          },
+          "claim_refs": { "$ref": "#/$defs/claimRefs" }
+        }
+      }
+    }
+  }
+}

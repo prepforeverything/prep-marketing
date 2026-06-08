@@ -1,0 +1,88 @@
+{
+  "run_id": "20260608-072919",
+  "persona_ref": "P4",
+  "spec": {
+    "aspect_ratio": "9:16",
+    "duration_s": 15,
+    "muted_first": true
+  },
+  "beats": [
+    {
+      "seq": 1,
+      "timecode": "0.0-2.0s",
+      "shot": "Tight on a phone screen showing a mock IELTS band card 'Speaking 5.5'; a wall calendar in the corner ticking down '6 tuần'.",
+      "on_screen_text": "Còn 6 tuần nộp hồ sơ, Speaking vẫn 5.5?",
+      "vo": "Còn sáu tuần nữa là tới hạn… mà Speaking vẫn 5.5.",
+      "motion": "Snap cut in; clock-tick SFX; subtle red pulse on '6 tuần'.",
+      "force_ref": "PUSH",
+      "motivator_refs": ["A1", "A2"],
+      "claim_refs": []
+    },
+    {
+      "seq": 2,
+      "timecode": "2.0-4.0s",
+      "shot": "Quick montage — crossed-out notebook pages, a learner sighing at a laptop.",
+      "on_screen_text": "Học mãi mà không biết sai ở đâu.",
+      "vo": "Học mãi mà chẳng biết mình sai chỗ nào, nên mãi không lên.",
+      "motion": "Fast jump cuts; music drops to a single anxious note.",
+      "force_ref": "PUSH",
+      "motivator_refs": ["A2"],
+      "claim_refs": []
+    },
+    {
+      "seq": 3,
+      "timecode": "4.0-6.5s",
+      "shot": "Screen-capture of AI feedback marking a Writing sentence — error highlighted, fix shown; a Speaking waveform with a pronunciation flag.",
+      "on_screen_text": "AI chấm Writing & Speaking — chỉ ra đúng lỗi cần sửa.",
+      "vo": "Prep chấm Writing và Speaking bằng AI — chỉ cho bạn đúng chỗ sai cần sửa.",
+      "motion": "UI highlight animation; music lifts (resolution).",
+      "force_ref": "PULL",
+      "motivator_refs": ["A4"],
+      "claim_refs": []
+    },
+    {
+      "seq": 4,
+      "timecode": "6.5-9.0s",
+      "shot": "A clean personalized Study Plan UI — today's tasks, a progress line climbing toward a '6.5' flag.",
+      "on_screen_text": "Lộ trình rõ ràng — biết mỗi ngày học gì.",
+      "vo": "Một lộ trình rõ ràng tới band bạn cần — mỗi ngày biết chính xác phải học gì.",
+      "motion": "Upward camera drift; checkmarks tick on.",
+      "force_ref": "PULL",
+      "motivator_refs": ["A4"],
+      "claim_refs": []
+    },
+    {
+      "seq": 5,
+      "timecode": "9.0-11.5s",
+      "shot": "Logo lockup + a counter animating to 500.000+; a grid of diverse young learner avatars.",
+      "on_screen_text": "Hơn 500.000 học viên đã tin chọn Prep",
+      "vo": "Hơn năm trăm nghìn học viên đã tin chọn Prep.",
+      "motion": "Counter roll-up; confident music swell.",
+      "force_ref": "ANXIETY",
+      "motivator_refs": ["A5"],
+      "claim_refs": ["CLM-008"]
+    },
+    {
+      "seq": 6,
+      "timecode": "11.5-13.5s",
+      "shot": "A 'Kiểm tra band miễn phí' button; a 30-second mock band-check flow.",
+      "on_screen_text": "Kiểm tra band miễn phí — biết ngay còn thiếu bao nhiêu.",
+      "vo": "Kiểm tra trình độ miễn phí — biết ngay bạn còn cách band mục tiêu bao xa.",
+      "motion": "Cursor taps button; button-tap SFX.",
+      "force_ref": "HABIT",
+      "motivator_refs": ["A10"],
+      "claim_refs": []
+    },
+    {
+      "seq": 7,
+      "timecode": "13.5-15.0s",
+      "shot": "End-card: Prep logo, Zalo OA badge, the CTA button held.",
+      "on_screen_text": "Prep — Nhắn Zalo OA để nhận lộ trình.",
+      "vo": "",
+      "motion": "Logo sting; gentle hold (muted-safe).",
+      "force_ref": "HABIT",
+      "motivator_refs": [],
+      "claim_refs": []
+    }
+  ]
+}

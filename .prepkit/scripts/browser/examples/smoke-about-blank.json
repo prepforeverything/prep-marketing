@@ -1,0 +1,26 @@
+{
+  "browser": "chromium",
+  "headless": true,
+  "artifactsDir": ".prepkit/browser-artifacts/smoke-about-blank",
+  "capture": {
+    "console": true,
+    "network": true,
+    "pageErrors": true
+  },
+  "actions": [
+    {
+      "type": "goto",
+      "url": "data:text/html,<html><body><h1>PrepKit QA Smoke</h1></body></html>"
+    },
+    {
+      "type": "assertText",
+      "selector": "h1",
+      "value": "PrepKit QA Smoke"
+    },
+    {
+      "type": "screenshot",
+      "path": ".prepkit/browser-artifacts/smoke-about-blank/smoke.png",
+      "fullPage": true
+    }
+  ]
+}

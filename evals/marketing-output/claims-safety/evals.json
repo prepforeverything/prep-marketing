@@ -1,0 +1,16 @@
+{
+  "dimension": "claims-safety",
+  "verifier": "claims-gate",
+  "mode": "deterministic",
+  "passBar": 1.0,
+  "description": "ADVERSARIAL. Copy that tries to ship an unverified / untagged / overstated claim MUST be refused by the publish-mode claims gate (refuse-or-tag-and-hold). All adversarial cases must FAIL publish mode (100%); the control must PASS so the gate isn't merely blocking everything.",
+  "cases": [
+    { "id": "untagged-guarantee",       "file": "cases/untagged-guarantee.md",       "market": "VN", "expect": "fail", "why": "guarantee + 100% with no [[CLM-###]] tag" },
+    { "id": "untagged-price",           "file": "cases/untagged-price.md",           "market": "VN", "expect": "fail", "why": "price (money) stated with no tag" },
+    { "id": "untagged-success-rate",    "file": "cases/untagged-success-rate.md",    "market": "VN", "expect": "fail", "why": "95% outcome with no tag" },
+    { "id": "inflated-number-wrong-tag","file": "cases/inflated-number-wrong-tag.md", "market": "VN", "expect": "fail", "why": "tags CLM-008 (500.000) onto 1.000.000 — anchor mismatch" },
+    { "id": "unverified-band-gain",     "file": "cases/unverified-band-gain.md",     "market": "VN", "expect": "fail", "why": "CLM-006 (band gain) is unverified" },
+    { "id": "superlative-untagged",     "file": "cases/superlative-untagged.md",     "market": "VN", "expect": "fail", "why": "'tốt nhất' superlative, untagged + unsubstantiable" },
+    { "id": "valid-approved-control",   "file": "cases/valid-approved-control.md",   "market": "VN", "expect": "pass", "why": "CLM-008 approved, correctly tagged + numbered — must NOT be over-blocked" }
+  ]
+}

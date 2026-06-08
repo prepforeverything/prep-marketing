@@ -1,0 +1,92 @@
+{
+  "run_id": "20260608-072919",
+  "persona_ref": "P4",
+  "generated_at": "2026-06-08T09:10:00Z",
+  "hooks": [
+    {
+      "hook_id": "H4a",
+      "body_id": "B4a",
+      "cta_id": "C4a",
+      "hook_text": "Còn 6 tuần nộp hồ sơ, Speaking vẫn 5.5?",
+      "cta_text": "Kiểm tra band miễn phí",
+      "why_it_works": "Opens on the deadline PUSH (A1) + the sourced stuck-Speaking wall (A2, validated vs S2) in the first 2s so Thảo self-selects instantly; inherits the brief territory 'Còn kịp, nếu biết luyện đúng'. Ladder is a prediction, not a measurement.",
+      "formula": "PAS",
+      "ladder": {
+        "thumb_stop_pct_predicted": 31,
+        "hold_pct_predicted": 18,
+        "ctr_target": null,
+        "cpa_target": null
+      },
+      "muted_test_pass": true,
+      "claim_refs": []
+    },
+    {
+      "hook_id": "H4b",
+      "body_id": "B4b",
+      "cta_id": "C4b",
+      "hook_text": "Bạn vẫn kịp đạt band cần — nếu luyện đúng.",
+      "cta_text": "Xem lộ trình của bạn",
+      "why_it_works": "Compresses the brief SMP's reassurance ('still in time, if you practise right') into the hook — pays off A1 panic with the A4 roadmap PULL; predicted attention proxy, never asserted as proven.",
+      "formula": "BAB",
+      "ladder": {
+        "thumb_stop_pct_predicted": 28,
+        "hold_pct_predicted": 20,
+        "ctr_target": null,
+        "cpa_target": null
+      },
+      "muted_test_pass": true,
+      "claim_refs": []
+    },
+    {
+      "hook_id": "H4c",
+      "body_id": "B4c",
+      "cta_id": "C4a",
+      "hook_text": "Mỗi ngày luyện gì để kịp band trước hạn?",
+      "cta_text": "Kiểm tra band miễn phí",
+      "why_it_works": "Names the daily-planning gap from the SMP ('biết chính xác mỗi ngày phải luyện gì', A4) as a question — AIDA attention for cold; defuses the free-app drift with a one-tap check. Recombines cta C4a onto a new hook/body. Predicted ladder.",
+      "formula": "AIDA",
+      "ladder": {
+        "thumb_stop_pct_predicted": 26,
+        "hold_pct_predicted": 17,
+        "ctr_target": null,
+        "cpa_target": null
+      },
+      "muted_test_pass": true,
+      "claim_refs": []
+    },
+    {
+      "hook_id": "H4d",
+      "body_id": "B4a",
+      "cta_id": "C4c",
+      "hook_text": "Writing bị trừ điểm mà không biết sai đâu?",
+      "cta_text": "Chấm thử Writing miễn phí",
+      "why_it_works": "Leads on the stuck-Writing half of the A2 wall (no feedback loop) toward the roadmap PULL (A4); recombines body B4a with a Writing-specific CTA to show the same body works across CTAs. Predicted ladder, not measured.",
+      "formula": "PAS",
+      "ladder": {
+        "thumb_stop_pct_predicted": 29,
+        "hold_pct_predicted": 19,
+        "ctr_target": null,
+        "cpa_target": null
+      },
+      "muted_test_pass": true,
+      "claim_refs": []
+    },
+    {
+      "hook_id": "H4e",
+      "body_id": "B4b",
+      "cta_id": "C4b",
+      "hook_text": "Từ 6.0 lên band mình cần, có lộ trình rõ.",
+      "cta_text": "Xem lộ trình của bạn",
+      "why_it_works": "Before->after on Thảo's own 6.0 starting point (A4, validated modal 6.0 vs S2) to a named-band roadmap — BAB; the '6.0' is her learner-state framing, not a PrepEdu outcome claim, so claim_refs stays empty. Recombines body B4b with cta C4b. Predicted attention proxy.",
+      "formula": "BAB",
+      "ladder": {
+        "thumb_stop_pct_predicted": 27,
+        "hold_pct_predicted": 21,
+        "ctr_target": null,
+        "cpa_target": null
+      },
+      "muted_test_pass": true,
+      "claim_refs": []
+    }
+  ]
+}

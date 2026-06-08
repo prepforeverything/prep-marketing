@@ -1,0 +1,12 @@
+{
+  "_note": "Team configuration for the marketing kit. Written by /mkt-setup; safe to hand-edit. Hooks, scripts, commands, agents, and skills read these values instead of hardcoding company / locale / market / governance. Delete this file to fall back to neutral defaults (primaryMarket 'VN', publishGate 'warn').",
+  "companyName": "PrepEdu",
+  "primaryLocale": "vi-VN",
+  "primaryMarket": "VN",
+  "markets": ["VN"],
+  "businessType": "education / test-prep (IELTS & English exam prep)",
+  "governance": {
+    "publishGate": "warn",
+    "_publishGate_values": "off = no claims gate on publish-ready writes | warn = flag but allow (advisory default) | deny = block publish-ready writes with unverified claims (opt-in strict, fail-closed)"
+  }
+}

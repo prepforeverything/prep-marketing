@@ -1,0 +1,17 @@
+{
+  "scorer_prompt_version": "marketing-creative-scorer@v2-sonnet",
+  "graded_at": "2026-06-08",
+  "blind": true,
+  "judge_model": "claude-sonnet-4-6",
+  "note": "Thickened to 8 anchors (>=2 per score level; the *b anchors are status:draft pending human ratification). Re-graded after downgrading marketing-creative-scorer opus->sonnet (cost). Truly-blind bodies (frontmatter human_score + in-body score heading + '## Human rationale' all stripped via /tmp/build-blind.mjs). BOTH opus and sonnet scored 8/8 within the +/-0.5 tolerance: sonnet was slightly more conservative on the floor cases (1.3 vs human 1.0) and on sb-2-generic-twist (1.7 vs 2.0) but every score is inside tolerance, so the downgrade holds. Single-rater pass; multi-rater Krippendorff alpha >= 0.8 remains out of scope (documented target). Re-grade monthly / on any prompt or model change.",
+  "scores": {
+    "sb-1-off-signal": 1.3,
+    "sb-1b-fatigued": 1.3,
+    "sb-2-generic-twist": 1.7,
+    "sb-2b-discount": 2.0,
+    "sb-3-solid-signal": 3.0,
+    "sb-3b-diagnostic": 3.0,
+    "sb-4-deadline-whitespace": 4.0,
+    "sb-4b-countdown": 4.0
+  }
+}

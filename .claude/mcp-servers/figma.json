@@ -1,0 +1,5 @@
+{
+  "_comment": "Copy this into your Claude Code settings under mcpServers.figma to enable the official Figma MCP server. The server is remote (HTTP) and auths via OAuth — run /mcp inside Claude Code after adding it. Requires Dev or Full seat on Professional/Organization/Enterprise plans for full rate limits; Starter/View seats are limited to 6 tool calls per month. Source: https://github.com/figma/mcp-server-guide",
+  "type": "http",
+  "url": "https://mcp.figma.com/mcp"
+}

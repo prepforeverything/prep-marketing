@@ -1,0 +1,11 @@
+{
+  "dimension": "localization",
+  "mode": "deterministic",
+  "passBar": 1.0,
+  "description": "VN-first output + locale ≠ market. VN-market copy must be Vietnamese (diacritics present); a VN-approved claim must NOT clear a TH publish (per-locale approval).",
+  "cases": [
+    { "id": "vn-first-pass",      "file": "cases/vn-first-pass.md",      "market": "VN", "check": "vn-first",     "expect": "pass", "why": "Vietnamese-first copy for a VN piece" },
+    { "id": "english-for-vn-fail","file": "cases/english-for-vn-fail.md","market": "VN", "check": "vn-first",     "expect": "fail", "why": "English copy for a VN piece is not VN-first" },
+    { "id": "vn-claim-for-th-fail","file": "cases/vn-claim-for-th-fail.md","market": "TH","check": "claims-gate", "expect": "fail", "why": "CLM-008 is VN-approved only — must fail a TH publish (locale ≠ market)" }
+  ]
+}

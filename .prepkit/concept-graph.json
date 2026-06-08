@@ -1,0 +1,1483 @@
+{
+  "domains": {
+    "engineering": {
+      "concepts": {
+        "feature-flags": {
+          "crossCutting": true,
+          "domain": "engineering",
+          "id": "feature-flags",
+          "primerText": "Toggles that control feature rollout independently of deployment. Enables product validation experiments (A/B tests) without requiring separate releases."
+        },
+        "incident-response": {
+          "crossCutting": true,
+          "domain": "engineering",
+          "id": "incident-response",
+          "primerText": "Structured process for handling production failures. Connects to continuous improvement -- post-incident reviews produce the same insights as product retrospectives."
+        },
+        "observability": {
+          "crossCutting": true,
+          "domain": "engineering",
+          "id": "observability",
+          "primerText": "The ability to understand system behavior from external outputs (logs, metrics, traces). Connects to product metrics -- you can't measure what you can't observe."
+        },
+        "slo-error-budgets": {
+          "crossCutting": true,
+          "domain": "engineering",
+          "id": "slo-error-budgets",
+          "primerText": "SLOs define acceptable failure rates; error budgets are the margin before an alert fires. Same guardrail thinking as counter-metrics -- both prevent optimizing one thing at the expense of another."
+        },
+        "spike-prototype": {
+          "crossCutting": true,
+          "domain": "engineering",
+          "id": "spike-prototype",
+          "primerText": "A time-boxed investigation to reduce uncertainty before committing to a full build. Same risk-reduction pattern as cheapest-next-move in product validation."
+        },
+        "technical-debt": {
+          "crossCutting": true,
+          "domain": "engineering",
+          "id": "technical-debt",
+          "primerText": "Shortcuts that were necessary at the time but now slow iteration. Product teams should care because it directly affects how fast new features can ship."
+        },
+        "test-coverage-confidence": {
+          "crossCutting": true,
+          "domain": "engineering",
+          "id": "test-coverage-confidence",
+          "primerText": "Test coverage measures how much code is exercised by tests. Like evidence grading in product -- high coverage = higher confidence, but coverage alone doesn't guarantee correctness."
+        }
+      }
+    },
+    "marketing": {
+      "concepts": {
+        "attribution-modeling": {
+          "crossCutting": true,
+          "domain": "marketing",
+          "id": "attribution-modeling",
+          "primerText": "Determining which marketing touchpoints contributed to a conversion. Same evidence-quality challenge as product evidence grading -- correlation isn't causation."
+        },
+        "cac-ltv-ratio": {
+          "crossCutting": true,
+          "domain": "marketing",
+          "id": "cac-ltv-ratio",
+          "primerText": "Customer Acquisition Cost vs Lifetime Value. Connects to PLG strategy -- PLG aims to reduce CAC by making the product itself the growth engine."
+        },
+        "channel-mix": {
+          "crossCutting": true,
+          "domain": "marketing",
+          "id": "channel-mix",
+          "primerText": "Distribution of marketing investment across channels. Requires the same prioritization discipline as product backlog -- finite resources, infinite options."
+        },
+        "conversion-funnel": {
+          "crossCutting": true,
+          "domain": "marketing",
+          "id": "conversion-funnel",
+          "primerText": "The stages users pass through from awareness to purchase. Maps directly to AARRR pirate metrics -- both track drop-off between stages."
+        },
+        "positioning": {
+          "crossCutting": true,
+          "domain": "marketing",
+          "id": "positioning",
+          "primerText": "How your product is perceived relative to alternatives. Connects to switching forces -- positioning addresses the Pull force (why switch to us)."
+        }
+      }
+    },
+    "product": {
+      "concepts": {
+        "3-2-1-ux-principle": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "3-2-1-ux-principle",
+          "module": "10-uiux-design-evaluation.md",
+          "primerText": "",
+          "section": "3-2-1 UX principle",
+          "skillId": "product-uiux-design",
+          "source": "both"
+        },
+        "8-hard-limits": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "8-hard-limits",
+          "module": "11-ux-writing-fundamentals.md",
+          "primerText": "",
+          "section": "8 Hard Limits (All Zones)",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "80-white-hat-20-black-hat-maximum": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "80-white-hat-20-black-hat-maximum",
+          "module": null,
+          "primerText": "",
+          "section": "80% White Hat / 20% Black Hat maximum",
+          "skillId": "product-ux-writing",
+          "source": "skill"
+        },
+        "a-b-testing": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "a-b-testing",
+          "module": "08-validation-and-experimentation.md",
+          "primerText": "",
+          "section": "A/B Testing Fundamentals",
+          "skillId": "product-validation",
+          "source": "learning-module"
+        },
+        "aarrr-pirate-metrics": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "aarrr-pirate-metrics",
+          "module": "06-metrics-and-measurement.md",
+          "primerText": "",
+          "section": "AARRR Pirate Metrics",
+          "skillId": "product-metrics-analysis",
+          "source": "learning-module"
+        },
+        "acceptance-criteria": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "acceptance-criteria",
+          "module": "04-solution-definition.md",
+          "primerText": "",
+          "section": "Acceptance Criteria (Given/When/Then)",
+          "skillId": "product-prd-authoring",
+          "source": "learning-module"
+        },
+        "assumption-mapping": {
+          "crossCutting": true,
+          "domain": "product",
+          "id": "assumption-mapping",
+          "module": "08-validation-and-experimentation.md",
+          "primerText": "List assumptions, rate on criticality times uncertainty. Test the ones that are both critical AND uncertain first.",
+          "section": "Assumption Mapping",
+          "skillId": "product-validation",
+          "source": "learning-module"
+        },
+        "before-after-bridge-at-copy-level": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "before-after-bridge-at-copy-level",
+          "module": "11-ux-writing-fundamentals.md",
+          "primerText": "",
+          "section": "Before/After/Bridge at Copy Level",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "before-after-bridge-at-interaction-level": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "before-after-bridge-at-interaction-level",
+          "module": "10-uiux-design-evaluation.md",
+          "primerText": "",
+          "section": "Before/After/Bridge at Interaction Level",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "before-after-bridge-at-the-copy-level": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "before-after-bridge-at-the-copy-level",
+          "module": null,
+          "primerText": "",
+          "section": "Before/After/Bridge at the copy level",
+          "skillId": "product-ux-writing",
+          "source": "skill"
+        },
+        "before-after-bridge-at-the-interaction-level": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "before-after-bridge-at-the-interaction-level",
+          "module": null,
+          "primerText": "",
+          "section": "Before / After / Bridge at the interaction level",
+          "skillId": "product-uiux-design",
+          "source": "skill"
+        },
+        "behavior-loop": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "behavior-loop",
+          "module": null,
+          "primerText": "",
+          "section": "Behavior loop",
+          "skillId": "product-engagement-design",
+          "source": "skill"
+        },
+        "behavioral-design": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "behavioral-design",
+          "module": "07-engagement-and-growth.md",
+          "primerText": "",
+          "section": "Behavioral Design Patterns",
+          "skillId": "product-engagement-design",
+          "source": "learning-module"
+        },
+        "brand-voice-dimensions": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "brand-voice-dimensions",
+          "module": null,
+          "primerText": "",
+          "section": "Brand voice dimensions",
+          "skillId": "product-ux-writing",
+          "source": "skill"
+        },
+        "build-measure-learn": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "build-measure-learn",
+          "module": "09-continuous-improvement.md",
+          "primerText": "Build the smallest thing, measure against pre-defined metrics, learn from data, build next thing. The loop runs continuously, not once.",
+          "section": "Build-Measure-Learn",
+          "skillId": "product-continuous-improvement",
+          "source": "both"
+        },
+        "build-trap": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "build-trap",
+          "module": "08-validation-and-experimentation.md",
+          "primerText": "",
+          "section": "Build trap",
+          "skillId": "product-validation",
+          "source": "both"
+        },
+        "calibration-example-design": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "calibration-example-design",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Calibration Example Design",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "cannibalization-analysis": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "cannibalization-analysis",
+          "module": "03-opportunity-assessment.md",
+          "primerText": "",
+          "section": "Cannibalization Analysis",
+          "skillId": "product-opportunity-mapping",
+          "source": "learning-module"
+        },
+        "capability-fit": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "capability-fit",
+          "module": null,
+          "primerText": "",
+          "section": "Capability fit",
+          "skillId": "product-opportunity-mapping",
+          "source": "skill"
+        },
+        "cheapest-next-move": {
+          "crossCutting": true,
+          "domain": "product",
+          "id": "cheapest-next-move",
+          "module": "08-validation-and-experimentation.md",
+          "primerText": "Always ask: what's the cheapest way to learn if this assumption is true? A $200 fake door test can prevent an $80K feature nobody wants.",
+          "section": "Cheapest Next Move",
+          "skillId": "product-validation",
+          "source": "learning-module"
+        },
+        "choosing-the-right-design-method": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "choosing-the-right-design-method",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Choosing the Right Design Method",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "cognitive-load-theory": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "cognitive-load-theory",
+          "module": null,
+          "primerText": "",
+          "section": "Cognitive load theory",
+          "skillId": "product-uiux-design",
+          "source": "skill"
+        },
+        "cohort-analysis": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "cohort-analysis",
+          "module": "06-metrics-and-measurement.md",
+          "primerText": "",
+          "section": "Cohort Analysis",
+          "skillId": "product-metrics-analysis",
+          "source": "learning-module"
+        },
+        "confidence-calibration": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "confidence-calibration",
+          "module": "05-prioritization.md",
+          "primerText": "",
+          "section": "Confidence Score Honesty",
+          "skillId": "product-prioritization",
+          "source": "learning-module"
+        },
+        "contextual-tone-mapping": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "contextual-tone-mapping",
+          "module": "11-ux-writing-fundamentals.md",
+          "primerText": "",
+          "section": "Contextual tone mapping",
+          "skillId": "product-ux-writing",
+          "source": "both"
+        },
+        "copy-structure-patterns": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "copy-structure-patterns",
+          "module": null,
+          "primerText": "",
+          "section": "Copy structure patterns",
+          "skillId": "product-ux-writing",
+          "source": "skill"
+        },
+        "core-drive-alignment-in-interaction-design": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "core-drive-alignment-in-interaction-design",
+          "module": null,
+          "primerText": "",
+          "section": "Core drive alignment in interaction design",
+          "skillId": "product-uiux-design",
+          "source": "skill"
+        },
+        "cost-of-evidence-ladder": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "cost-of-evidence-ladder",
+          "module": null,
+          "primerText": "",
+          "section": "Cost-of-evidence ladder",
+          "skillId": "product-validation",
+          "source": "skill"
+        },
+        "counter-metrics": {
+          "crossCutting": true,
+          "domain": "product",
+          "id": "counter-metrics",
+          "module": "06-metrics-and-measurement.md",
+          "primerText": "Every target metric needs a guardrail. Optimizing scoring speed without a counter-metric for accuracy will sacrifice quality for speed.",
+          "section": "Counter-metrics",
+          "skillId": "product-metrics-analysis",
+          "source": "both"
+        },
+        "creative-zones": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "creative-zones",
+          "module": "11-ux-writing-fundamentals.md",
+          "primerText": "",
+          "section": "Creative zones",
+          "skillId": "product-ux-writing",
+          "source": "both"
+        },
+        "deceptive-design-taxonomy": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "deceptive-design-taxonomy",
+          "module": "07-engagement-and-growth.md",
+          "primerText": "",
+          "section": "Deceptive design taxonomy",
+          "skillId": "product-engagement-design",
+          "source": "both"
+        },
+        "decision-driven-research": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "decision-driven-research",
+          "module": null,
+          "primerText": "",
+          "section": "Decision-driven research",
+          "skillId": "product-user-interview-design",
+          "source": "skill"
+        },
+        "dependency-mapping": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "dependency-mapping",
+          "module": "03-opportunity-assessment.md",
+          "primerText": "",
+          "section": "Dependency Mapping",
+          "skillId": "product-opportunity-mapping",
+          "source": "learning-module"
+        },
+        "design-thinking-hcd": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "design-thinking-hcd",
+          "module": null,
+          "primerText": "",
+          "section": "Design Thinking / HCD process framing",
+          "skillId": "product-discovery-synthesis",
+          "source": "skill"
+        },
+        "design-zones": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "design-zones",
+          "module": "10-uiux-design-evaluation.md",
+          "primerText": "",
+          "section": "Design zones",
+          "skillId": "product-uiux-design",
+          "source": "both"
+        },
+        "empathy-mapping": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "empathy-mapping",
+          "module": "01-problem-discovery.md",
+          "primerText": "",
+          "section": "Empathy mapping",
+          "skillId": "product-discovery-synthesis",
+          "source": "both"
+        },
+        "error-message-template": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "error-message-template",
+          "module": "11-ux-writing-fundamentals.md",
+          "primerText": "",
+          "section": "Error Message Template",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "ethical-guardrails": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "ethical-guardrails",
+          "module": "07-engagement-and-growth.md",
+          "primerText": "",
+          "section": "Ethical guardrails",
+          "skillId": "product-engagement-design",
+          "source": "both"
+        },
+        "evidence-linked-requirements": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "evidence-linked-requirements",
+          "module": "04-solution-definition.md",
+          "primerText": "",
+          "section": "Evidence-Linked Requirements",
+          "skillId": "product-prd-authoring",
+          "source": "learning-module"
+        },
+        "evidence-quality": {
+          "crossCutting": true,
+          "domain": "product",
+          "id": "evidence-quality",
+          "module": "01-problem-discovery.md",
+          "primerText": "Evidence grades: anecdotal (1 report) to pattern (3+ signals) to quantified (metric-backed) to validated (tested). The grade determines your next move, not your confidence level.",
+          "section": "Evidence Quality",
+          "skillId": "product-facilitation",
+          "source": "both"
+        },
+        "feedback-contracts": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "feedback-contracts",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Feedback Contracts",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "first-principles-decomposition": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "first-principles-decomposition",
+          "module": "01-problem-discovery.md",
+          "primerText": "",
+          "section": "First-principles decomposition",
+          "skillId": "product-discovery-synthesis",
+          "source": "both"
+        },
+        "given-when-then": {
+          "crossCutting": true,
+          "domain": "product",
+          "id": "given-when-then",
+          "module": null,
+          "primerText": "Given [context], When [action], Then [outcome]. If you can't write it, you haven't defined it. Engineers know what to build, QA knows what to test.",
+          "section": "Given/When/Then",
+          "skillId": "product-prd-authoring",
+          "source": "skill"
+        },
+        "gold-standard": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "gold-standard",
+          "module": null,
+          "primerText": "",
+          "section": "Gold standard",
+          "skillId": "product-llm-scoring-pipeline",
+          "source": "skill"
+        },
+        "gold-standard-dataset": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "gold-standard-dataset",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Gold Standard Dataset",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "gold-standard-design-with-generalizability-theory": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "gold-standard-design-with-generalizability-theory",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Gold-Standard Design with Generalizability Theory",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "governance": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "governance",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Governance",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "heart-framework": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "heart-framework",
+          "module": "06-metrics-and-measurement.md",
+          "primerText": "",
+          "section": "HEART framework",
+          "skillId": "product-metrics-analysis",
+          "source": "both"
+        },
+        "heuristic-evaluation-method": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "heuristic-evaluation-method",
+          "module": null,
+          "primerText": "",
+          "section": "Heuristic evaluation method",
+          "skillId": "product-uiux-design",
+          "source": "skill"
+        },
+        "hippo-problem": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "hippo-problem",
+          "module": "05-prioritization.md",
+          "primerText": "",
+          "section": "The HiPPO Problem",
+          "skillId": "product-prioritization",
+          "source": "learning-module"
+        },
+        "hook-model": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "hook-model",
+          "module": "07-engagement-and-growth.md",
+          "primerText": "Trigger to Action to Variable Reward to Investment. External triggers build internal triggers. If the product only works with push notifications, the loop is weak.",
+          "section": "The Hook Model",
+          "skillId": "product-engagement-design",
+          "source": "learning-module"
+        },
+        "hypothesis-labeling": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "hypothesis-labeling",
+          "module": "04-solution-definition.md",
+          "primerText": "",
+          "section": "Hypothesis Labeling",
+          "skillId": "product-prd-authoring",
+          "source": "learning-module"
+        },
+        "information-architecture": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "information-architecture",
+          "module": null,
+          "primerText": "",
+          "section": "Information architecture",
+          "skillId": "product-uiux-design",
+          "source": "skill"
+        },
+        "interview-types": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "interview-types",
+          "module": "02-user-research.md",
+          "primerText": "",
+          "section": "Interview Types",
+          "skillId": "product-user-interview-design",
+          "source": "learning-module"
+        },
+        "intrinsic-vs-extrinsic-motivation": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "intrinsic-vs-extrinsic-motivation",
+          "module": null,
+          "primerText": "",
+          "section": "Intrinsic vs. extrinsic motivation",
+          "skillId": "product-engagement-design",
+          "source": "skill"
+        },
+        "iteration-vs-pivot": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "iteration-vs-pivot",
+          "module": "09-continuous-improvement.md",
+          "primerText": "",
+          "section": "Iteration vs Pivot",
+          "skillId": "product-continuous-improvement",
+          "source": "both"
+        },
+        "journey-mapping": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "journey-mapping",
+          "module": "01-problem-discovery.md",
+          "primerText": "",
+          "section": "Customer journey mapping",
+          "skillId": "product-discovery-synthesis",
+          "source": "both"
+        },
+        "jtbd": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "jtbd",
+          "module": "01-problem-discovery.md",
+          "primerText": "When [situation], I want [motivation], so I can [outcome]. Users hire products to make progress -- frame needs as jobs, not features.",
+          "section": "Jobs-to-be-Done (JTBD)",
+          "skillId": "product-discovery-synthesis",
+          "source": "both"
+        },
+        "kaizen-mindset": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "kaizen-mindset",
+          "module": "09-continuous-improvement.md",
+          "primerText": "",
+          "section": "Kaizen mindset",
+          "skillId": "product-continuous-improvement",
+          "source": "both"
+        },
+        "kano-model": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "kano-model",
+          "module": "05-prioritization.md",
+          "primerText": "Basic needs (expected, anger if absent), Performance needs (more is better), Excitement needs (delight). Fix basics before building excitement -- you can't compensate for broken foundations.",
+          "section": "Kano Model",
+          "skillId": "product-prioritization",
+          "source": "learning-module"
+        },
+        "leading-lagging-indicators": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "leading-lagging-indicators",
+          "module": "06-metrics-and-measurement.md",
+          "primerText": "",
+          "section": "Leading / lagging indicators",
+          "skillId": "product-metrics-analysis",
+          "source": "both"
+        },
+        "metric-tree": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "metric-tree",
+          "module": "06-metrics-and-measurement.md",
+          "primerText": "",
+          "section": "Metric tree",
+          "skillId": "product-metrics-analysis",
+          "source": "both"
+        },
+        "mom-test": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "mom-test",
+          "module": "02-user-research.md",
+          "primerText": "Ask about past behavior, not future intentions. 'Would you use this?' is always wrong -- people are polite. Ask what they actually did.",
+          "section": "The Mom Test",
+          "skillId": "product-user-interview-design",
+          "source": "learning-module"
+        },
+        "moscow": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "moscow",
+          "module": "05-prioritization.md",
+          "primerText": "",
+          "section": "MoSCoW",
+          "skillId": "product-prioritization",
+          "source": "learning-module"
+        },
+        "mvp-mlp": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "mvp-mlp",
+          "module": "08-validation-and-experimentation.md",
+          "primerText": "",
+          "section": "MVP vs MLP",
+          "skillId": "product-validation",
+          "source": "learning-module"
+        },
+        "nielsens-10-usability-heuristics": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "nielsens-10-usability-heuristics",
+          "module": "10-uiux-design-evaluation.md",
+          "primerText": "",
+          "section": "Nielsen's 10 usability heuristics",
+          "skillId": "product-uiux-design",
+          "source": "both"
+        },
+        "non-construct-factors": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "non-construct-factors",
+          "module": null,
+          "primerText": "",
+          "section": "Non-construct factors",
+          "skillId": "product-llm-scoring-pipeline",
+          "source": "skill"
+        },
+        "non-goals": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "non-goals",
+          "module": "04-solution-definition.md",
+          "primerText": "Explicit statements of what you're NOT building, with rationale. Without them, scope expands through 'while we're at it' thinking.",
+          "section": "Non-goals",
+          "skillId": "product-prd-authoring",
+          "source": "both"
+        },
+        "north-star-metric": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "north-star-metric",
+          "module": "06-metrics-and-measurement.md",
+          "primerText": "One metric capturing core value delivered to users. Not revenue (lagging). Must be: user-value, leading, team-influenced, simple, stable.",
+          "section": "North Star Metric",
+          "skillId": "product-metrics-analysis",
+          "source": "both"
+        },
+        "octalysis-core-drive-copy-patterns": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "octalysis-core-drive-copy-patterns",
+          "module": "11-ux-writing-fundamentals.md",
+          "primerText": "",
+          "section": "Octalysis core drive copy patterns",
+          "skillId": "product-ux-writing",
+          "source": "both"
+        },
+        "octalysis-core-drives": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "octalysis-core-drives",
+          "module": "07-engagement-and-growth.md",
+          "primerText": "",
+          "section": "Octalysis Core Drives",
+          "skillId": "product-engagement-design",
+          "source": "learning-module"
+        },
+        "operational-confidence": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "operational-confidence",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Operational confidence",
+          "skillId": "product-llm-scoring-pipeline",
+          "source": "both"
+        },
+        "opportunity-cost": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "opportunity-cost",
+          "module": "03-opportunity-assessment.md",
+          "primerText": "",
+          "section": "Opportunity cost",
+          "skillId": "product-prioritization",
+          "source": "both"
+        },
+        "opportunity-mapping": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "opportunity-mapping",
+          "module": "03-opportunity-assessment.md",
+          "primerText": "",
+          "section": "Opportunity Mapping",
+          "skillId": "product-opportunity-mapping",
+          "source": "learning-module"
+        },
+        "opportunity-space": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "opportunity-space",
+          "module": null,
+          "primerText": "",
+          "section": "Opportunity space",
+          "skillId": "product-discovery-synthesis",
+          "source": "skill"
+        },
+        "outcome-framing": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "outcome-framing",
+          "module": null,
+          "primerText": "",
+          "section": "Outcome framing",
+          "skillId": "product-discovery-synthesis",
+          "source": "skill"
+        },
+        "participant-fit": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "participant-fit",
+          "module": null,
+          "primerText": "",
+          "section": "Participant fit",
+          "skillId": "product-user-interview-design",
+          "source": "skill"
+        },
+        "prd-structure": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "prd-structure",
+          "module": "04-solution-definition.md",
+          "primerText": "",
+          "section": "PRD Structure",
+          "skillId": "product-prd-authoring",
+          "source": "learning-module"
+        },
+        "problem-validation": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "problem-validation",
+          "module": null,
+          "primerText": "",
+          "section": "Problem validation",
+          "skillId": "product-validation",
+          "source": "skill"
+        },
+        "problem-vs-solution-framing": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "problem-vs-solution-framing",
+          "module": "01-problem-discovery.md",
+          "primerText": "",
+          "section": "Problem Framing vs Solution Framing",
+          "skillId": "product-discovery-synthesis",
+          "source": "learning-module"
+        },
+        "product-stance": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "product-stance",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Product stance",
+          "skillId": "product-llm-scoring-pipeline",
+          "source": "both"
+        },
+        "progression-design": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "progression-design",
+          "module": null,
+          "primerText": "",
+          "section": "Progression design",
+          "skillId": "product-engagement-design",
+          "source": "skill"
+        },
+        "progressive-disclosure": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "progressive-disclosure",
+          "module": "10-uiux-design-evaluation.md",
+          "primerText": "",
+          "section": "Progressive disclosure",
+          "skillId": "product-uiux-design",
+          "source": "both"
+        },
+        "pursue-monitor-defer": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "pursue-monitor-defer",
+          "module": "03-opportunity-assessment.md",
+          "primerText": "Every opportunity gets an explicit decision: pursue (invest now), monitor (watch for signals), or defer (not now, with a revisit trigger). Defer without a trigger is a silent discard.",
+          "section": "Pursue / monitor / defer",
+          "skillId": "product-opportunity-mapping",
+          "source": "both"
+        },
+        "qualitative-vs-quantitative": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "qualitative-vs-quantitative",
+          "module": "02-user-research.md",
+          "primerText": "",
+          "section": "Qualitative vs Quantitative Research",
+          "skillId": "product-user-interview-design",
+          "source": "learning-module"
+        },
+        "rater-quality-with-many-faceted-rasch-measurement": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "rater-quality-with-many-faceted-rasch-measurement",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Rater Quality with Many-Faceted Rasch Measurement",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "regret-minimization": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "regret-minimization",
+          "module": null,
+          "primerText": "",
+          "section": "Regret minimization",
+          "skillId": "product-prioritization",
+          "source": "skill"
+        },
+        "revisit-triggers": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "revisit-triggers",
+          "module": "03-opportunity-assessment.md",
+          "primerText": "",
+          "section": "Revisit triggers",
+          "skillId": "product-opportunity-mapping",
+          "source": "both"
+        },
+        "rice-ice-moscow": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "rice-ice-moscow",
+          "module": "05-prioritization.md",
+          "primerText": "Reach x Impact x Confidence / Effort. Confidence must match evidence grade -- anecdotal=50%, pattern=80%, quantified=100%. Inflated confidence is self-deception.",
+          "section": "RICE / ICE / MoSCoW",
+          "skillId": "product-prioritization",
+          "source": "both"
+        },
+        "rubric-design": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "rubric-design",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Rubric Design",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "scope-management": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "scope-management",
+          "module": "04-solution-definition.md",
+          "primerText": "",
+          "section": "Scope Management",
+          "skillId": "product-prd-authoring",
+          "source": "learning-module"
+        },
+        "screener-design": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "screener-design",
+          "module": "02-user-research.md",
+          "primerText": "",
+          "section": "Screener Design",
+          "skillId": "product-user-interview-design",
+          "source": "learning-module"
+        },
+        "severity-rating-scale": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "severity-rating-scale",
+          "module": "10-uiux-design-evaluation.md",
+          "primerText": "",
+          "section": "Severity rating scale",
+          "skillId": "product-uiux-design",
+          "source": "both"
+        },
+        "solution-validation": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "solution-validation",
+          "module": null,
+          "primerText": "",
+          "section": "Solution validation",
+          "skillId": "product-validation",
+          "source": "skill"
+        },
+        "staged-rollout": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "staged-rollout",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Staged Rollout",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "switching-forces": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "switching-forces",
+          "module": "01-problem-discovery.md",
+          "primerText": "Four forces explain adoption: Push (pain of current), Pull (appeal of new), Anxiety (fear of change), Habit (comfort of status quo). All four must be understood.",
+          "section": "Switching forces",
+          "skillId": "product-discovery-synthesis",
+          "source": "both"
+        },
+        "task-taxonomy": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "task-taxonomy",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Task taxonomy",
+          "skillId": "product-llm-scoring-pipeline",
+          "source": "both"
+        },
+        "test-content-analysis": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "test-content-analysis",
+          "module": "12-llm-scoring-pipelines.md",
+          "primerText": "",
+          "section": "Test Content Analysis",
+          "skillId": null,
+          "source": "learning-module"
+        },
+        "traceability": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "traceability",
+          "module": null,
+          "primerText": "",
+          "section": "Traceability",
+          "skillId": "product-prd-authoring",
+          "source": "skill"
+        },
+        "usability-testing": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "usability-testing",
+          "module": null,
+          "primerText": "",
+          "section": "Usability testing",
+          "skillId": "product-validation",
+          "source": "skill"
+        },
+        "user-stories": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "user-stories",
+          "module": "04-solution-definition.md",
+          "primerText": "",
+          "section": "User Stories",
+          "skillId": "product-prd-authoring",
+          "source": "learning-module"
+        },
+        "validation-methods-spectrum": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "validation-methods-spectrum",
+          "module": "08-validation-and-experimentation.md",
+          "primerText": "",
+          "section": "The Validation Methods Spectrum",
+          "skillId": "product-validation",
+          "source": "learning-module"
+        },
+        "value-effort-matrix": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "value-effort-matrix",
+          "module": "05-prioritization.md",
+          "primerText": "",
+          "section": "Value-Effort Matrix",
+          "skillId": "product-prioritization",
+          "source": "learning-module"
+        },
+        "wcag-aa-compliance": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "wcag-aa-compliance",
+          "module": "10-uiux-design-evaluation.md",
+          "primerText": "",
+          "section": "WCAG AA compliance",
+          "skillId": "product-uiux-design",
+          "source": "both"
+        },
+        "wcag-writing-standards": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "wcag-writing-standards",
+          "module": null,
+          "primerText": "",
+          "section": "WCAG writing standards",
+          "skillId": "product-ux-writing",
+          "source": "skill"
+        },
+        "working-backwards": {
+          "crossCutting": false,
+          "domain": "product",
+          "id": "working-backwards",
+          "module": "08-validation-and-experimentation.md",
+          "primerText": "",
+          "section": "Working Backwards (PR/FAQ)",
+          "skillId": "product-validation",
+          "source": "learning-module"
+        }
+      }
+    },
+    "qa": {
+      "concepts": {
+        "acceptance-testing": {
+          "crossCutting": true,
+          "domain": "qa",
+          "id": "acceptance-testing",
+          "primerText": "Verifying that a feature meets its acceptance criteria. Directly connected to Given/When/Then -- acceptance tests ARE the executable version of acceptance criteria."
+        },
+        "accessibility-testing": {
+          "crossCutting": true,
+          "domain": "qa",
+          "id": "accessibility-testing",
+          "primerText": "Verifying that products work for users with disabilities. Connects to ethical guardrails -- accessibility is a basic need (Kano), not an excitement feature."
+        },
+        "exploratory-testing": {
+          "crossCutting": true,
+          "domain": "qa",
+          "id": "exploratory-testing",
+          "primerText": "Unscripted testing to discover unexpected behaviors. Same discovery mindset as product problem discovery -- both seek unknown unknowns."
+        },
+        "regression-testing": {
+          "crossCutting": true,
+          "domain": "qa",
+          "id": "regression-testing",
+          "primerText": "Ensuring new changes don't break existing functionality. Connects to continuous improvement -- the more you iterate, the more important regression safety becomes."
+        },
+        "test-pyramid": {
+          "crossCutting": true,
+          "domain": "qa",
+          "id": "test-pyramid",
+          "primerText": "Unit tests at the base, integration in the middle, E2E at the top. Connects to validation spectrum -- cheapest tests first, expensive tests for high-risk areas."
+        }
+      }
+    }
+  },
+  "edges": [
+    {
+      "from": "product-discovery-synthesis",
+      "to": "product-opportunity-mapping",
+      "type": "enables"
+    },
+    {
+      "from": "product-discovery-synthesis",
+      "to": "product-opportunity-mapping",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-discovery-synthesis",
+      "to": "product-prd-authoring",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-facilitation",
+      "to": "product-user-interview-design",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-llm-scoring-facilitation",
+      "to": "product-llm-scoring-calibration",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-llm-scoring-facilitation",
+      "to": "product-llm-scoring-pipeline",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-llm-scoring-pipeline",
+      "to": "product-llm-scoring-calibration",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-metrics-analysis",
+      "to": "product-prd-authoring",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-metrics-analysis",
+      "to": "product-prioritization",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-opportunity-mapping",
+      "to": "product-prd-authoring",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-opportunity-mapping",
+      "to": "product-prioritization",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-prd-authoring",
+      "to": "product-engagement-design",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-prd-authoring",
+      "to": "product-uiux-design",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-prd-authoring",
+      "to": "product-ux-writing",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-uiux-design",
+      "to": "product-engagement-design",
+      "type": "enables"
+    },
+    {
+      "from": "product-uiux-design",
+      "to": "product-ux-writing",
+      "type": "enables"
+    },
+    {
+      "from": "product-uiux-design",
+      "to": "product-ux-writing",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-validation",
+      "to": "product-llm-scoring-pipeline",
+      "type": "prerequisite"
+    },
+    {
+      "from": "product-validation",
+      "to": "product-user-interview-design",
+      "type": "prerequisite"
+    },
+    {
+      "from": "evidence-quality",
+      "to": "pursue-monitor-defer",
+      "type": "prerequisite"
+    },
+    {
+      "from": "evidence-quality",
+      "to": "confidence-calibration",
+      "type": "prerequisite"
+    },
+    {
+      "from": "evidence-quality",
+      "to": "assumption-mapping",
+      "type": "prerequisite"
+    },
+    {
+      "from": "evidence-quality",
+      "to": "cheapest-next-move",
+      "type": "prerequisite"
+    },
+    {
+      "from": "jtbd",
+      "to": "user-stories",
+      "type": "prerequisite"
+    },
+    {
+      "from": "jtbd",
+      "to": "opportunity-mapping",
+      "type": "prerequisite"
+    },
+    {
+      "from": "jtbd",
+      "to": "north-star-metric",
+      "type": "prerequisite"
+    },
+    {
+      "from": "problem-vs-solution-framing",
+      "to": "non-goals",
+      "type": "prerequisite"
+    },
+    {
+      "from": "problem-vs-solution-framing",
+      "to": "hypothesis-labeling",
+      "type": "prerequisite"
+    },
+    {
+      "from": "north-star-metric",
+      "to": "metric-tree",
+      "type": "prerequisite"
+    },
+    {
+      "from": "north-star-metric",
+      "to": "counter-metrics",
+      "type": "prerequisite"
+    },
+    {
+      "from": "counter-metrics",
+      "to": "ethical-guardrails",
+      "type": "prerequisite"
+    },
+    {
+      "from": "counter-metrics",
+      "to": "a-b-testing",
+      "type": "prerequisite"
+    },
+    {
+      "from": "switching-forces",
+      "to": "hook-model",
+      "type": "informs"
+    },
+    {
+      "from": "kano-model",
+      "to": "rice-ice-moscow",
+      "type": "informs"
+    },
+    {
+      "bridgeRationale": "Both are guardrails that prevent optimizing one metric at the expense of another.",
+      "from": "slo-error-budgets",
+      "to": "counter-metrics",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Both reduce uncertainty through the smallest possible investment before committing.",
+      "from": "spike-prototype",
+      "to": "cheapest-next-move",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Both measure how confident you can be in a claim -- one about code, one about users.",
+      "from": "test-coverage-confidence",
+      "to": "evidence-quality",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Technical shortcuts compound like product debt -- both require deliberate improvement cycles.",
+      "from": "technical-debt",
+      "to": "build-measure-learn",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "You can't track product metrics without engineering observability -- they're two sides of measurement.",
+      "from": "observability",
+      "to": "north-star-metric",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Feature flags are the engineering mechanism that makes product A/B tests possible.",
+      "from": "feature-flags",
+      "to": "a-b-testing",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Post-incident reviews and product retrospectives use the same structure: expected vs actual vs why vs next.",
+      "from": "incident-response",
+      "to": "iteration-vs-pivot",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Attribution faces the same evidence-quality challenge -- distinguishing correlation from causation.",
+      "from": "attribution-modeling",
+      "to": "evidence-quality",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Marketing conversion funnels and AARRR pirate metrics track the same user journey from different lenses.",
+      "from": "conversion-funnel",
+      "to": "aarrr-pirate-metrics",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Product-led growth targets CAC reduction by making the product the acquisition engine -- the Hook Model is its behavioral mechanism.",
+      "from": "cac-ltv-ratio",
+      "to": "hook-model",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Positioning addresses the Pull force -- why users should switch to your product.",
+      "from": "positioning",
+      "to": "switching-forces",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Channel allocation requires the same prioritization discipline as product backlog -- finite resources, infinite options.",
+      "from": "channel-mix",
+      "to": "rice-ice-moscow",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Acceptance tests are the executable version of Given/When/Then acceptance criteria.",
+      "from": "acceptance-testing",
+      "to": "given-when-then",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Iteration velocity depends on regression safety -- both are part of sustainable improvement.",
+      "from": "regression-testing",
+      "to": "build-measure-learn",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Both seek unknown unknowns through structured but open-ended investigation.",
+      "from": "exploratory-testing",
+      "to": "problem-vs-solution-framing",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Both prioritize the cheapest validation first -- unit tests before E2E, desk research before beta.",
+      "from": "test-pyramid",
+      "to": "cheapest-next-move",
+      "type": "bridges"
+    },
+    {
+      "bridgeRationale": "Accessibility is a basic need in Kano terms -- users with disabilities expect it, absence is a failure.",
+      "from": "accessibility-testing",
+      "to": "kano-model",
+      "type": "bridges"
+    }
+  ],
+  "generatedAt": "2026-04-11T13:41:54Z",
+  "schemaVersion": 1,
+  "sources": [
+    "docs/reference/knowledge/product-lifecycle/01-problem-discovery.md",
+    "docs/reference/knowledge/product-lifecycle/02-user-research.md",
+    "docs/reference/knowledge/product-lifecycle/03-opportunity-assessment.md",
+    "docs/reference/knowledge/product-lifecycle/04-solution-definition.md",
+    "docs/reference/knowledge/product-lifecycle/05-prioritization.md",
+    "docs/reference/knowledge/product-lifecycle/06-metrics-and-measurement.md",
+    "docs/reference/knowledge/product-lifecycle/07-engagement-and-growth.md",
+    "docs/reference/knowledge/product-lifecycle/08-validation-and-experimentation.md",
+    "docs/reference/knowledge/product-lifecycle/10-uiux-design-evaluation.md",
+    "docs/reference/knowledge/product-lifecycle/11-ux-writing-fundamentals.md",
+    "docs/reference/knowledge/product-lifecycle/12-llm-scoring-pipelines.md",
+    "packs/product/skills/domain/product-continuous-improvement/SKILL.md",
+    "packs/product/skills/domain/product-discovery-synthesis/SKILL.md",
+    "packs/product/skills/domain/product-engagement-design/SKILL.md",
+    "packs/product/skills/domain/product-llm-scoring-pipeline/SKILL.md",
+    "packs/product/skills/domain/product-metrics-analysis/SKILL.md",
+    "packs/product/skills/domain/product-opportunity-mapping/SKILL.md",
+    "packs/product/skills/domain/product-prd-authoring/SKILL.md",
+    "packs/product/skills/domain/product-prioritization/SKILL.md",
+    "packs/product/skills/domain/product-uiux-design/SKILL.md",
+    "packs/product/skills/domain/product-user-interview-design/SKILL.md",
+    "packs/product/skills/domain/product-ux-writing/SKILL.md",
+    "packs/product/skills/domain/product-validation/SKILL.md"
+  ]
+}

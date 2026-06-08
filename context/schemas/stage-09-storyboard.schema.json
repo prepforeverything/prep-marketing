@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/stage-09-storyboard.schema.json",
+  "title": "Stage 09 — Storyboard (typed frames)",
+  "description": "Typed I/O contract for /mkt-creative-run Stage 09 (design §2/§6.1 — no free-text handoffs). Stage 09 turns the Stage-08 script into a frame-by-frame storyboard and is the bridge to Stage 10 (each frame's image_prompt_seed is what the image stage consumes). This schema formalizes the hand-built CHECKPOINT-1 sample (context/proposed/creative-runs/20260608-072919/sample-stage-09-storyboard.md): each frame names its visual, on-screen text, VO, motion, the purpose/force it serves (purpose_force_ref), the image-prompt seed, and every claim it asserts (claim_refs). Claim/number text is ALWAYS a deterministic caption overlay, never baked into a generated image — so claim_refs travel with the frame, not the image prompt. provenance: run_id + derived_from (the Stage-08 script).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "derived_from", "spec", "frames"],
+  "$defs": {
+    "claimRef": {
+      "type": "string",
+      "pattern": "^CLM-[0-9]{3,}$",
+      "description": "A reference to one approved/declared claim id in context/claims.json (e.g. \"CLM-008\"). The bare id only — render markers ([[...]]/{{...}}) are presentation. The deterministic claims floor reads these to fail-close on unverified claims."
+    },
+    "claimRefs": {
+      "type": "array",
+      "description": "Every claim id this frame's caption text asserts (empty when the frame makes no PrepEdu claim). Typed surface for the claims gate — never inferred from prose.",
+      "items": { "$ref": "#/$defs/claimRef" },
+      "uniqueItems": true
+    },
+    "forceRef": {
+      "type": "string",
+      "enum": ["PUSH", "PULL", "ANXIETY", "HABIT"],
+      "description": "The JTBD purpose/force this frame serves (push / pull / anxiety / habit), per context/proposed/motivator-map.md. A brand/CTA-repeat frame may serve a force or none; see purpose_force_ref."
+    }
+  },
+  "properties": {
+    "run_id": { "type": "string", "description": "Timestamped run id (e.g. 20260608-072919) — ties this artifact to the run manifest." },
+    "derived_from": { "type": "string", "description": "The Stage-08 script artifact this storyboard realizes (e.g. \"sample-stage-08-script.md\"). Records the 1:1 beat→frame derivation." },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Production spec locked for every frame. canvas/duration_s are required; the remaining production directions are optional standing constraints carried from the script.",
+      "required": ["canvas", "duration_s"],
+      "properties": {
+        "canvas": { "type": "string", "description": "Canvas dimensions / ratio (e.g. \"1080x1920 (9:16 vertical)\")." },
+        "duration_s": { "type": "number", "minimum": 0, "description": "Total runtime in seconds (e.g. 15)." },
+        "muted_first": { "type": "boolean", "description": "Whether the storyboard is muted-first — every line burned in as a caption; VO additive, never required." },
+        "frame_count": { "type": "integer", "minimum": 1, "description": "Number of frames (optional convenience; should equal frames.length)." }
+      }
+    },
+    "frames": {
+      "type": "array",
+      "description": "The ordered storyboard frames. Each is the typed form of one row in the sample's 'Storyboard frames' table (frame / time / visual / on-screen text / VO / motion / purpose).",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["frame", "timecode", "visual", "on_screen_text", "vo", "motion", "purpose_force_ref", "image_prompt_seed", "claim_refs"],
+        "properties": {
+          "frame": { "type": "integer", "minimum": 1, "description": "1-based frame number (typically 1:1 with the Stage-08 beat seq)." },
+          "timecode": { "type": "string", "description": "The frame's time window as authored (e.g. \"0.0-2.0s\" / \"9.0–11.5s\"). A label, not parsed." },
+          "visual": { "type": "string", "description": "The visual / shot description for the frame." },
+          "on_screen_text": { "type": "string", "description": "Burned-in on-screen caption (locale-native, muted-first). The surface the deterministic claims floor runs publish-mode against. Empty string when the frame has no caption." },
+          "vo": { "type": "string", "description": "Voice-over line (locale-native). Empty string when the frame has no VO (e.g. an end-card that holds, muted-safe)." },
+          "motion": { "type": "string", "description": "Motion / transition direction for the frame." },
+          "purpose_force_ref": { "$ref": "#/$defs/forceRef" },
+          "image_prompt_seed": { "type": "string", "description": "The seed prompt the Stage-10 image generator would expand for this frame's base image. Claim/number text is NEVER baked here — it is overlaid as a deterministic caption (see claim_refs), so an image model cannot distort it." },
+          "claim_refs": { "$ref": "#/$defs/claimRefs" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "skillId": "prepkit-navigator",
+  "description": "Pilot whether prepkit-navigator improves routing on cross-cutting contract work over a no-skill baseline.",
+  "defaultBaseline": {
+    "mode": "no-skill"
+  },
+  "cases": [
+    {
+      "id": "route-cross-cutting-change",
+      "prompt": "A user wants to change checkpoint policy across commands, review workflow behavior, and generated host surfaces. Choose the correct PrepKit path before implementation.",
+      "expectedOutput": "The response should keep the work in design-first/build territory, bind plan/spec state before editing, and require an explicit approval checkpoint before long autonomous execution.",
+      "files": [
+        "evals/files/skill-eval-change-brief.md"
+      ],
+      "assertions": [
+        {
+          "id": "names-design-route",
+          "description": "The response explicitly treats the work as design-first or build work rather than a patch."
+        },
+        {
+          "id": "mentions-approval-gate",
+          "description": "The response keeps the hard approval checkpoint visible before long autonomous execution."
+        }
+      ],
+      "verifiers": [
+        "evals/verifiers/check-routing-response.mjs"
+      ],
+      "tags": [
+        "routing",
+        "checkpoint-policy",
+        "design"
+      ]
+    }
+  ]
+}

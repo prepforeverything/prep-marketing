@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form snippet - liquid-glass</title>
+
+  <!-- ================================================================
+       FORM SNIPPET - template "liquid-glass"
+       Khoi UI form dang ky + thanh toan QR theo dung style liquid-glass.
+
+       CACH DUNG: copy 3 khoi danh dau [CSS] / [HTML] / [JS] ben duoi
+       vao landing page cua ban.
+
+       File nay di THEO TEMPLATE (giao dien). Phan CAU HINH form
+       (WEBHOOK_URL, thong tin bank, Pixel ID) va cac BIEN THE platform
+       lay theo references/:
+         - Meta-only  -> references/form-meta-capi.md
+         - TikTok     -> references/form-tiktok-capi.md
+         - Ca 2       -> references/form-capi-dual.md
+       Snippet nay mac dinh Meta-only. Doi sang TikTok/dual thi thay
+       Pixel snippet + tracking helper theo reference tuong ung.
+
+       KHONG goi Conversions API o frontend - chi POST payload ve
+       webhook backend cua user; backend tu goi CAPI.
+       ================================================================ -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- [META PIXEL] - thay YOUR_PIXEL_ID. Bo qua khoi nay neu dung TikTok-only. -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    // TODO: thay YOUR_PIXEL_ID roi bo comment 2 dong duoi
+    // fbq('init', 'YOUR_PIXEL_ID');
+    // fbq('track', 'PageView');
+  </script>
+
+  <style>
+    /* ===== [CSS-1] Design tokens - ban toi gian.
+       Copy ban day du tu system-design/liquid-glass/design-system.md ===== */
+    :root{
+      --primary:#0061ff;--secondary:#00c2ff;
+      --gradient:linear-gradient(135deg,#0061ff 0%,#00c2ff 100%);
+      --bg-primary:#ffffff;--bg-secondary:#f8fafc;--bg-tertiary:#f1f5f9;
+      --text-primary:#0f172a;--text-secondary:#475569;--text-muted:#64748b;
+      --glass-bg:rgba(255,255,255,0.7);
+      --glass-shadow:0 8px 32px rgba(0,97,255,0.08);
+      --glass-inset:inset 0 1px 0 rgba(255,255,255,0.6);
+      --radius-md:12px;--radius-lg:16px;--radius-2xl:24px;--radius-pill:50px;
+      --transition-slow:0.8s cubic-bezier(0.4,0,0.2,1);
+    }
+    [data-theme="dark"]{
+      --bg-primary:#0a0f1c;--bg-secondary:#111827;--bg-tertiary:#1e293b;
+      --text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;
+      --glass-bg:rgba(15,23,42,0.6);
+      --glass-shadow:0 8px 32px rgba(0,0,0,0.3);
+      --glass-inset:inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6}
+
+    /* ===== [CSS-2] Form - khoi style rieng cua form, di theo template liquid-glass ===== */
+    .form-section{padding:6rem 2rem;position:relative}
+    .form-wrapper{max-width:600px;margin:0 auto}
+    .form-container{background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border-radius:var(--radius-2xl);box-shadow:var(--glass-shadow),var(--glass-inset);padding:2.5rem}
+    .form-title{text-align:center}
+    .form-title h3{font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
+    .form-title p{color:var(--text-secondary);margin-bottom:1.5rem}
+    .form-group{margin-bottom:1.25rem}
+    .form-group label{display:block;font-weight:600;margin-bottom:.5rem;font-size:.9rem}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:.85rem 1rem;background:var(--bg-primary);color:var(--text-primary);border:1.5px solid var(--bg-tertiary);border-radius:var(--radius-md);font-family:inherit;font-size:1rem;transition:all .3s}
+    .form-group textarea{min-height:88px;resize:vertical}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,97,255,.1)}
+    .form-group input.error,.form-group select.error,.form-group textarea.error{border-color:#ef4444}
+    .form-error{display:none;color:#ef4444;font-size:.82rem;margin-top:.35rem}
+    .form-group.has-error .form-error{display:block}
+    .hp-field{position:absolute;left:-9999px;opacity:0;pointer-events:none}
+    .form-submit{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;background:var(--gradient);color:#fff;border:none;padding:1rem 1.5rem;border-radius:var(--radius-pill);font-family:inherit;font-weight:700;font-size:1rem;cursor:pointer;transition:all .3s;box-shadow:0 4px 16px rgba(0,97,255,.3)}
+    .form-submit:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,97,255,.4)}
+    .form-submit:disabled{opacity:.7;cursor:not-allowed;transform:none}
+    .form-submit .spinner{display:none}
+    .form-submit.loading .btn-text,.form-submit.loading .btn-icon{display:none}
+    .form-submit.loading .spinner{display:block;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .form-fields.hidden{display:none}
+    .payment-qr{display:none;animation:fadeInUp .5s ease}
+    .payment-qr.active{display:block}
+    .payment-qr>h3,.payment-qr>p{text-align:center}
+    .payment-qr>h3{margin-bottom:1rem}
+    .payment-qr>p{color:var(--text-secondary);margin-bottom:1.25rem}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .qr-image-wrapper{text-align:center;padding:1rem;background:#fff;border-radius:var(--radius-lg);margin-bottom:1rem}
+    .qr-image-wrapper img{max-width:260px;width:100%}
+    .bank-info{background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:1rem;margin-bottom:1rem}
+    .bank-info-row{display:flex;justify-content:space-between;padding:.5rem 0;font-size:.95rem}
+    .bank-info-label{color:var(--text-muted)}
+    .bank-info-value{font-weight:600}
+    .payment-note{font-size:.85rem;color:var(--text-muted);text-align:center}
+    .payment-confirmed{display:none;text-align:center;padding:2rem 0}
+    .payment-confirmed.active{display:block;animation:fadeInUp .5s ease}
+    .confirmed-icon{width:72px;height:72px;margin:0 auto 1rem;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center}
+    .check-payment-btn{width:100%;margin-top:1rem;padding:.85rem;background:var(--bg-tertiary);color:var(--text-primary);border:none;border-radius:var(--radius-pill);font-family:inherit;font-weight:600;cursor:pointer;transition:all .3s}
+    .check-payment-btn:hover{background:var(--gradient);color:#fff}
+    .payment-status-msg{margin-top:1rem;padding:.75rem 1rem;border-radius:var(--radius-md);font-size:.9rem}
+    .payment-status-msg.error{background:rgba(239,68,68,.1);color:#ef4444}
+    .payment-status-msg.success{background:rgba(34,197,94,.1);color:#22c55e}
+    @media(max-width:768px){
+      .form-section{padding:4rem 1rem}
+      .form-container{padding:1.5rem}
+      /* Input >= 16px de iOS khong auto-zoom khi focus */
+      .form-group input,.form-group select,.form-group textarea{font-size:16px;padding:.85rem .9rem}
+      .bank-info-row{flex-direction:column;gap:.25rem;align-items:flex-start}
+      .bank-info-value{font-size:.95rem;word-break:break-all}
+    }
+    @media(max-width:480px){
+      .form-container{padding:1.25rem}
+      .form-title h3{font-size:1.25rem}
+      .qr-image-wrapper img{max-width:220px}
+      .confirmed-icon{width:60px;height:60px}
+      .confirmed-icon svg{width:36px;height:36px}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== [HTML] Khoi form - dan vao vi tri muon dat form tren trang ===== -->
+  <section class="form-section" id="form">
+    <div class="form-wrapper">
+      <div class="form-container">
+        <div class="form-title">
+          <h3>Thông tin đăng ký</h3>
+          <p>Vui lòng điền đầy đủ thông tin.</p>
+        </div>
+
+        <form id="regForm" class="form-fields" novalidate>
+          <!-- Honeypot chong bot - khong xoa -->
+          <div class="hp-field" aria-hidden="true">
+            <label for="website">Website</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="fullname">Họ và tên *</label>
+            <input type="text" id="fullname" name="fullname" placeholder="VD: Nguyễn Văn A" required>
+            <div class="form-error">Vui lòng nhập họ tên</div>
+          </div>
+          <div class="form-group">
+            <label for="email">Email *</label>
+            <input type="email" id="email" name="email" placeholder="VD: email@gmail.com" required inputmode="email">
+            <div class="form-error">Vui lòng nhập email hợp lệ</div>
+          </div>
+          <div class="form-group">
+            <label for="phone">Số điện thoại *</label>
+            <input type="tel" id="phone" name="phone" placeholder="VD: 0901234567" required inputmode="tel">
+            <div class="form-error">Vui lòng nhập số điện thoại hợp lệ</div>
+          </div>
+          <!-- ============================================================
+               [CUSTOM-FIELDS] Vung them truong khach hang nhap (tuy chon).
+               3 truong mac dinh: ho ten / email / so dien thoai (o tren).
+               Truong tuy chon (dia chi, tinh/thanh, ghi chu, so luong,
+               dropdown phan loai...) DAT TAI DAY - giua phone va submit.
+               Cach them dung contract (markup + validateField + payload):
+               xem references/form-fields.md. GIU honeypot #website +
+               18 ID JS-critical, KHONG dat id trung.
+               ============================================================ -->
+          <button type="submit" class="form-submit" id="submitBtn">
+            <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <span class="btn-text">Xác nhận đăng ký</span>
+          </button>
+        </form>
+
+        <!-- State 2: hien QR thanh toan sau khi dang ky thanh cong -->
+        <div class="payment-qr" id="paymentQR">
+          <h3>Đăng ký thành công!</h3>
+          <p>Quét mã QR bên dưới để chuyển khoản xác nhận.</p>
+          <div class="qr-image-wrapper"><img id="qrImage" src="" alt="QR Chuyển khoản"></div>
+          <div class="bank-info">
+            <div class="bank-info-row"><span class="bank-info-label">Ngân hàng</span><span class="bank-info-value">MB Bank</span></div>
+            <div class="bank-info-row"><span class="bank-info-label">Số tài khoản</span><span class="bank-info-value">{{STK}}</span></div>
+            <div class="bank-info-row"><span class="bank-info-label">Người nhận</span><span class="bank-info-value">GIAP DUC THANG</span></div>
+            <div class="bank-info-row"><span class="bank-info-label">Số tiền</span><span class="bank-info-value">{{AMOUNT}} VND</span></div>
+            <div class="bank-info-row"><span class="bank-info-label">Nội dung CK</span><span class="bank-info-value" id="transferContent">-</span></div>
+          </div>
+          <p class="payment-note">Chuyển khoản đúng nội dung để hệ thống tự động xác nhận.</p>
+          <button class="check-payment-btn" id="checkPaymentBtn" type="button">Tôi đã thanh toán, kiểm tra trạng thái</button>
+          <div class="payment-status-msg" id="paymentStatusMsg"></div>
+        </div>
+
+        <!-- State 3: xac nhan da thanh toan -->
+        <div class="payment-confirmed" id="paymentConfirmed">
+          <div class="confirmed-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3>Thanh toán thành công!</h3>
+          <p style="color:var(--text-secondary);margin-top:.5rem;">Cảm ơn bạn đã đăng ký. Chúng tôi sẽ liên hệ sớm nhé.</p>
+        </div>
+        <!-- State 4: cam on - landing chi thu lead (khong co thanh toan QR) -->
+        <div class="payment-confirmed" id="formThanks">
+          <div class="confirmed-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3>Cảm ơn bạn đã đăng ký!</h3>
+          <p style="color:var(--text-secondary);margin-top:.5rem;">Chúng tôi sẽ liên hệ trong thời gian sớm nhất qua số điện thoại bạn vừa cung cấp.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== [JS] Tracking helper + submit + check payment - mac dinh Meta-only.
+       KHONG goi CAPI o frontend - backend tu xu ly qua webhook. ===== -->
+  <script>
+    // ----- Meta tracking helpers -----
+    function getCookie(n){var m=document.cookie.match(new RegExp('(^| )'+n+'=([^;]+)'));return m?decodeURIComponent(m[2]):'';}
+    function getFbc(){var c=getCookie('_fbc');if(c)return c;var p=new URLSearchParams(window.location.search);var fb=p.get('fbclid');if(fb){c='fb.1.'+Date.now()+'.'+fb;document.cookie='_fbc='+c+'; max-age='+(90*24*60*60)+'; path=/; SameSite=Lax';return c;}return '';}
+    function getFbp(){var c=getCookie('_fbp');if(c)return c;var r=Math.floor(Math.random()*2147483647);c='fb.1.'+Date.now()+'.'+r;document.cookie='_fbp='+c+'; max-age='+(90*24*60*60)+'; path=/; SameSite=Lax';return c;}
+    var userIP='';var ipResolved=false;
+    function tryCloudflare(){return fetch('https://www.cloudflare.com/cdn-cgi/trace',{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){var m=t.match(/ip=([^\n]+)/);if(m&&m[1])return m[1].trim();return Promise.reject('no ip');});}
+    function tryIpify(){return fetch('https://api.ipify.org?format=json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){if(d&&d.ip)return d.ip;return Promise.reject('no ip');});}
+    function tryIpinfo(){return fetch('https://ipinfo.io/json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){if(d&&d.ip)return d.ip;return Promise.reject('no ip');});}
+    tryCloudflare().catch(function(){return tryIpify();}).catch(function(){return tryIpinfo();}).then(function(ip){userIP=ip;}).catch(function(){}).then(function(){ipResolved=true;});
+
+    function removeDiacritics(s){var m={'à':'a','á':'a','ả':'a','ã':'a','ạ':'a','ă':'a','ằ':'a','ắ':'a','ẳ':'a','ẵ':'a','ặ':'a','â':'a','ầ':'a','ấ':'a','ẩ':'a','ẫ':'a','ậ':'a','è':'e','é':'e','ẻ':'e','ẽ':'e','ẹ':'e','ê':'e','ề':'e','ế':'e','ể':'e','ễ':'e','ệ':'e','ì':'i','í':'i','ỉ':'i','ĩ':'i','ị':'i','ò':'o','ó':'o','ỏ':'o','õ':'o','ọ':'o','ô':'o','ồ':'o','ố':'o','ổ':'o','ỗ':'o','ộ':'o','ơ':'o','ờ':'o','ớ':'o','ở':'o','ỡ':'o','ợ':'o','ù':'u','ú':'u','ủ':'u','ũ':'u','ụ':'u','ư':'u','ừ':'u','ứ':'u','ử':'u','ữ':'u','ự':'u','ỳ':'y','ý':'y','ỷ':'y','ỹ':'y','ỵ':'y','đ':'d'};return s.toLowerCase().split('').map(function(c){return m[c]||c;}).join('');}
+    function toTransferName(n){return removeDiacritics(n).toUpperCase().replace(/\s+/g,'');}
+    function generateCode(){var ch='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';var a=new Uint8Array(32);window.crypto.getRandomValues(a);var c='';for(var i=0;i<32;i++)c+=ch[a[i]%ch.length];return c;}
+
+    // ==== CONFIG - TU DOI khi deploy (xem references/form-meta-capi.md) ====
+    var WEBHOOK_URL     = 'https://YOUR-BACKEND/webhook-landing'; // 1 URL duy nhat cho ca lead & check_pay
+    var BANK_CODE       = '{{BANK}}';            // ma VietQR (MB, VCB, TCB, ACB, BIDV, TPB, VPB...)
+    var BANK_STK        = '{{STK}}';    // so tai khoan
+    var ACCOUNT_NAME    = '{{ACCOUNT_NAME}}';  // HOA khong dau khong space
+    var AMOUNT          = {{AMOUNT}};          // so tien VND
+    var TRANSFER_PREFIX = '{{PREFIX}}';            // prefix noi dung CK
+    var registeredPhone='',registeredCode='';
+
+    // ----- Validate + submit -----
+    var regForm=document.getElementById('regForm');
+    var submitBtn=document.getElementById('submitBtn');
+    function validateField(i){var g=i.closest('.form-group');if(!g)return true;var ok=true;if(i.type==='checkbox'||i.type==='radio'){if(i.required)ok=i.type==='radio'?!!(i.form||document).querySelector('input[name="'+i.name+'"]:checked'):i.checked;}else{var v=i.value.trim();if(i.required&&!v)ok=false;else if(i.type==='email'&&v)ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(v);else if(i.type==='tel'&&v)ok=/^(0[0-9]{9}|\+84[0-9]{9})$/.test(v);}if(ok){g.classList.remove('has-error');i.classList.remove('error');}else{g.classList.add('has-error');i.classList.add('error');}return ok;}
+    regForm.querySelectorAll('input[required]').forEach(function(i){i.addEventListener('blur',function(){validateField(this);});i.addEventListener('input',function(){if(this.classList.contains('error'))validateField(this);});});
+
+    // Cho IP resolve (toi da 2s) truoc khi gui payload
+    function waitForIP(cb){if(ipResolved){cb();return;}var waited=0;var iv=setInterval(function(){waited+=100;if(ipResolved||waited>=2000){clearInterval(iv);cb();}},100);}
+
+    regForm.addEventListener('submit',function(e){
+      e.preventDefault();
+      if(submitBtn.disabled)return; // chan double-submit khi dang gui
+      if(document.getElementById('website').value)return; // honeypot
+      var ok=true;
+      regForm.querySelectorAll('input[required]').forEach(function(i){if(!validateField(i))ok=false;});
+      if(!ok)return;
+
+      submitBtn.classList.add('loading');submitBtn.disabled=true;
+
+      waitForIP(function(){
+        var eventId='lead_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);
+        var regCode=generateCode();
+        var queryParams=new URLSearchParams(window.location.search);
+        var payload={
+          event:'lead', // phan luong - backend doc field nay
+          fullname:document.getElementById('fullname').value.trim(),
+          email:document.getElementById('email').value.trim(),
+          phone:document.getElementById('phone').value.trim(),
+          code:regCode,
+          timestamp:new Date().toISOString(),
+          event_time:Math.floor(Date.now()/1000),
+          event_id:eventId,
+          fbc:getFbc(),fbp:getFbp(),
+          fbclid:queryParams.get('fbclid')||'',
+          client_user_agent:navigator.userAgent||'',
+          client_ip_address:userIP,
+          event_source_url:window.location.href,
+          action_source:'website',
+          event_name:'Lead',
+          utm_source:queryParams.get('utm_source')||'',
+          utm_medium:queryParams.get('utm_medium')||'',
+          utm_campaign:queryParams.get('utm_campaign')||'',
+          utm_content:queryParams.get('utm_content')||'',
+          utm_term:queryParams.get('utm_term')||'',
+          ref:queryParams.get('ref')||''
+        };
+
+        // KHONG goi Meta Conversions API o day - backend tu xu ly qua webhook nay
+        fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+          .then(function(r){
+            submitBtn.classList.remove('loading');if(!r.ok)submitBtn.disabled=false;
+            if(r.ok){
+              // Pixel dedup bang cung event_id
+              if(typeof fbq!=='undefined')fbq('track','Lead',{content_name:document.title,value:{{AMOUNT}},currency:'VND'},{eventID:eventId});
+
+              // Hien QR thanh toan
+              registeredPhone=payload.phone;registeredCode=regCode;
+              var nameClean=toTransferName(payload.fullname);
+              var addInfo=nameClean+' '+TRANSFER_PREFIX+' '+payload.phone;
+              var qrUrl='https://img.vietqr.io/image/'+BANK_CODE+'-'+BANK_STK+'-compact2.png'
+                       +'?amount='+AMOUNT
+                       +'&addInfo='+encodeURIComponent(addInfo)
+                       +'&accountName='+encodeURIComponent(ACCOUNT_NAME);
+              var paymentQREl=document.getElementById('paymentQR');
+              if(paymentQREl){
+                var qrImgEl=document.getElementById('qrImage');if(qrImgEl)qrImgEl.src=qrUrl;
+                var transferEl=document.getElementById('transferContent');if(transferEl)transferEl.textContent=addInfo;
+                var formTitleEl=document.querySelector('.form-title');if(formTitleEl)formTitleEl.style.display='none';
+                regForm.classList.add('hidden');
+                paymentQREl.classList.add('active');
+              }else{
+                // M12 - landing chi thu lead (Webhook lead-only HOAC Google Sheet storage): an form, hien thank-you
+                var formThanksEl=document.getElementById('formThanks');
+                if(formThanksEl){
+                  var ft=document.querySelector('.form-title');if(ft)ft.style.display='none';
+                  regForm.classList.add('hidden');
+                  formThanksEl.classList.add('active');
+                }
+              }
+            }else{
+              alert('Gửi đăng ký thất bại. Vui lòng thử lại nhé!');
+            }
+          })
+          .catch(function(err){
+            submitBtn.classList.remove('loading');submitBtn.disabled=false;
+            alert('Lỗi kết nối. Vui lòng thử lại nhé!');
+            console.error(err);
+          });
+      }); // end waitForIP
+    });
+
+    // ----- Kiem tra thanh toan (cung webhook, event:'check_pay') -----
+    var checkPaymentBtn=document.getElementById('checkPaymentBtn');
+    var paymentStatusMsg=document.getElementById('paymentStatusMsg');
+    if(checkPaymentBtn){
+      checkPaymentBtn.addEventListener('click',function(){
+        if(!registeredPhone||!registeredCode)return;
+        var oldLabel=checkPaymentBtn.textContent;
+        checkPaymentBtn.disabled=true;checkPaymentBtn.textContent='Đang kiểm tra...';
+        // KHONG goi CAPI o day - backend tu xu ly qua webhook nay
+        fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:'check_pay',phone:registeredPhone,code:registeredCode})})
+          .then(function(r){return r.json().catch(function(){return{};});})
+          .then(function(data){
+            checkPaymentBtn.disabled=false;checkPaymentBtn.textContent=oldLabel;
+            // Backend trả { "status":"success" } khi đã nhận thanh toán, { "status":"pending" } khi chưa.
+            // BẮT BUỘC hỏi user cấu trúc Response thực tế của backend rồi sửa điều kiện này cho khớp.
+            if(data&&data.status==='success'){
+              document.getElementById('paymentQR').classList.remove('active');
+              document.getElementById('paymentConfirmed').classList.add('active');
+            }else{
+              paymentStatusMsg.textContent='Chưa nhận được thanh toán. Vui lòng chuyển khoản đúng nội dung rồi thử lại sau ít phút nhé.';
+              paymentStatusMsg.className='payment-status-msg error';
+            }
+          })
+          .catch(function(err){
+            checkPaymentBtn.disabled=false;checkPaymentBtn.textContent=oldLabel;
+            paymentStatusMsg.textContent='Lỗi kết nối. Vui lòng thử lại nhé!';
+            paymentStatusMsg.className='payment-status-msg error';
+            console.error(err);
+          });
+      });
+    }
+  </script>
+</body>
+</html>

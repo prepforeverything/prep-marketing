@@ -1,0 +1,14 @@
+{
+  "dimension": "brand-voice",
+  "mode": "judge",
+  "judge": "marketing-content-reviewer",
+  "passBar": 7.5,
+  "rubric": "marketing-content-reviewer 6-dimension quality rubric (see /mkt commands' review step). Brand-voice lens: confident-but-honest mentor; Vietnamese-first; specific (approved) numbers only; admits trade-offs; correct per-segment preset (Students = peer 'bạn'; Professionals = respectful 'anh/chị'). See context/brand-voice.md.",
+  "howToRun": "For each brief: run the matching /mkt command (or marketing-copywriter), then grade the OUTPUT with marketing-content-reviewer. Record the score in grading.json. Baseline target: mean >= 7.5, none < 6.",
+  "cases": [
+    { "id": "student-summer-zalo", "segment": "Students", "market": "VN", "brief": "Zalo OA hook for the summer-intensive window: motivate a high-schooler at band 5.5 targeting 6.5 for university admission. CTA: free level test. Peer 'bạn' tone." },
+    { "id": "professional-flex", "segment": "Professionals", "market": "VN", "brief": "Short FB post for a working adult who needs IELTS for a promotion but has no time for fixed classes. CTA: book a consult. Respectful 'anh/chị' tone." },
+    { "id": "parent-trust", "segment": "Parent", "market": "VN", "brief": "Reassure a parent comparing PrepEdu to a center for their child: lead with verifiable proof + the guarantee's eligibility terms, not hype. CTA: free consult." },
+    { "id": "honest-tradeoff", "segment": "Students", "market": "VN", "brief": "Address 'is online as good as a center?' honestly — admit a trade-off and turn it into PrepEdu's edge (AI feedback + roadmap). No superlatives, no unverified numbers." }
+  ]
+}

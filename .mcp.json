@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sage-memory": {
+      "command": "uvx",
+      "args": ["sage-memory==0.13.0"]
+    }
+  }
+}

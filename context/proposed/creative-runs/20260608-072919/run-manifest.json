@@ -1,0 +1,151 @@
+{
+  "run_id": "20260608-072919",
+  "created_at": "2026-06-08T00:29:19.484Z",
+  "command": "/mkt-creative-run",
+  "focus": "Phase-2 demo — full Stages 00→10 (persona Thảo / Segment A) on the synthetic offline fixture",
+  "phase": 2,
+  "locale": "vi-VN",
+  "market": "VN",
+  "source": {
+    "stage_00_input": "user-file",
+    "input_ref": ".prepkit/scripts/fixtures/meta-ads-export.sample.json",
+    "connector_wired": false
+  },
+  "brand_context_snapshot": {
+    "source": "context/marketing.config.json + resolved context set",
+    "updated": "2026-06-06",
+    "age_days": 2,
+    "freshness": "OK"
+  },
+  "model_ids": {
+    "generator": "claude-opus-4-8",
+    "judge": "claude-opus-4-8"
+  },
+  "stages": [
+    {
+      "stage": "00",
+      "name": "Ads-signal (compute + narrate)",
+      "status": "done",
+      "skill_or_agent": "ads-signal.mjs + marketing-performance-analysis/stage-00-narration",
+      "prompt_version": "ads-signal@0.1.0",
+      "schema_ref": "context/schemas/ads-signal.schema.json",
+      "output_path": "context/proposed/creative-runs/20260608-072919/stage-00-ads-signal.json",
+      "score": null,
+      "claims_verdict": "n/a"
+    },
+    {
+      "stage": "01",
+      "name": "Market research",
+      "status": "done",
+      "skill_or_agent": "mkt-research",
+      "prompt_version": "stage-01@first-pass",
+      "schema_ref": "context/schemas/stage-proposal.schema.json",
+      "output_path": "context/proposed/market-research.md",
+      "score": null,
+      "claims_verdict": "n/a"
+    },
+    {
+      "stage": "02",
+      "name": "Audience segments",
+      "status": "done",
+      "skill_or_agent": "marketing-product-context",
+      "prompt_version": "stage-02@first-pass",
+      "schema_ref": "context/schemas/stage-proposal.schema.json",
+      "output_path": "context/proposed/audience-segments.md",
+      "score": null,
+      "claims_verdict": "n/a"
+    },
+    {
+      "stage": "03-04",
+      "name": "Motivators + JTBD-force map",
+      "status": "done",
+      "skill_or_agent": "marketing-product-context",
+      "prompt_version": "stage-03-04@first-pass",
+      "schema_ref": "context/schemas/stage-proposal.schema.json",
+      "output_path": "context/proposed/motivator-map.md",
+      "score": null,
+      "claims_verdict": "n/a"
+    },
+    {
+      "stage": "05",
+      "name": "Personas (locale-first)",
+      "status": "done",
+      "skill_or_agent": "marketing-product-context",
+      "prompt_version": "stage-05@first-pass",
+      "schema_ref": "context/schemas/stage-proposal.schema.json",
+      "output_path": "context/proposed/audience-personas.md",
+      "score": null,
+      "claims_verdict": "n/a"
+    },
+    {
+      "stage": "07",
+      "name": "Creative brief (one SMP/persona) + after-brief checkpoint",
+      "status": "done",
+      "skill_or_agent": "marketing-campaign-brief",
+      "prompt_version": "stage-07@first-pass",
+      "schema_ref": "context/schemas/stage-proposal.schema.json",
+      "output_path": "context/proposed/creative-brief.md",
+      "score": null,
+      "claims_verdict": "pass"
+    },
+    {
+      "stage": "06",
+      "name": "Hooks (swappable IDs + measurable ladder)",
+      "status": "done",
+      "skill_or_agent": "marketing-copywriting",
+      "prompt_version": "stage-06@first-pass",
+      "schema_ref": "context/schemas/stage-06-hooks.schema.json",
+      "output_path": "context/proposed/creative-runs/20260608-072919/stage-06-hooks.json",
+      "score": 3,
+      "claims_verdict": "pass"
+    },
+    {
+      "stage": "08",
+      "name": "Timed script",
+      "status": "done",
+      "skill_or_agent": "marketing-copywriter",
+      "prompt_version": "stage-08@first-pass",
+      "schema_ref": "context/schemas/stage-08-script.schema.json",
+      "output_path": "context/proposed/creative-runs/20260608-072919/stage-08-script.json",
+      "score": null,
+      "claims_verdict": "pass"
+    },
+    {
+      "stage": "09",
+      "name": "Storyboard",
+      "status": "done",
+      "skill_or_agent": "marketing-media-designer",
+      "prompt_version": "stage-09@first-pass",
+      "schema_ref": "context/schemas/stage-09-storyboard.schema.json",
+      "output_path": "context/proposed/creative-runs/20260608-072919/stage-09-storyboard.json",
+      "score": 2.7,
+      "claims_verdict": "pass"
+    },
+    {
+      "stage": "10",
+      "name": "Image-ad concepts",
+      "status": "done",
+      "skill_or_agent": "marketing-asset-generation",
+      "prompt_version": "stage-10@first-pass",
+      "schema_ref": "context/schemas/stage-10-image.schema.json",
+      "output_path": "context/proposed/creative-runs/20260608-072919/stage-10-image-concepts.json",
+      "score": 10,
+      "claims_verdict": "pass"
+    }
+  ],
+  "claims_verdict": "pass",
+  "checkpoints": [
+    {
+      "name": "CHECKPOINT 1 — design-lock",
+      "status": "approved"
+    },
+    {
+      "name": "after-brief (contract-lock)",
+      "status": "reached"
+    },
+    {
+      "name": "before-publish",
+      "status": "approved"
+    }
+  ]
+}

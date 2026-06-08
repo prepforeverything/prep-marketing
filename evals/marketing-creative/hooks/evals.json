@@ -1,0 +1,27 @@
+{
+  "dimension": "hooks",
+  "mode": "calibration",
+  "judge": "marketing-creative-scorer",
+  "scale": "x/3 (ladder checks passed: thumb-stop/hold, muted-test, swappable-ID)",
+  "max": 3,
+  "tolerance": 1,
+  "scorer_prompt_version": "marketing-creative-scorer@v2-sonnet",
+  "rubric_ref": ".prepkit/packs/marketing/agents/marketing-creative-scorer.md — Rubric: Stage 06 hooks",
+  "agreement": {
+    "metric": "share of exemplars where |judge_score - human_score| <= tolerance",
+    "promote": 0.75,
+    "monitor": 0.65,
+    "noise_below": 0.65,
+    "alpha_high_confidence": 0.8,
+    "note": "promote >= 0.75; 0.65–0.75 = monitor; < 0.65 = noise. A hook passes the ladder only if all three checks hold (score 3); the anchors at 1/2/3 calibrate that boundary."
+  },
+  "howToRun": "For each exemplar: give marketing-creative-scorer the file BODY (the hook + its predicted behavior) WITHOUT the frontmatter human_score, score per its Stage-06 ladder (checks passed, 0–3), record {id: judge_score} into this dir's grading.json, then run.mjs computes agreement.",
+  "exemplars": [
+    { "id": "hook-1-weak",   "file": "files/hook-1-weak.md",   "human_score": 1, "score_level": "weak" },
+    { "id": "hook-1b-cram",  "file": "files/hook-1b-cram.md",  "human_score": 1, "score_level": "weak" },
+    { "id": "hook-2-mid",    "file": "files/hook-2-mid.md",    "human_score": 2, "score_level": "mid" },
+    { "id": "hook-2b-audio", "file": "files/hook-2b-audio.md", "human_score": 2, "score_level": "mid" },
+    { "id": "hook-3-strong", "file": "files/hook-3-strong.md", "human_score": 3, "score_level": "strong" },
+    { "id": "hook-3b-mock",  "file": "files/hook-3b-mock.md",  "human_score": 3, "score_level": "strong" }
+  ]
+}

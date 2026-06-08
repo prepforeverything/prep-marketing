@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/stage-06-hooks.schema.json",
+  "title": "Stage 06 — Hook bench (swappable 3×3×3 components)",
+  "description": "Typed I/O contract for /mkt-creative-run Stage 06 (design §2 — no free-text handoffs; §6.1 — typed stage boundaries). Stage 06 fans out a hook bench for one persona: independent hook / body / cta components that recombine (the 3×3×3 swappable-ID idea — three hooks × three bodies × three CTAs all carry their own stable id, so the rubric judge and live attention proxy can recombine and rank components rather than whole ads). Every copy-bearing field carries claim_refs; the ladder records the PRE-TEST predicted attention proxies + outcome targets (hypotheses, never asserted as proven — Stage-00 caution carried forward). provenance: run_id + persona_ref + generated_at.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "persona_ref", "generated_at", "hooks"],
+  "$defs": {
+    "claimRef": {
+      "type": "string",
+      "pattern": "^CLM-[0-9]{3,}$",
+      "description": "A reference to one approved/declared claim id in context/claims.json (e.g. \"CLM-008\"). The bare id only — the render markers [[CLM-008]] / {{CLM-008}} are presentation, not the ref. A claim_refs array lists every claim this copy asserts; the deterministic claims floor reads these to fail-close on unverified claims."
+    },
+    "claimRefs": {
+      "type": "array",
+      "description": "Every claim id this copy-bearing object asserts (may be empty when the copy makes no PrepEdu claim). Required on every copy-bearing object so the claims gate has an explicit, typed surface — never inferred from free text.",
+      "items": { "$ref": "#/$defs/claimRef" },
+      "uniqueItems": true
+    },
+    "numberOrNull": {
+      "description": "A predicted/target number, or null when no target is set for this component (degrade-gracefully — never a fabricated figure).",
+      "type": ["number", "null"]
+    }
+  },
+  "properties": {
+    "run_id": { "type": "string", "description": "Timestamped run id (e.g. 20260608-072919) — ties this artifact to the run manifest." },
+    "persona_ref": { "type": "string", "description": "Persona this hook bench targets, referencing context/proposed/audience-personas.md (e.g. \"Persona 4 — Thảo (Segment A)\")." },
+    "generated_at": { "type": "string", "format": "date-time", "description": "ISO timestamp this stage artifact was produced." },
+    "hooks": {
+      "type": "array",
+      "description": "The hook bench. Each entry binds one hook_id + body_id + cta_id, but those ids are INDEPENDENT and stable across the bench so components recombine (3×3×3). The judge ranks; nothing here is a proven winner.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["hook_id", "body_id", "cta_id", "hook_text", "cta_text", "why_it_works", "formula", "ladder", "muted_test_pass", "claim_refs"],
+        "properties": {
+          "hook_id": { "type": "string", "description": "Stable id of the HOOK component (e.g. \"H1\"). Independent of body_id/cta_id so the same hook recombines with other bodies/CTAs across the bench." },
+          "body_id": { "type": "string", "description": "Stable id of the BODY component (e.g. \"B2\"). Independent — recombines with other hooks/CTAs." },
+          "cta_id": { "type": "string", "description": "Stable id of the CTA component (e.g. \"C3\"). Independent — recombines with other hooks/bodies." },
+          "hook_text": { "type": "string", "description": "The hook copy as it appears on-screen / in-feed (locale-native, e.g. Vietnamese — never a translation). Copy-bearing → see claim_refs." },
+          "cta_text": { "type": "string", "description": "The CTA copy (locale-native). Copy-bearing → its claims are included in claim_refs." },
+          "why_it_works": { "type": "string", "description": "One-line rationale tracing the hook to the persona's motivator/force (the planning trace, not shipping copy)." },
+          "formula": {
+            "type": "string",
+            "enum": ["AIDA", "PAS", "BAB", "FAB", "other"],
+            "description": "Copy formula the hook follows. AIDA (Attention-Interest-Desire-Action), PAS (Problem-Agitate-Solution), BAB (Before-After-Bridge), FAB (Features-Advantages-Benefits), or other."
+          },
+          "ladder": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "PRE-TEST prediction ladder: attention proxies (thumb-stop / hold) the creative predicts, plus optional outcome targets. These are hypotheses for the live attention proxy + judge to test — they are NEVER presented as measured results (Stage-00 thin-high-CTR caution).",
+            "required": ["thumb_stop_pct_predicted", "hold_pct_predicted", "ctr_target", "cpa_target"],
+            "properties": {
+              "thumb_stop_pct_predicted": { "type": "number", "minimum": 0, "maximum": 100, "description": "Predicted thumb-stop / 3s-view rate as a percentage (attention proxy, Tier-A). A prediction, not a measurement." },
+              "hold_pct_predicted": { "type": "number", "minimum": 0, "maximum": 100, "description": "Predicted hold / thruplay rate as a percentage (attention proxy, Tier-A). A prediction, not a measurement." },
+              "ctr_target": { "$ref": "#/$defs/numberOrNull", "description": "Optional CTR target (fraction or percentage per run convention); null when no target is set." },
+              "cpa_target": { "$ref": "#/$defs/numberOrNull", "description": "Optional CPA target in account currency; null when the objective is not conversion-optimized (Tier-B stays unset, never invented)." }
+            }
+          },
+          "muted_test_pass": { "type": "boolean", "description": "Whether the hook reads with sound OFF (muted-first burned-in text carries the message in the first 2s). The paid-social muted-first gate." },
+          "claim_refs": { "$ref": "#/$defs/claimRefs" }
+        }
+      }
+    }
+  }
+}

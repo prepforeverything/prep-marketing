@@ -1,0 +1,976 @@
+{
+  "name": "prepedu-marketing",
+  "displayName": "PrepEdu Marketing Kit",
+  "version": "1.58.2",
+  "description": "PrepEdu marketing agents kit — a guided, manifest-first Claude Code kit for non-technical marketers (campaigns, content, SEO/ASO, GTM, retention, ops), grounded in PrepEdu context with claims governance and sage-memory.",
+  "settings": {
+    "includeCoAuthoredBy": false
+  },
+  "claude": {
+    "commandScope": "selected-packs"
+  },
+  "codex": {
+    "skillScope": "routers"
+  },
+  "documentation": {
+    "maxLoc": 600
+  },
+  "outputStyles": {
+    "default": "balanced",
+    "levels": [
+      {
+        "id": "concise",
+        "label": "Concise",
+        "description": "Minimal prose. Lead with code or commands. Skip explanations unless asked."
+      },
+      {
+        "id": "balanced",
+        "label": "Balanced",
+        "description": "Direct and technical like a senior engineer, but explain the why behind decisions and trade-offs. Teach when the domain is unfamiliar; be terse when it is not."
+      },
+      {
+        "id": "teaching",
+        "label": "Teaching",
+        "description": "Include full context and reasoning. Explain why, not just what. Define terms on first use. Good for onboarding or unfamiliar domains."
+      }
+    ]
+  },
+  "hookProfiles": {
+    "default": "standard",
+    "envVar": "PREP_HOOK_PROFILE",
+    "tiers": [
+      {
+        "id": "minimal",
+        "label": "Minimal",
+        "description": "Core hooks only — session init, subagent init, pre-tool guard, dev-rules reminder. Fastest profile."
+      },
+      {
+        "id": "standard",
+        "label": "Standard",
+        "description": "All current hooks plus quality gates (config protection, compact suggestions, cost tracking, batch format). Recommended for daily use."
+      },
+      {
+        "id": "strict",
+        "label": "Strict",
+        "description": "Maximum safety, audit, and automation. Includes bash audit logging and auto-tmux dev server advisory."
+      }
+    ],
+    "profileMapPath": ".claude/hooks/lib/hook-profile-map.cjs"
+  },
+  "paths": {
+    "docs": "docs",
+    "plans": "plans",
+    "reports": "reports",
+    "spec": "spec",
+    "activePlans": "plans/active",
+    "archivedPlans": "plans/archive",
+    "planReports": "plans/reports",
+    "planResearch": "plans/research",
+    "planTemplates": "plans/templates",
+    "activePlanTemplate": "plans/templates/active-plan",
+    "docsFoundation": ".prepkit/docs/foundation",
+    "docsGuides": ".prepkit/docs/guides",
+    "docsReference": ".prepkit/docs/reference",
+    "knowledgeBase": ".prepkit/docs/reference/knowledge",
+    "knowledgeIndex": ".prepkit/docs/reference/knowledge/INDEX.md",
+    "memoryIndexData": ".prepkit/memory-index.json",
+    "resumeBrief": "reports/resume-brief.md",
+    "docsDecisions": "docs/decisions",
+    "docsArchive": "docs/archive",
+    "flutterBuildCache": ".claude-build"
+  },
+  "plan": {
+    "namingFormat": "{date}-{slug}",
+    "dateFormat": "YYMMDD-HHmm",
+    "branchPattern": "(?:feat|fix|chore|docs|refactor)/(?:[^/]+/)?(.+)"
+  },
+  "delivery": {
+    "sessionMetrics": "minimal",
+    "routing": {
+      "defaultMode": "build",
+      "uncertainEscalation": [
+        "patch->build",
+        "build->design"
+      ]
+    },
+    "intents": [
+      {
+        "id": "review",
+        "description": "Review current code, plans, or changes without entering delivery mode."
+      },
+      {
+        "id": "explain",
+        "description": "Explain existing code, behavior, or architecture without creating a delivery plan."
+      },
+      {
+        "id": "research",
+        "description": "Collect evidence or comparisons without committing to implementation work yet."
+      }
+    ],
+    "modes": [
+      {
+        "id": "patch",
+        "description": "Small bounded change with minimal planning overhead.",
+        "planShape": "compact",
+        "autonomy": "high",
+        "validation": "targeted",
+        "approvalCheckpoints": [
+          "after-plan",
+          "before-long-autonomous-execution"
+        ],
+        "spec": {
+          "required": false,
+          "requiredFiles": []
+        },
+        "complexityThresholds": {
+          "maxFiles": 2
+        }
+      },
+      {
+        "id": "build",
+        "description": "Standard scoped delivery flow for implementation-heavy work.",
+        "planShape": "standard",
+        "autonomy": "high",
+        "validation": "changed-surface",
+        "approvalCheckpoints": [
+          "after-plan",
+          "before-long-autonomous-execution"
+        ],
+        "spec": {
+          "required": false,
+          "requiredFiles": []
+        },
+        "complexityThresholds": {
+          "maxSteps": 15,
+          "maxPhases": 4
+        },
+        "hardCheckpointTriggers": [
+          "spec-creation",
+          "contract-change",
+          "cross-cutting-change",
+          "long-autonomous-execution"
+        ]
+      },
+      {
+        "id": "design",
+        "description": "Design-first work for ambiguous, cross-cutting, or larger initiatives.",
+        "planShape": "spec-first",
+        "autonomy": "high-until-implementation",
+        "validation": "consistency-then-build",
+        "approvalCheckpoints": [
+          "after-design-and-plan",
+          "before-long-autonomous-execution"
+        ],
+        "spec": {
+          "required": true,
+          "requiredFiles": [
+            "spec/proposal.md",
+            "spec/design.md",
+            "spec/tasks.md"
+          ]
+        }
+      }
+    ]
+  },
+  "planPresets": [],
+  "context": {
+    "budgetMode": "advisory",
+    "mainBudgetTokens": 1600,
+    "subagentBudgetTokens": 400,
+    "warningPercent": 70,
+    "criticalPercent": 85,
+    "contextWarningPercent": 65,
+    "contextCriticalPercent": 75,
+    "artifactBudgetChars": 800,
+    "contextWindowTokens": 1000000,
+    "sessionInitVerbosity": "lean",
+    "lifecycleNudges": false
+  },
+  "modelProfiles": {
+    "quality": {
+      "planner": "opus",
+      "researcher": "opus",
+      "marketing-reviewer": "opus",
+      "marketing-content-reviewer": "opus",
+      "marketing-campaign-diagnostician": "opus",
+      "marketing-strategist": "opus",
+      "marketing-gtm-manager": "opus",
+      "marketing-copywriter": "sonnet",
+      "marketing-seo-specialist": "sonnet",
+      "marketing-growth-analyst": "sonnet",
+      "marketing-content-strategist": "sonnet",
+      "marketing-performance-marketer": "sonnet",
+      "marketing-lifecycle-strategist": "sonnet",
+      "marketing-social-media-manager": "haiku",
+      "marketing-ops-analyst": "haiku"
+    },
+    "balanced": {
+      "planner": "sonnet",
+      "researcher": "haiku",
+      "marketing-reviewer": "sonnet",
+      "marketing-content-reviewer": "sonnet",
+      "marketing-campaign-diagnostician": "sonnet",
+      "marketing-strategist": "sonnet",
+      "marketing-gtm-manager": "sonnet",
+      "marketing-copywriter": "sonnet",
+      "marketing-seo-specialist": "sonnet",
+      "marketing-growth-analyst": "sonnet",
+      "marketing-content-strategist": "sonnet",
+      "marketing-performance-marketer": "sonnet",
+      "marketing-lifecycle-strategist": "sonnet",
+      "marketing-social-media-manager": "haiku",
+      "marketing-ops-analyst": "haiku"
+    },
+    "budget": {
+      "planner": "sonnet",
+      "researcher": "haiku",
+      "marketing-reviewer": "sonnet",
+      "marketing-content-reviewer": "sonnet",
+      "marketing-campaign-diagnostician": "haiku",
+      "marketing-strategist": "haiku",
+      "marketing-gtm-manager": "haiku",
+      "marketing-copywriter": "haiku",
+      "marketing-seo-specialist": "haiku",
+      "marketing-growth-analyst": "haiku",
+      "marketing-content-strategist": "haiku",
+      "marketing-performance-marketer": "haiku",
+      "marketing-lifecycle-strategist": "haiku",
+      "marketing-social-media-manager": "haiku",
+      "marketing-ops-analyst": "haiku"
+    }
+  },
+  "defaultModelProfile": "quality",
+  "personas": [
+    {
+      "id": "head-of-marketing",
+      "label": "Head of Marketing",
+      "description": "Cross-pillar planning and orchestration for the PrepEdu marketing team.",
+      "modelProfile": "quality",
+      "hookProfile": "standard",
+      "outputStyle": "teaching",
+      "defaultMode": "design",
+      "packs": [
+        "marketing",
+        "customer-prepedu"
+      ]
+    },
+    {
+      "id": "growth-lead",
+      "label": "Growth / Performance Lead",
+      "description": "Paid acquisition, SEO/ASO, CRO, and analytics.",
+      "modelProfile": "quality",
+      "hookProfile": "standard",
+      "outputStyle": "balanced",
+      "defaultMode": "build",
+      "packs": [
+        "marketing",
+        "customer-prepedu"
+      ]
+    },
+    {
+      "id": "content-lead",
+      "label": "Content & Brand Lead",
+      "description": "Content strategy, copywriting, and social for the PrepEdu brand.",
+      "modelProfile": "quality",
+      "hookProfile": "standard",
+      "outputStyle": "balanced",
+      "defaultMode": "build",
+      "packs": [
+        "marketing",
+        "customer-prepedu"
+      ]
+    },
+    {
+      "id": "gtm-lead",
+      "label": "Product / GTM Lead",
+      "description": "Launches, competitive intel, pricing message, and sales enablement.",
+      "modelProfile": "quality",
+      "hookProfile": "standard",
+      "outputStyle": "balanced",
+      "defaultMode": "design",
+      "packs": [
+        "marketing",
+        "customer-prepedu"
+      ]
+    },
+    {
+      "id": "ltv-lead",
+      "label": "LTV / Retention Lead",
+      "description": "Segmentation, lifecycle flows, reactivation, and cross-sell.",
+      "modelProfile": "quality",
+      "hookProfile": "standard",
+      "outputStyle": "balanced",
+      "defaultMode": "build",
+      "packs": [
+        "marketing",
+        "customer-prepedu"
+      ]
+    },
+    {
+      "id": "ops-lead",
+      "label": "Marketing Ops Lead",
+      "description": "Reporting, dashboards, SOPs, and tracking governance.",
+      "modelProfile": "balanced",
+      "hookProfile": "standard",
+      "outputStyle": "concise",
+      "defaultMode": "build",
+      "packs": [
+        "marketing",
+        "customer-prepedu"
+      ]
+    }
+  ],
+  "modelRouting": {
+    "modeOverrides": {
+      "design": {
+        "planner": "opus",
+        "researcher": "opus"
+      }
+    },
+    "laneOverrides": {}
+  },
+  "runtimePolicy": {
+    "primaryHost": "claude-code",
+    "branchFreshness": {
+      "enabled": true,
+      "checkpoint": "before-long-autonomous-execution",
+      "defaultBranch": "main",
+      "remoteName": "origin",
+      "policy": "warn",
+      "maxMissingSubjects": 5
+    },
+    "events": {
+      "enabled": true,
+      "path": ".prepkit/runtime-events.jsonl",
+      "maxBytes": 1048576
+    },
+    "hosts": {
+      "claude-code": {
+        "label": "Claude Code-first",
+        "nativeCapabilitySummary": "Claude Code already provides workspace file and shell operations.",
+        "suppressReminderToolAdapters": [
+          "workspace-files",
+          "shell-execution"
+        ],
+        "statusLine": {
+          "enabled": true,
+          "command": "node .claude/hooks/statusline.cjs",
+          "padding": 0
+        },
+        "reminderPolicy": [
+          "Keep the always-loaded runtime focused on routing, memory, validation, and active-plan state.",
+          "Do not restate host-native file-edit or shell-execution guidance as duplicate PrepKit reminder content."
+        ]
+      }
+    }
+  },
+  "optionalAdapters": {
+    "semanticCode": {
+      "category": "tool-adapter",
+      "status": "optional",
+      "activation": "explicit opt-in",
+      "transport": "mcp-or-host-specific adapter",
+      "availabilitySignals": {
+        "envVars": [
+          "PREP_SEMANTIC_ADAPTER"
+        ],
+        "configPaths": [
+          ".prepkit/optional-adapters/semantic-code.json"
+        ]
+      },
+      "fallbackToolAdapters": [
+        "workspace-files",
+        "shell-execution"
+      ],
+      "fallbackBehavior": "Use file-centric search, reads, and patch flows when no semantic backend is available.",
+      "canonicalWritePath": "Workspace files remain the only write path for source changes."
+    },
+    "retrievalSidecar": {
+      "category": "tool-adapter",
+      "status": "optional",
+      "activation": "explicit opt-in",
+      "transport": "mcp-stdio",
+      "mcpServer": "prepkit-memory",
+      "mcpTools": [
+        "prepkit_memory_search",
+        "prepkit_memory_graph",
+        "prepkit_memory_browse",
+        "prepkit_memory_store",
+        "prepkit_memory_update",
+        "prepkit_memory_delete",
+        "prepkit_memory_link",
+        "prepkit_memory_unlink",
+        "prepkit_memory_learn",
+        "prepkit_memory_promote",
+        "prepkit_memory_review",
+        "prepkit_memory_review_result",
+        "prepkit_memory_consolidate",
+        "prepkit_memory_fact_store",
+        "prepkit_memory_fact_query",
+        "prepkit_memory_reflect",
+        "prepkit_memory_reindex_embeddings",
+        "prepkit_memory_extract",
+        "prepkit_memory_entity_search",
+        "prepkit_memory_entity_merge",
+        "prepkit_memory_feedback",
+        "prepkit_memory_session_start",
+        "prepkit_memory_session_end",
+        "prepkit_memory_episode",
+        "prepkit_memory_communities",
+        "prepkit_memory_context",
+        "prepkit_memory_focus",
+        "prepkit_memory_bootstrap",
+        "prepkit_memory_checkpoint",
+        "prepkit_memory_conversation_import",
+        "prepkit_memory_onboard",
+        "prepkit_memory_entity_graph",
+        "prepkit_memory_skill_contracts"
+      ],
+      "availabilitySignals": {
+        "envVars": [
+          "PREP_RETRIEVAL_SIDECAR"
+        ],
+        "configPaths": [
+          ".prepkit/optional-adapters/retrieval-sidecar.json"
+        ]
+      },
+      "fallbackToolAdapters": [
+        "workspace-files",
+        "shell-execution"
+      ],
+      "fallbackBehavior": "Use node .prepkit/scripts/memory-query.mjs plus direct file reads over canonical plans and docs when no sidecar is available.",
+      "canonicalWritePath": "Plans, reports, specs, docs, and memory-curate stay canonical. MCP write tools (store, update, delete, link, learn) are supplementary — agents call them after canonical file writes, not instead of. The semantic DB is disposable and re-buildable from files."
+    },
+    "commandCompactor": {
+      "category": "tool-adapter",
+      "status": "optional",
+      "activation": "explicit opt-in",
+      "transport": "claude-pretool-rewrite + local provider subprocess",
+      "availabilitySignals": {
+        "envVars": [
+          "PREP_COMMAND_COMPACTOR"
+        ],
+        "configPaths": [
+          ".prepkit/optional-adapters/command-compactor.json"
+        ]
+      },
+      "fallbackToolAdapters": [
+        "shell-execution"
+      ],
+      "fallbackBehavior": "Run Bash commands unchanged when no compactor provider is configured or the provider declines a rewrite.",
+      "canonicalWritePath": "Command compaction only rewrites Bash execution. Source-of-truth writes remain in workspace files, plans, docs, and other canonical PrepKit artifacts."
+    },
+    "gitbutlerClaude": {
+      "category": "tool-adapter",
+      "status": "optional",
+      "activation": "explicit opt-in, recommended for Claude Code-first sessions",
+      "transport": "claude-hook-forwarder + local but CLI",
+      "availabilitySignals": {
+        "envVars": [
+          "PREP_GITBUTLER_CLAUDE"
+        ],
+        "configPaths": [
+          ".prepkit/optional-adapters/gitbutler-claude.json"
+        ]
+      },
+      "fallbackToolAdapters": [
+        "shell-execution"
+      ],
+      "fallbackBehavior": "Continue the current PrepKit runtime without GitButler-managed branch orchestration. PrepKit's pre-tool guard remains the first and final blocking authority.",
+      "canonicalWritePath": "Source changes still land in workspace files; plans, specs, reports, and docs remain canonical state. GitButler only orchestrates branch and commit isolation for Claude Code sessions that have opted in locally."
+    }
+  },
+  "trajectory": {
+    "enabled": false,
+    "retentionSessions": 100,
+    "maxRecordsPerSession": 5000,
+    "hmacSaltEnvVar": "PREPKIT_TRAJECTORY_HMAC_SALT"
+  },
+  "memory": {
+    "nudge": {
+      "onSessionStart": false,
+      "minIntervalHours": 24,
+      "staleAfterDays": 30
+    }
+  },
+  "proposeLessons": {
+    "fileIndexSimilarityProbe": {
+      "enabled": false,
+      "timeoutMs": 1500,
+      "minScore": 12
+    }
+  },
+  "validation": {
+    "routerFanoutWarnThreshold": 12,
+    "planHeadings": {
+      "patch": [
+        "Plan Metadata",
+        "Goal",
+        "Scope",
+        "Steps",
+        "Files In Scope",
+        "Done Criteria"
+      ],
+      "build": [
+        "Plan Metadata",
+        "Goal",
+        "Current Context",
+        "Scope",
+        "Steps",
+        "Memory Routing",
+        "Constraints",
+        "Workstreams",
+        "Files In Scope",
+        "Done Criteria",
+        "Risks",
+        "Open Questions"
+      ],
+      "design": [
+        "Plan Metadata",
+        "Goal",
+        "Current Context",
+        "Scope",
+        "Steps",
+        "Memory Routing",
+        "Constraints",
+        "Workstreams",
+        "Files In Scope",
+        "Done Criteria",
+        "Risks",
+        "Open Questions"
+      ]
+    },
+    "requiredPlanMetadata": [
+      "Plan id",
+      "Created",
+      "Slug",
+      "Focus",
+      "Mode",
+      "Status"
+    ],
+    "allowedPlanStatusValues": [
+      "active",
+      "ready-to-close",
+      "blocked"
+    ],
+    "requiredSpecHeadings": {
+      "spec/proposal.md": [
+        "# Proposal",
+        "## Problem",
+        "## Desired Outcome",
+        "## Constraints",
+        "## Options Considered",
+        "## Chosen Direction"
+      ],
+      "spec/design.md": [
+        "# Design",
+        "## Scope",
+        "## System Shape",
+        "## Data And Contracts",
+        "## Validation Plan",
+        "## Risks"
+      ],
+      "spec/tasks.md": [
+        "# Tasks"
+      ]
+    },
+    "specTaskChecklist": {
+      "files": [
+        "spec/tasks.md"
+      ],
+      "requireAtLeastOneItem": true,
+      "disallowNumberedItems": true
+    }
+  },
+  "organization": {
+    "docs": {
+      "rootFiles": [
+        "INDEX.md"
+      ],
+      "rootDirectories": [
+        "foundation",
+        "guides",
+        "reference",
+        "decisions",
+        "archive",
+        "site"
+      ]
+    },
+    "plans": {
+      "rootFiles": [
+        "INDEX.md"
+      ],
+      "rootDirectories": [
+        "active",
+        "archive",
+        "reports",
+        "research",
+        "templates"
+      ],
+      "activePlanFiles": [
+        "plan.md"
+      ],
+      "activePlanRecommendedDirectories": [
+        "reports",
+        "research",
+        "spec",
+        "workstreams",
+        "handoffs"
+      ],
+      "archiveGrouping": "year"
+    },
+    "concurrency": {
+      "multipleSessionsPerPlan": true,
+      "multipleWorktrees": true,
+      "sharedPlansRoot": "supported-via-absolute-paths"
+    }
+  },
+  "composition": {
+    "selectedPacks": [],
+    "autoActivatePacks": false,
+    "stackPackMap": {},
+    "packAliases": {},
+    "autoIncludeRules": []
+  },
+  "guardrails": {
+    "blockedPaths": [
+      "node_modules",
+      ".git",
+      "dist",
+      "build",
+      ".next",
+      ".turbo",
+      "coverage"
+    ],
+    "sensitivePatterns": [
+      ".env.production*",
+      ".env.prod*",
+      ".env.staging*",
+      ".env.live*",
+      "*.pem",
+      "*.key",
+      "*credentials*",
+      "*secret*.yaml",
+      "*secret*.yml"
+    ],
+    "sensitivePatternEntries": [
+      {
+        "pattern": ".env.production*",
+        "category": "env-production"
+      },
+      {
+        "pattern": ".env.prod*",
+        "category": "env-production"
+      },
+      {
+        "pattern": ".env.staging*",
+        "category": "env-production"
+      },
+      {
+        "pattern": ".env.live*",
+        "category": "env-production"
+      },
+      {
+        "pattern": "*.pem",
+        "category": "private-key"
+      },
+      {
+        "pattern": "*.key",
+        "category": "private-key"
+      },
+      {
+        "pattern": "*credentials*",
+        "category": "credentials"
+      },
+      {
+        "pattern": "*secret*.yaml",
+        "category": "secret-config"
+      },
+      {
+        "pattern": "*secret*.yml",
+        "category": "secret-config"
+      }
+    ],
+    "longRunningPatterns": [
+      "npm install",
+      "npm run build",
+      "npm test",
+      "docker build",
+      "pip install",
+      "cargo build",
+      "make\\b",
+      "mvn ",
+      "gradle "
+    ],
+    "secretDetection": {
+      "mode": "advisory"
+    }
+  },
+  "capabilities": {
+    "toolAdapters": [
+      {
+        "id": "workspace-files",
+        "path": ".prepkit/tools/workspace-files.md",
+        "kind": "local-tool"
+      },
+      {
+        "id": "shell-execution",
+        "path": ".prepkit/tools/shell-execution.md",
+        "kind": "local-tool"
+      },
+      {
+        "id": "mcp-adapter",
+        "path": ".prepkit/tools/mcp-adapter.md",
+        "kind": "external-tool"
+      },
+      {
+        "id": "runtime-validator",
+        "path": ".prepkit/tools/runtime-validator.md",
+        "kind": "internal-tool"
+      },
+      {
+        "id": "browser-execution",
+        "path": ".prepkit/tools/browser-execution.md",
+        "kind": "external-tool"
+      },
+      {
+        "id": "browser-screenshot-capture",
+        "path": ".prepkit/tools/browser-screenshot-capture.md",
+        "kind": "external-tool"
+      },
+      {
+        "id": "browser-observability-capture",
+        "path": ".prepkit/tools/browser-observability-capture.md",
+        "kind": "external-tool"
+      },
+      {
+        "id": "browser-session-bootstrap",
+        "path": ".prepkit/tools/browser-session-bootstrap.md",
+        "kind": "external-tool"
+      }
+    ],
+    "skills": {
+      "domain": [
+        {
+          "id": "kit-architecture",
+          "path": ".claude/skills/domain/kit-architecture/SKILL.md"
+        },
+        {
+          "id": "kit-authoring",
+          "path": ".claude/skills/domain/kit-authoring/SKILL.md"
+        },
+        {
+          "id": "intuitive-explanation",
+          "path": ".claude/skills/domain/intuitive-explanation/SKILL.md"
+        }
+      ],
+      "process": [
+        {
+          "id": "context-collection",
+          "path": ".claude/skills/process/context-collection/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "context-engineering",
+          "path": ".claude/skills/process/context-engineering/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "prepkit-navigator",
+          "path": ".claude/skills/process/prepkit-navigator/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "decision-interview",
+          "path": ".claude/skills/process/decision-interview/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "knowledge-capture",
+          "path": ".claude/skills/process/knowledge-capture/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "ubiquitous-language",
+          "path": ".claude/skills/process/ubiquitous-language/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "lesson-capture",
+          "path": ".claude/skills/process/lesson-capture/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "self-learning",
+          "path": ".claude/skills/process/self-learning/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "runtime-validation",
+          "path": ".claude/skills/process/runtime-validation/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "problem-solving",
+          "path": ".claude/skills/process/problem-solving/SKILL.md",
+          "tier": "router"
+        },
+        {
+          "id": "verify-fix-loop",
+          "path": ".claude/skills/process/verify-fix-loop/SKILL.md",
+          "tier": "router"
+        }
+      ]
+    }
+  },
+  "agents": [
+    {
+      "id": "planner",
+      "path": ".claude/agents/planner.md",
+      "sourcePath": ".claude/agent-templates/planner.md",
+      "lane": "build"
+    },
+    {
+      "id": "researcher",
+      "path": ".claude/agents/researcher.md",
+      "sourcePath": ".claude/agent-templates/researcher.md",
+      "lane": "research"
+    }
+  ],
+  "commands": [
+    {
+      "id": "prep-plan",
+      "path": ".claude/commands/prep-plan.md",
+      "tier": "essential",
+      "nextSteps": []
+    },
+    {
+      "id": "prep-doctor",
+      "path": ".claude/commands/prep-doctor.md",
+      "tier": "secondary",
+      "nextSteps": []
+    }
+  ],
+  "workflows": [
+    {
+      "id": "primary-workflow",
+      "path": ".claude/workflows/primary-workflow.md"
+    },
+    {
+      "id": "context-engineering",
+      "path": ".claude/workflows/context-engineering.md"
+    },
+    {
+      "id": "knowledge-lifecycle",
+      "path": ".claude/workflows/knowledge-lifecycle.md"
+    },
+    {
+      "id": "kit-governance",
+      "path": ".claude/workflows/kit-governance.md"
+    }
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "command": "node .claude/hooks/pre-compact-snapshot.cjs"
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "command": "node .claude/hooks/session-init.cjs"
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "command": "node .prepkit/packs/marketing/hooks/marketing-memory-init.cjs"
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "command": "node .prepkit/packs/marketing/hooks/marketing-context-freshness.cjs"
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/subagent-init.cjs"
+      },
+      {
+        "matcher": "marketing-copywriter|marketing-content-reviewer|marketing-reviewer|marketing-strategist|marketing-content-strategist|marketing-social-media-manager|marketing-performance-marketer|marketing-gtm-manager|marketing-lifecycle-strategist|marketing-media-designer|marketing-seo-specialist|marketing-growth-analyst|marketing-ops-analyst",
+        "command": "node .prepkit/packs/marketing/hooks/marketing-brand-inject.cjs"
+      },
+      {
+        "matcher": "marketing-campaign-diagnostician|marketing-reviewer",
+        "command": "node .prepkit/packs/marketing/hooks/marketing-campaign-inject.cjs"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/user-prompt-dispatch.cjs"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Glob|Grep|Read|Edit|Write|MultiEdit",
+        "command": "node .claude/hooks/pre-tool-dispatch.cjs"
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "command": "node .prepkit/packs/marketing/hooks/marketing-publish-pretool.cjs"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/post-tool-dispatch.cjs"
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "command": "node .prepkit/packs/marketing/hooks/marketing-publish-guard.cjs"
+      },
+      {
+        "matcher": "Skill",
+        "command": "node .claude/hooks/learning-lifecycle.cjs"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/stop-dispatch.cjs"
+      },
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/session-capture.cjs"
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/subagent-stop.cjs"
+      }
+    ],
+    "FileChanged": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/lifecycle-observer.cjs"
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/lifecycle-observer.cjs"
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/lifecycle-observer.cjs"
+      }
+    ],
+    "CwdChanged": [
+      {
+        "matcher": "*",
+        "command": "node .claude/hooks/lifecycle-observer.cjs"
+      }
+    ]
+  }
+}

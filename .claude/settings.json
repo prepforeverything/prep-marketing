@@ -1,0 +1,212 @@
+{
+  "includeCoAuthoredBy": false,
+  "statusLine": {
+    "type": "command",
+    "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/statusline.cjs\"",
+    "padding": 0
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/pre-compact-snapshot.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/session-init.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-memory-init.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-context-freshness.cjs\""
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/subagent-init.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "marketing-copywriter|marketing-content-reviewer|marketing-reviewer|marketing-strategist|marketing-content-strategist|marketing-social-media-manager|marketing-performance-marketer|marketing-gtm-manager|marketing-lifecycle-strategist|marketing-media-designer|marketing-seo-specialist|marketing-growth-analyst|marketing-ops-analyst",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-brand-inject.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "marketing-campaign-diagnostician|marketing-reviewer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-campaign-inject.cjs\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/user-prompt-dispatch.cjs\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Glob|Grep|Read|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/pre-tool-dispatch.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-publish-pretool.cjs\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/post-tool-dispatch.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-publish-guard.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/learning-lifecycle.cjs\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/stop-dispatch.cjs\""
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/session-capture.cjs\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/subagent-stop.cjs\""
+          }
+        ]
+      }
+    ],
+    "FileChanged": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/lifecycle-observer.cjs\""
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/lifecycle-observer.cjs\""
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/lifecycle-observer.cjs\""
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".claude/hooks/lifecycle-observer.cjs\""
+          }
+        ]
+      }
+    ]
+  }
+}

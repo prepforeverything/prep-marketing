@@ -1,0 +1,11 @@
+%% Purpose: how one marketing request flows through the kit, safely
+flowchart TD
+    You["You -- a plain-language request"] --> Front["/mkt -- the front door"]
+    Front --> Route["marketing-facilitation<br/>routes to the right skill + specialist"]
+    Route --> Ground["Reads your context/<br/>brand voice, positioning, claims"]
+    Ground --> Draft["Specialist agents draft the work"]
+    Draft --> Review["Brand + claims review"]
+    Review --> Gate{"Claims gate --<br/>is every number approved?"}
+    Gate -->|"No"| DraftOut["Stays a DRAFT<br/>tells you what to approve"]
+    Gate -->|"Yes"| Approve["You approve (lock)"]
+    Approve --> Publish["Publish-ready -- saved to files"]

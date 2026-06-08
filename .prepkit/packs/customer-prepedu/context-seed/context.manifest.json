@@ -1,0 +1,22 @@
+{
+  "_comment": "Declarative index of context/ for the market-aware loader (.prepkit/scripts/context-resolve.mjs). Each file entry: role, status, market (ALL | a market code | per-locale), required, loadOrder (lower loads first — brand voice + claims lead). The resolver returns the ordered, market-filtered set (market==ALL or ==active market, plus the active market's policy file) and the approved claim_ids for that market. CLAIMS stay deterministic: the resolver surfaces approved ids as a START allow-list only — binding stays with claims-check.sh --market.",
+  "files": [
+    { "file": "brand-voice.md",        "role": "voice",          "status": "reviewed", "market": "ALL", "required": true,  "loadOrder": 10 },
+    { "file": "claims.json",           "role": "claims-registry","status": "per-locale","market": "per-locale","required": true,"loadOrder": 20 },
+    { "file": "positioning.md",        "role": "positioning",    "status": "draft",    "market": "VN",  "required": true,  "loadOrder": 30 },
+    { "file": "products.md",           "role": "products",       "status": "reviewed", "market": "ALL", "required": true,  "loadOrder": 40 },
+    { "file": "audience-personas.md",  "role": "personas",       "status": "draft",    "market": "VN",  "required": true,  "loadOrder": 50 },
+    { "file": "company.md",            "role": "company",        "status": "reviewed", "market": "ALL", "required": false, "loadOrder": 60 },
+    { "file": "competitors.md",        "role": "competitors",    "status": "draft",    "market": "VN",  "required": false, "loadOrder": 70 },
+    { "file": "exam-calendar.md",      "role": "seasonality",    "status": "reviewed", "market": "ALL", "required": false, "loadOrder": 80 }
+  ],
+  "marketFiles": {
+    "VN": "markets/vietnam.md",
+    "TH": "markets/thailand.md",
+    "TW": "markets/taiwan.md",
+    "ID": "markets/indonesia.md",
+    "HK": "markets/hongkong.md"
+  },
+  "marketFileRole": "market-policy",
+  "marketFileLoadOrder": 15
+}

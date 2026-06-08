@@ -1,0 +1,54 @@
+{
+  "_comment": "Connector registry for /mkt-connect. Read-first by design. The flow must honor maxPermission, the secrets rule, and the promotionPath; it must never exceed a connector's cap without completing the promotion gate (human approval + audit).",
+  "defaultPermission": "read",
+  "permissionLevels": ["read", "draft", "execute"],
+  "permissionRules": {
+    "read": "analytics / insights only — safe to auto-enable after a read-only verify call",
+    "draft": "prepare content or messages but DO NOT send — requires human review of each draft",
+    "execute": "publish / send / spend — requires explicit human approval + an audit entry PER ACTION"
+  },
+  "promotionPath": {
+    "_comment": "How a connector's permission is raised. A connector never starts above 'read'. Each step is gated; nothing is automatic.",
+    "steps": [
+      "1. Validate the provider's live API + exact scopes for the intended action (read-only first).",
+      "2. Connect at 'read'; confirm with the connector's verify call; record the connection in reports/.",
+      "3. To reach 'draft': a human approves; the kit prepares but never sends; each draft is reviewed.",
+      "4. To reach 'execute': a human approves PER ACTION; log tool, action, approver, timestamp in reports/.",
+      "5. Never exceed maxPermission; raising maxPermission itself is a deliberate, reviewed change to this file."
+    ],
+    "runtimeNote": "Write/execute connectors are 'planned' — live send/spend is NOT wired yet. Until a connector's status is 'available' AND a human has approved execute, treat all write actions as dry-run."
+  },
+  "secrets": "Secret values live in .env (git-ignored). In .mcp.json, reference them as ${ENV_VAR} only. Never store raw keys in chat, memory, or committed files.",
+  "auditSchema": {
+    "_comment": "Structured shape for every connector audit entry. Append via the single writer integrations/scripts/audit-append.mjs (one JSONL line per action). An 'execute' action with no approver is REFUSED, not logged. Secrets never appear — log payloadHash, never the payload.",
+    "fields": ["ts", "tool", "connectorId", "level", "action", "target", "approver", "payloadHash", "result", "dryRun"],
+    "writer": ".prepkit/packs/marketing/integrations/scripts/audit-append.mjs",
+    "location": "the active plan's reports/connector-audit.jsonl (or pass --out <path>)",
+    "rules": [
+      "Record a 'draft' or 'execute' action BEFORE performing it; 'execute' requires a non-empty approver.",
+      "Never write a secret — record a sha256 payloadHash, not the payload.",
+      "audit-verify + a firewall approval-token ship WITH the first promoted execute connector (deferred — see promotionPath.runtimeNote)."
+    ]
+  },
+  "connectionState": "status:'available' means the connector is SUPPORTED, not that it is wired. Only sage-memory is wired by default (.mcp.json). Before any READ, verify the connector is configured in .mcp.json + .env. If a connector is not wired, every metric it would supply is a DATA GAP — never estimate or fabricate a number.",
+  "connectors": [
+    { "id": "ga4",      "name": "Google Analytics 4",      "type": "mcp|rest", "auth": "google-oauth",  "maxPermission": "read",  "status": "available", "env": ["GA4_PROPERTY_ID"],                               "verify": "fetch one report row for the last 7 days (read-only)" },
+    { "id": "gsc",      "name": "Google Search Console",   "type": "mcp|rest", "auth": "google-oauth",  "maxPermission": "read",  "status": "available", "env": [],                                                "verify": "list verified sites (read-only)" },
+    { "id": "meta",     "name": "Meta (FB/IG) Ads",        "type": "mcp",      "auth": "meta-oauth",    "maxPermission": "read",  "status": "available", "env": ["META_ACCESS_TOKEN"],                             "verify": "read ad-account name + insights for last 7 days (read-only)" },
+    { "id": "tiktok",   "name": "TikTok Ads",              "type": "mcp",      "auth": "tiktok-oauth",  "maxPermission": "read",  "status": "available", "env": ["TIKTOK_ACCESS_TOKEN"],                           "verify": "read advertiser info + basic report (read-only)" },
+    { "id": "zalo-oa",  "name": "Zalo OA / ZNS",           "type": "rest",     "auth": "oa-appid+zca",  "maxPermission": "draft", "status": "planned",   "env": ["ZALO_OA_ID", "ZALO_APP_ID", "ZALO_SECRET_KEY"], "verify": "GET OA profile / quota (read-only)" },
+    { "id": "pancake",  "name": "Pancake",                 "type": "rest",     "auth": "api-key",       "maxPermission": "draft", "status": "planned",   "env": ["PANCAKE_API_KEY"],                               "verify": "GET pages/list (read-only)" },
+    { "id": "line",     "name": "LINE (Messaging API/OA)", "type": "rest",     "auth": "channel-token", "maxPermission": "draft", "status": "planned",   "env": ["LINE_CHANNEL_ACCESS_TOKEN", "LINE_CHANNEL_SECRET"], "verify": "GET bot info + message quota (read-only)", "markets": ["TH", "TW"] },
+    { "id": "whatsapp", "name": "WhatsApp Business Cloud",  "type": "rest",     "auth": "meta-cloud-api","maxPermission": "draft", "status": "planned",   "env": ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"], "verify": "GET business phone-number profile (read-only)", "markets": ["ID", "HK"] }
+  ],
+  "generationProviders": {
+    "_comment": "Asset/media generation providers for /mkt-generate-asset + marketing-media-designer (engine: skills/domain/marketing-asset-generation/scripts/generate_asset.py). Distinct from connectors: no read/draft/execute — these are billed content-creation APIs. 'status:available' means the engine SUPPORTS the provider, not that a key is wired; add the key to .env (git-ignored) before use. All hosted image/video generation requires billing (no free tier). Model IDs are env-overridable so preview-model drift is a one-line config change.",
+    "providers": [
+      { "id": "gemini-image", "name": "Google Gemini — Nano Banana + Imagen 4", "kind": "image", "providerFlags": ["gemini", "imagen"], "auth": "api-key", "env": ["GEMINI_API_KEY"], "modelEnv": ["IMAGE_GEN_MODEL", "IMAGEN_MODEL"], "defaults": { "gemini": "gemini-2.5-flash-image", "imagen": "imagen-4.0-generate-001" }, "billing": "required", "status": "available", "notes": "Nano Banana (fast, editing); set IMAGE_GEN_MODEL=gemini-3-pro-image-preview for high-fidelity in-image text; Imagen 4 for production photographic stills." },
+      { "id": "openai-image", "name": "OpenAI / Codex gen_image (gpt-image)", "kind": "image", "providerFlags": ["openai"], "auth": "api-key", "env": ["OPENAI_API_KEY"], "modelEnv": ["OPENAI_IMAGE_MODEL"], "defaults": { "openai": "gpt-image-2" }, "billing": "required", "status": "available", "notes": "Same Images API the Codex CLI image tool wraps; called directly for headless use. gpt-image-1 deprecates 2026-10-23. Uses size (mapped from aspect ratio) + quality." },
+      { "id": "veo-video", "name": "Google Veo (video)", "kind": "video", "providerFlags": ["veo"], "auth": "api-key", "env": ["GEMINI_API_KEY"], "modelEnv": ["VIDEO_GEN_MODEL"], "defaults": { "veo": "veo-3.1-generate-preview" }, "billing": "required", "status": "available", "notes": "8s clips with native audio; image-to-video via start/end reference frames; async (submit + poll)." },
+      { "id": "higgsfield", "name": "higgsfield.ai (image + video)", "kind": "image|video", "providerFlags": ["higgsfield"], "auth": "bearer", "base": "https://api.higgsfield.ai/v1", "env": ["HIGGSFIELD_API_KEY"], "modelEnv": ["HIGGSFIELD_MODEL"], "defaults": {}, "billing": "credits", "status": "available", "notes": "REST submit POST /generations -> poll GET /generations/{id} -> output URL. text/image-to-video, 'Soul'; 5/10s, 480p/720p/1080p. Set HIGGSFIELD_MODEL from the cloud.higgsfield.ai dashboard." },
+      { "id": "minimax", "name": "MiniMax / Hailuo (optional)", "kind": "image|video|audio", "providerFlags": [], "auth": "bearer", "base": "https://api.minimax.io/v1", "env": ["MINIMAX_API_KEY"], "modelEnv": [], "defaults": { "image": "image-01", "video": "MiniMax-Hailuo-2.3" }, "billing": "required", "status": "optional", "notes": "Documented but NOT wired into the engine. Add a provider branch to generate_asset.py to enable image/Hailuo-video/TTS/music." }
+    ]
+  }
+}

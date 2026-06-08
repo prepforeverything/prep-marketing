@@ -1,0 +1,15 @@
+{
+  "scorer_prompt_version": "marketing-creative-scorer@v2-sonnet",
+  "graded_at": "2026-06-08",
+  "blind": true,
+  "judge_model": "claude-sonnet-4-6",
+  "note": "Thickened to 6 anchors (>=2 per level; the *b anchors are status:draft pending human ratification). Re-graded after downgrading marketing-creative-scorer opus->sonnet (cost). Truly-blind bodies (hook + predicted behavior only; score heading + rationale stripped). BOTH opus and sonnet scored every hook EXACTLY on the human pin (6/6 within +/-1, zero divergence) — including the distinct failure modes in the new *b anchors (hook-1b-cram fails swappable-ID via offer-cram; hook-2b-audio fails the muted-test). Single-rater pass; multi-rater Krippendorff alpha >= 0.8 out of scope (documented target). Re-grade monthly / on any prompt or model change.",
+  "scores": {
+    "hook-1-weak": 1,
+    "hook-1b-cram": 1,
+    "hook-2-mid": 2,
+    "hook-2b-audio": 2,
+    "hook-3-strong": 3,
+    "hook-3b-mock": 3
+  }
+}

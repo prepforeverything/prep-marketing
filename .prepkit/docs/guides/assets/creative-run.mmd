@@ -1,0 +1,7 @@
+%% Purpose: the data-driven creative-run pipeline (numbers are computed, not guessed)
+flowchart LR
+    Data["Meta-Ads export<br/>(or read-only connector)"] --> S00["Stage 00<br/>ads-signal -- computes every number"]
+    S00 --> Research["Research -> Personas"]
+    Research --> Brief["Brief -> Hooks -> Script"]
+    Brief --> Visual["Storyboard -> Image"]
+    Visual --> Proposed["Saved to context/proposed/<br/>for your review"]

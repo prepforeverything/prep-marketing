@@ -1,0 +1,91 @@
+{
+  "_synthetic": true,
+  "_note": "FABRICATED test data — NOT a real Meta Ads export and NOT any real account's performance. Every campaign name, audience, and number is invented, generic, and locale-neutral; its only purpose is to exercise ads-signal.mjs offline so the fatigue / significance / proxy-vs-outcome guards visibly fire. Real Stage-00 input comes from a user-provided export file via /mkt-creative-run, or a read-only Meta MCP pull. Do not treat any value here as an approved fact.",
+  "_meta": {
+    "spend_floor": 1000,
+    "segment_universe": ["prospecting-core", "prospecting-fresh", "value-seekers", "career-switchers", "retarget-warm", "lookalike-broad", "lapsed-users"]
+  },
+  "account": {
+    "id": "SYN-TEST-0001",
+    "name": "Synthetic Test Account",
+    "currency": "USD",
+    "objective": "OUTCOME_ENGAGEMENT"
+  },
+  "date_range": { "start": "2026-03-07", "end": "2026-06-04", "days": 90 },
+  "rows": [
+    {
+      "campaign": "C01 — broad reach saturation", "ad": "broad-A",
+      "status": "ACTIVE", "audience_tag": "lookalike-broad", "audience_type": "cold",
+      "spend": 60000, "impressions": 12000000, "reach": 1600000, "clicks": 72000, "purchases": 180, "runtime_days": 84,
+      "_condition": "saturated cold buy: freq 7.5, CTR 0.60% -> PAUSE band; well-evidenced so confidence HIGH"
+    },
+    {
+      "campaign": "C02 — high-intent winner (short runtime)", "ad": "winner-A",
+      "status": "PAUSED", "audience_tag": "career-switchers", "audience_type": "cold",
+      "spend": 600, "impressions": 40000, "reach": 33000, "clicks": 1000, "purchases": 0, "runtime_days": 6,
+      "_condition": "high CTR 2.50% on 6d runtime + tiny spend -> SHORT_RUNTIME then LOW_CONFIDENCE (cannot be ranked #1)"
+    },
+    {
+      "campaign": "C03 — high-intent winner (low spend)", "ad": "winner-B",
+      "status": "PAUSED", "audience_tag": "career-switchers", "audience_type": "cold",
+      "spend": 550, "impressions": 38000, "reach": 32000, "clicks": 836, "purchases": 0, "runtime_days": 30,
+      "_condition": "high CTR 2.20% but spend 550 < floor 1000 and impressions < 50k -> LOW_SPEND then LOW_CONFIDENCE"
+    },
+    {
+      "campaign": "C04 — core pain hook 1", "ad": "core-A",
+      "status": "ACTIVE", "audience_tag": "prospecting-core", "audience_type": "cold",
+      "spend": 18000, "impressions": 1200000, "reach": 750000, "clicks": 16800, "purchases": 40, "runtime_days": 70,
+      "_condition": "healthy core: CTR 1.40%, freq 1.60 -> HEALTHY, confidence HIGH, scale_room HIGH"
+    },
+    {
+      "campaign": "C05 — core pain hook 2", "ad": "core-B",
+      "status": "ACTIVE", "audience_tag": "prospecting-core", "audience_type": "cold",
+      "spend": 16000, "impressions": 1100000, "reach": 611000, "clicks": 13200, "purchases": 28, "runtime_days": 65,
+      "_condition": "healthy core: CTR 1.20%, freq 1.80 -> HEALTHY, scale_room HIGH"
+    },
+    {
+      "campaign": "C06 — core fresh video", "ad": "core-video",
+      "status": "ACTIVE", "audience_tag": "prospecting-fresh", "audience_type": "cold",
+      "spend": 14000, "impressions": 1000000, "reach": 526000, "clicks": 13000, "purchases": 22, "runtime_days": 60,
+      "video_3s_views": 350000, "thruplays": 122500,
+      "_condition": "WITH video metrics -> hook_rate 0.35 / hold_rate 0.35 compute; CTR 1.30%, freq 1.90"
+    },
+    {
+      "campaign": "C07 — value-seekers video", "ad": "value-video",
+      "status": "ACTIVE", "audience_tag": "value-seekers", "audience_type": "cold",
+      "spend": 9700, "impressions": 700000, "reach": 460000, "clicks": 9800, "purchases": 18, "runtime_days": 50,
+      "video_3s_views": 210000, "thruplays": 63000,
+      "_condition": "WITH video metrics -> hook 0.30 / hold 0.30; CTR 1.40%, freq 1.52 -> HEALTHY"
+    },
+    {
+      "campaign": "C08 — career mid (no video)", "ad": "career-mid",
+      "status": "ACTIVE", "audience_tag": "career-switchers", "audience_type": "cold",
+      "spend": 3300, "impressions": 320000, "reach": 168000, "clicks": 3520, "purchases": 6, "runtime_days": 40,
+      "_condition": "no video fields -> hook/hold UNAVAILABLE; CTR 1.10%, freq 1.90"
+    },
+    {
+      "campaign": "C09 — scarcity overexposed", "ad": "scarcity-A",
+      "status": "ACTIVE", "audience_tag": "lookalike-broad", "audience_type": "cold",
+      "spend": 7000, "impressions": 900000, "reach": 273000, "clicks": 6300, "purchases": 9, "runtime_days": 70,
+      "_condition": "overexposed cold: CTR 0.70%, freq 3.30 -> ROTATE"
+    },
+    {
+      "campaign": "C10 — seasonal overexposed", "ad": "seasonal-A",
+      "status": "PAUSED", "audience_tag": "value-seekers", "audience_type": "cold",
+      "spend": 6000, "impressions": 850000, "reach": 243000, "clicks": 6800, "purchases": 7, "runtime_days": 55,
+      "_condition": "overexposed cold: CTR 0.80%, freq 3.50 -> ROTATE"
+    },
+    {
+      "campaign": "C11 — retarget warm", "ad": "retarget-A",
+      "status": "ACTIVE", "audience_tag": "retarget-warm", "audience_type": "retarget",
+      "spend": 8000, "impressions": 500000, "reach": 111000, "clicks": 7500, "purchases": 30, "runtime_days": 45,
+      "_condition": "audience-aware: freq 4.50 would PAUSE a COLD audience but is HEALTHY on a RETARGET pool (4-6 tolerance)"
+    },
+    {
+      "campaign": "C12 — fresh angle", "ad": "fresh-A",
+      "status": "ACTIVE", "audience_tag": "prospecting-fresh", "audience_type": "cold",
+      "spend": 5200, "impressions": 600000, "reach": 330000, "clicks": 7200, "purchases": 12, "runtime_days": 35,
+      "_condition": "healthy mid: CTR 1.20%, freq 1.82 -> HEALTHY"
+    }
+  ]
+}

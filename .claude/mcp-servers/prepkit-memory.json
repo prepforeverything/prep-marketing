@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy this into your Claude Code settings under mcpServers.prepkit-memory to enable semantic memory. Adjust the path to match your prepkit-memory installation.",
+  "command": "node",
+  "args": ["../prepkit-memory/src/server.mjs"],
+  "env": {
+    "PREPKIT_PROJECT_ROOT": ".",
+    "PREPKIT_MEMORY_PROFILE": ""
+  }
+}

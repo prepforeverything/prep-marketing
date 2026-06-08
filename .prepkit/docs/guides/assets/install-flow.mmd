@@ -1,0 +1,9 @@
+%% Purpose: the one-time path from a fresh machine to a working kit
+flowchart TD
+    Pre["Prerequisites<br/>Claude Code · Node 18+ · git"] --> Get["1 · Get the kit<br/>(clone the repo)"]
+    Get --> Open["2 · Open it in Claude Code"]
+    Open --> Build["3 · First-run build<br/>(generate local runtime files)"]
+    Build --> Setup["4 · /mkt-setup<br/>(configure your team)"]
+    Setup --> Doctor["5 · /prep-doctor<br/>(verify)"]
+    Doctor --> Ready["Ready -- see the Team User Guide"]
+    Build -.->|"optional"| Secrets["Secrets (.env) · Memory (uv)"]

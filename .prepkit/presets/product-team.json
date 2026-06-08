@@ -1,0 +1,11 @@
+{
+  "id": "product-team",
+  "description": "Marketing kit setup (legacy preset name retained for validator compatibility).",
+  "selectedPacks": [
+    "marketing",
+    "customer-prepedu"
+  ],
+  "deliveryDefaults": {
+    "defaultMode": "build"
+  }
+}

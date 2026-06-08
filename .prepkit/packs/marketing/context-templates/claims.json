@@ -1,0 +1,4 @@
+{
+  "_comment": "Claims registry (flat, single-market). Add a claim ONLY when you can cite evidence. Each claim: claim_id, source, market, wording, evidence, status (unverified→approved), owner, approver, expiry, channels, anchors{numbers,mustInclude}. Nothing publishes against an unverified claim. To run a second market, see context/markets/_adding-a-market.md.",
+  "claims": []
+}

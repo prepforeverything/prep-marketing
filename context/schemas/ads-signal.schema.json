@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/ads-signal.schema.json",
+  "title": "Ads Signal (Stage 00 deterministic compute)",
+  "description": "Output contract for .prepkit/scripts/ads-signal.mjs — the deterministic ads-signal floor. EVERY number here is computed in code from raw counts; no LLM and no network is involved. Downstream a narration LLM only describes this pre-flagged table and is forbidden to invent figures (design §6.2, leverage move (a)). Tier-B outcome metrics (ROAS/CPA) are emitted as the string \"UNAVAILABLE\" whenever the account objective is not conversion-optimized — they are NEVER invented. Synthesized fatigue/significance defaults live in _meta.methodology and are surfaced for human override at the design-lock checkpoint (Open Q#4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_meta", "account_summary", "rows", "top_performers", "fatigued", "audience_signal", "budget_efficiency", "untested_whitespace"],
+  "$defs": {
+    "unavailable": {
+      "const": "UNAVAILABLE",
+      "description": "A metric that cannot be computed from the present export fields, or a Tier-B outcome metric on a non-conversion objective. Emitted verbatim, never replaced by a guessed number."
+    },
+    "numberOrUnavailable": {
+      "description": "A computed number, or the literal \"UNAVAILABLE\" when the input fields required to compute it are absent (degrade-gracefully).",
+      "oneOf": [
+        { "type": "number" },
+        { "$ref": "#/$defs/unavailable" }
+      ]
+    },
+    "confidenceTier": {
+      "type": "string",
+      "enum": ["HIGH", "MEDIUM", "LOW"],
+      "description": "Statistical-confidence tier for the row's signal. LOW when evidence is thin (low spend or short runtime), so a raw-CTR winner cannot be presented as trustworthy."
+    },
+    "sampleFlag": {
+      "type": "string",
+      "enum": ["OK", "LOW_SPEND", "SHORT_RUNTIME", "LOW_CONFIDENCE"],
+      "description": "Significance guard. SHORT_RUNTIME: runtime below the runtime floor. LOW_SPEND: spend below the spend floor or impressions below the impression floor. LOW_CONFIDENCE: a high-CTR winner that is LOW_SPEND or SHORT_RUNTIME — must not be ranked as a clean #1."
+    },
+    "fatigueBand": {
+      "type": "string",
+      "enum": ["HEALTHY", "WATCH", "ROTATE", "PAUSE"],
+      "description": "Composite fatigue band. HEALTHY 0-39, WATCH 40-59, ROTATE 60-79, PAUSE 80-100."
+    },
+    "audienceClass": {
+      "type": "string",
+      "enum": ["cold-prospecting", "retargeting"],
+      "description": "Audience class driving the fatigue frequency threshold. cold-prospecting flags fatigue at frequency 2.5-3.0; retargeting tolerates 4.0-6.0 (design §5.3)."
+    },
+    "scaleRoom": {
+      "type": "string",
+      "enum": ["HIGH", "MED", "LOW"],
+      "description": "Room to scale spend: HIGH when frequency is well below threshold and CTR is at/above median; LOW when frequency is near/over threshold."
+    },
+    "signalClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Proxy-vs-outcome tiering. Every row is PROXY_ATTENTION on a non-conversion objective: Tier-A attention proxies (hook/hold/CTR/CPM/freq) are valid for ATTENTION diagnosis only and are never presented as conversion-validated. Tier-B (ROAS/CPA) stays UNAVAILABLE.",
+      "required": ["tier", "outcome_validated", "tier_b"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["PROXY_ATTENTION", "OUTCOME_VALIDATED"] },
+        "outcome_validated": { "type": "boolean" },
+        "tier_b": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["roas", "cpa"],
+          "properties": {
+            "roas": { "$ref": "#/$defs/numberOrUnavailable" },
+            "cpa": { "$ref": "#/$defs/numberOrUnavailable" }
+          }
+        }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One ad row with all derived metrics + guards computed deterministically from raw counts.",
+      "required": [
+        "campaign", "ad", "status", "audience_tag", "audience_class",
+        "spend", "impressions", "reach", "clicks", "runtime_days",
+        "ctr", "cpc", "cpm", "frequency", "hook_rate", "hold_rate",
+        "ctr_delta_vs_median", "ctr_delta_label",
+        "fatigue_score", "fatigue_band", "fatigue_action",
+        "confidence_tier", "sample_flag", "signal_class"
+      ],
+      "properties": {
+        "campaign": { "type": "string" },
+        "ad": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "PAUSED"] },
+        "audience_tag": { "type": "string" },
+        "audience_class": { "$ref": "#/$defs/audienceClass" },
+        "spend": { "type": "number", "minimum": 0 },
+        "impressions": { "type": "integer", "minimum": 0 },
+        "reach": { "type": "integer", "minimum": 0 },
+        "clicks": { "type": "integer", "minimum": 0 },
+        "purchases": { "type": "integer", "minimum": 0, "description": "Raw click/engagement-attributed purchase count from the export. On an engagement objective this is NOT a validated conversion and never feeds Tier-B ROAS/CPA." },
+        "runtime_days": { "type": "integer", "minimum": 0 },
+        "ctr": { "type": "number", "description": "clicks / impressions (fraction, e.g. 0.0137 = 1.37%)." },
+        "cpc": { "$ref": "#/$defs/numberOrUnavailable", "description": "spend / clicks, in the account currency. UNAVAILABLE if clicks = 0." },
+        "cpm": { "$ref": "#/$defs/numberOrUnavailable", "description": "spend / impressions * 1000, in the account currency. UNAVAILABLE if impressions = 0." },
+        "frequency": { "$ref": "#/$defs/numberOrUnavailable", "description": "impressions / reach. UNAVAILABLE if reach = 0." },
+        "hook_rate": { "$ref": "#/$defs/numberOrUnavailable", "description": "video_3s_views / impressions. UNAVAILABLE when video_3s_views is absent (degrade-gracefully)." },
+        "hold_rate": { "$ref": "#/$defs/numberOrUnavailable", "description": "thruplays / video_3s_views. UNAVAILABLE when thruplays or video_3s_views absent." },
+        "ctr_delta_vs_median": { "type": "number", "description": "(row ctr - account median ctr) / median ctr (signed fraction). Records the delta the significance guard reads." },
+        "ctr_delta_label": { "type": "string", "enum": ["noise", "neutral", "signal"], "description": "noise: |delta| < 0.10; signal: |delta| >= 0.30; neutral: in between (design §5.3)." },
+        "fatigue_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "fatigue_band": { "$ref": "#/$defs/fatigueBand" },
+        "fatigue_action": { "type": "string", "enum": ["NONE", "WATCH", "ROTATE", "PAUSE"] },
+        "confidence_tier": { "$ref": "#/$defs/confidenceTier" },
+        "sample_flag": { "$ref": "#/$defs/sampleFlag" },
+        "signal_class": { "$ref": "#/$defs/signalClass" }
+      }
+    }
+  },
+  "properties": {
+    "_meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Provenance + the synthesized methodology (weights/thresholds) so a human can audit and override every default (Open Q#4).",
+      "required": ["generated_by", "version", "computed_at", "input_file", "input_synthetic", "account", "date_range", "methodology"],
+      "properties": {
+        "generated_by": { "type": "string", "description": "Always the ads-signal script identifier; asserts no LLM produced these numbers." },
+        "version": { "type": "string" },
+        "computed_at": { "type": "string", "format": "date-time" },
+        "input_file": { "type": "string" },
+        "input_synthetic": { "type": "boolean", "description": "True when the input export is fabricated test data." },
+        "account": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "name", "currency", "objective"],
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "currency": { "type": "string" },
+            "objective": { "type": "string" }
+          }
+        },
+        "date_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end", "days"],
+          "properties": {
+            "start": { "type": "string" },
+            "end": { "type": "string" },
+            "days": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "methodology": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "SYNTHESIZED defaults — there is no canonical public fatigue formula (design §5.3). Marked synthesized:true and surfaced for human override.",
+          "required": ["synthesized", "note", "fatigue_weights", "fatigue_bands", "significance_thresholds", "audience_classes"],
+          "properties": {
+            "synthesized": { "const": true },
+            "note": { "type": "string" },
+            "fatigue_weights": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Weights of the composite fatigue blend. When the weekly series is absent, ctr_decline_wow weight is redistributed proportionally onto the available signals (no fabricated decline).",
+              "required": ["frequency_vs_threshold", "ctr_vs_median", "ctr_decline_wow", "weekly_series_available", "effective_after_redistribution"],
+              "properties": {
+                "frequency_vs_threshold": { "type": "number" },
+                "ctr_vs_median": { "type": "number" },
+                "ctr_decline_wow": { "type": "number" },
+                "weekly_series_available": { "type": "boolean" },
+                "effective_after_redistribution": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["frequency_vs_threshold", "ctr_vs_median", "ctr_decline_wow"],
+                  "properties": {
+                    "frequency_vs_threshold": { "type": "number" },
+                    "ctr_vs_median": { "type": "number" },
+                    "ctr_decline_wow": { "$ref": "#/$defs/numberOrUnavailable" }
+                  }
+                }
+              }
+            },
+            "fatigue_bands": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["HEALTHY", "WATCH", "ROTATE", "PAUSE"],
+              "properties": {
+                "HEALTHY": { "type": "string" },
+                "WATCH": { "type": "string" },
+                "ROTATE": { "type": "string" },
+                "PAUSE": { "type": "string" }
+              }
+            },
+            "significance_thresholds": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "The runtime + impression floors are currency-NEUTRAL and always apply. The spend floor is currency-specific and applied only when the caller supplies it (--spend-floor or input _meta.spend_floor); spend_floor is null and spend_floor_applied false when it was not supplied.",
+              "required": ["runtime_floor_days", "impression_floor", "spend_floor", "spend_floor_currency", "spend_floor_applied", "noise_delta", "signal_delta"],
+              "properties": {
+                "runtime_floor_days": { "type": "number" },
+                "impression_floor": { "type": "number" },
+                "spend_floor": { "type": ["number", "null"] },
+                "spend_floor_currency": { "type": ["string", "null"] },
+                "spend_floor_applied": { "type": "boolean" },
+                "noise_delta": { "type": "number" },
+                "signal_delta": { "type": "number" }
+              }
+            },
+            "audience_classes": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "NEUTRAL: class is derived from an explicit per-row audience_type, else an RT/REMARKETING/RETARGET tag marker, else default cold-prospecting. No consumer-specific segment names are hardcoded.",
+              "required": ["source", "cold_prospecting", "retargeting"],
+              "properties": {
+                "source": { "type": "string" },
+                "cold_prospecting": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["freq_threshold_low", "freq_threshold_high"],
+                  "properties": {
+                    "freq_threshold_low": { "type": "number" },
+                    "freq_threshold_high": { "type": "number" }
+                  }
+                },
+                "retargeting": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["match", "freq_threshold_low", "freq_threshold_high"],
+                  "properties": {
+                    "match": { "type": "string" },
+                    "freq_threshold_low": { "type": "number" },
+                    "freq_threshold_high": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "account_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objective", "outcome_metrics_available", "median_ctr", "total_spend", "row_count", "tier_b_note"],
+      "properties": {
+        "objective": { "type": "string" },
+        "outcome_metrics_available": { "type": "boolean", "description": "False on a non-conversion objective; Tier-B ROAS/CPA stays UNAVAILABLE account-wide." },
+        "median_ctr": { "type": "number" },
+        "total_spend": { "type": "number" },
+        "row_count": { "type": "integer", "minimum": 0 },
+        "tier_b_note": { "type": "string" }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "description": "Every ad row, fully computed. Ordering is stable (input order preserved).",
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "top_performers": {
+      "type": "array",
+      "description": "Rows ranked by CTR, but EACH carries confidence_tier + signal_class + a caveat. A LOW_CONFIDENCE row is explicitly marked, never silently ranked #1.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["campaign", "ad", "ctr", "spend", "confidence_tier", "sample_flag", "signal_class", "caveat"],
+        "properties": {
+          "campaign": { "type": "string" },
+          "ad": { "type": "string" },
+          "ctr": { "type": "number" },
+          "spend": { "type": "number" },
+          "confidence_tier": { "$ref": "#/$defs/confidenceTier" },
+          "sample_flag": { "$ref": "#/$defs/sampleFlag" },
+          "signal_class": { "$ref": "#/$defs/signalClass" },
+          "caveat": { "type": "string" }
+        }
+      }
+    },
+    "fatigued": {
+      "type": "array",
+      "description": "Rows in ROTATE or PAUSE band, with the deterministic action.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["campaign", "ad", "audience_class", "frequency", "ctr", "fatigue_score", "fatigue_band", "action"],
+        "properties": {
+          "campaign": { "type": "string" },
+          "ad": { "type": "string" },
+          "audience_class": { "$ref": "#/$defs/audienceClass" },
+          "frequency": { "$ref": "#/$defs/numberOrUnavailable" },
+          "ctr": { "type": "number" },
+          "fatigue_score": { "type": "number" },
+          "fatigue_band": { "$ref": "#/$defs/fatigueBand" },
+          "action": { "type": "string", "enum": ["ROTATE", "PAUSE"] }
+        }
+      }
+    },
+    "audience_signal": {
+      "type": "array",
+      "description": "Per audience_tag aggregates with scale room and a confidence tier.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["audience_tag", "audience_class", "row_count", "avg_ctr", "avg_cpc", "avg_frequency", "scale_room", "confidence_tier"],
+        "properties": {
+          "audience_tag": { "type": "string" },
+          "audience_class": { "$ref": "#/$defs/audienceClass" },
+          "row_count": { "type": "integer", "minimum": 0 },
+          "avg_ctr": { "type": "number" },
+          "avg_cpc": { "$ref": "#/$defs/numberOrUnavailable" },
+          "avg_frequency": { "$ref": "#/$defs/numberOrUnavailable" },
+          "scale_room": { "$ref": "#/$defs/scaleRoom" },
+          "confidence_tier": { "$ref": "#/$defs/confidenceTier" }
+        }
+      }
+    },
+    "budget_efficiency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_spend", "top_spender_share", "concentration_flag", "scale_candidates", "pause_candidates"],
+      "properties": {
+        "total_spend": { "type": "number" },
+        "top_spender_share": { "type": "number", "description": "Fraction of total spend taken by the single highest-spend row." },
+        "concentration_flag": { "type": "string", "enum": ["OK", "CONCENTRATED"], "description": "CONCENTRATED when one row exceeds the concentration threshold of total spend." },
+        "scale_candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["campaign", "ad", "reason"],
+            "properties": {
+              "campaign": { "type": "string" },
+              "ad": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "pause_candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["campaign", "ad", "reason"],
+            "properties": {
+              "campaign": { "type": "string" },
+              "ad": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "untested_whitespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Deterministically derived gaps — audiences with high scale room and angle/format dimensions absent from the data. These are STRUCTURAL gaps from the table, not creative ideas (those come later from the narration LLM).",
+      "required": ["high_scale_room_audiences", "absent_dimensions", "notes"],
+      "properties": {
+        "high_scale_room_audiences": { "type": "array", "items": { "type": "string" } },
+        "absent_dimensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dimension", "present_values", "gap"],
+            "properties": {
+              "dimension": { "type": "string" },
+              "present_values": { "type": "array", "items": { "type": "string" } },
+              "gap": { "type": "string" }
+            }
+          }
+        },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

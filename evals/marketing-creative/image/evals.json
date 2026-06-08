@@ -1,0 +1,27 @@
+{
+  "dimension": "image",
+  "mode": "calibration",
+  "judge": "marketing-creative-scorer",
+  "scale": "x/12 (sum of Concept-fit, Craft, On-screen-text/locale, Stop-power — each 1–3)",
+  "max": 12,
+  "tolerance": 1,
+  "scorer_prompt_version": "marketing-creative-scorer@v2-sonnet",
+  "rubric_ref": ".prepkit/packs/marketing/agents/marketing-creative-scorer.md — Rubric: Stage 10 image",
+  "agreement": {
+    "metric": "share of exemplars where |judge_score - human_score| <= tolerance",
+    "promote": 0.75,
+    "monitor": 0.65,
+    "noise_below": 0.65,
+    "alpha_high_confidence": 0.8,
+    "note": "promote >= 0.75; 0.65–0.75 = monitor; < 0.65 = noise. Krippendorff alpha >= 0.8 is the high-confidence bar (needs repeated/multi-rater runs — out of scope here)."
+  },
+  "howToRun": "For each exemplar: give marketing-creative-scorer the file BODY (concept description) WITHOUT the frontmatter human_score, score per its Stage-10 four-axis rubric, record {id: judge_score} into this dir's grading.json, then run.mjs computes agreement. Three band anchors (weak ~4 / competent ~8 / strong ~11) cover the per-axis 1/2/3 levels.",
+  "exemplars": [
+    { "id": "img-4-weak",         "file": "files/img-4-weak.md",         "human_score": 4,  "score_level": "weak" },
+    { "id": "img-4b-artifacts",   "file": "files/img-4b-artifacts.md",   "human_score": 4,  "score_level": "weak" },
+    { "id": "img-8-competent",    "file": "files/img-8-competent.md",    "human_score": 8,  "score_level": "competent" },
+    { "id": "img-8b-literal",     "file": "files/img-8b-literal.md",     "human_score": 8,  "score_level": "competent" },
+    { "id": "img-11-strong",      "file": "files/img-11-strong.md",      "human_score": 11, "score_level": "strong" },
+    { "id": "img-11b-typographic","file": "files/img-11b-typographic.md","human_score": 11, "score_level": "strong" }
+  ]
+}

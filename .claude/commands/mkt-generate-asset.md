@@ -1,0 +1,1 @@
+../../.prepkit/packs/marketing/commands/mkt-generate-asset.md

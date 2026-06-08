@@ -1,0 +1,14 @@
+{
+  "dimension": "copy-quality",
+  "mode": "judge",
+  "judge": "marketing-content-reviewer",
+  "passBar": 7.5,
+  "rubric": "marketing-content-reviewer 6-dimension quality rubric. Copy-quality lens: one clear job + one CTA; persuasive hook; funnel-stage fit; platform-native; correct structure; no claim shipped unapproved (publish-mode claims gate must also pass on the output).",
+  "howToRun": "For each brief: run the matching /mkt command, then grade the OUTPUT with marketing-content-reviewer AND run claims-check.sh --mode publish on it. Record score + gate result in grading.json. Baseline target: mean >= 7.5 AND publish-gate clean (claims approved or held as draft).",
+  "cases": [
+    { "id": "landing-hero", "command": "/mkt-build-landing-page", "market": "VN", "brief": "Hero + first section for a Prep IELTS summer-intensive landing page. One CTA (free level test). Must tag any number with an approved claim or hold as draft." },
+    { "id": "blog-intent", "command": "/mkt-write-blog", "market": "VN", "brief": "Intro + outline for 'cách tự học IELTS Writing từ 5.0 lên 6.5' — search-intent aligned, one CTA, internal-link plan." },
+    { "id": "social-pack", "command": "/mkt-social-pack", "market": "VN", "brief": "TikTok + Facebook + Zalo pack for the admission-crunch window. Platform-native (no cross-post), one CTA each." },
+    { "id": "email-step1", "command": "/mkt-email-sequence", "market": "VN", "brief": "First message of a reactivation Zalo/email flow for lapsed leads. Consent-aware, one CTA, no unverified claims." }
+  ]
+}

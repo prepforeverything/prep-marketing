@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TITLE}} - Hasaki</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Meta Pixel Code -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    // TODO: thay YOUR_PIXEL_ID rồi bỏ comment 2 dòng dưới
+    // fbq('init', 'YOUR_PIXEL_ID');
+    // fbq('track', 'PageView');
+  </script>
+
+  <style>
+    /* ===== CSS Variables - phong cách Hasaki.vn ===== */
+    :root{
+      --primary:#ff6600;            /* cam - giá, nút Mua online, sao, badge giảm giá */
+      --primary-hover:#e65c00;
+      --primary-soft:#fff3e9;       /* nền cam nhạt - badge/box khuyến mãi */
+      --green:#1aa055;              /* xanh lá Hasaki - header modal, tiêu đề section, nút phụ, trust, tag */
+      --green-dark:#157a3f;         /* xanh đậm - nút "còn sản phẩm" trên thanh đáy */
+      --green-soft:#eaf6ef;         /* nền xanh nhạt - info box */
+      --canvas:#ffffff;
+      --surface:#f0f2f5;            /* nền xám nhạt - section phân tách, chip, divider */
+      --text:#333333;               /* chữ thường */
+      --text-strong:#09090b;        /* chữ tiêu đề / đậm */
+      --text-muted:#777777;         /* chữ phụ, meta, placeholder */
+      --on-color:#ffffff;           /* chữ trên nền cam/xanh */
+      --border:#e4e4e7;             /* viền + divider mảnh */
+      --star:#ff6600;               /* sao đánh giá - cam */
+      --radius-sm:4px;
+      --radius-md:6px;
+      --radius-lg:20px;             /* card lớn, sheet */
+      --radius-pill:9999px;
+      --shadow-soft:0 4px 16px rgba(20,25,26,0.08);   /* shadow nhẹ duy nhất - sticky/popover */
+      --transition:0.18s ease;
+    }
+
+    /* ===== Base reset + body ===== */
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+      background:var(--surface);
+      color:var(--text);
+      overflow-x:hidden;
+      line-height:1.5;
+      font-size:14px;
+      padding-bottom:64px;   /* CHỪA CHỖ cho thanh đáy 2 nút - bắt buộc */
+    }
+
+    /* ===== Card, row & divider (flat - Hasaki) ===== */
+    .section{background:#fff}
+    .gap{height:8px;background:var(--surface)}
+    .divider{height:1px;background:var(--border)}
+    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md)}
+    .page{max-width:1100px;margin:0 auto}
+
+    /* ===== Reveal ===== */
+    .reveal{opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .5s ease}
+    .reveal.active{opacity:1;transform:translateY(0)}
+
+    /* ===== Buttons ===== */
+    .btn-primary{
+      display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
+      background:var(--primary);color:var(--on-color);border:none;
+      padding:.75rem 1.4rem;border-radius:var(--radius-md);
+      font-family:inherit;font-size:.95rem;font-weight:700;cursor:pointer;
+      text-decoration:none;
+      transition:background var(--transition);
+    }
+    .btn-primary:hover{background:var(--primary-hover)}
+    .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+    .btn-secondary{
+      display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
+      background:var(--canvas);color:var(--green);
+      border:1px solid var(--green);border-radius:var(--radius-md);
+      padding:.75rem 1.4rem;font-family:inherit;font-size:.95rem;font-weight:500;cursor:pointer;
+      text-decoration:none;
+    }
+    .btn-chip{background:var(--surface);color:var(--text-muted);
+      border:none;border-radius:var(--radius-pill);padding:.4rem .9rem;
+      font-family:inherit;font-size:.82rem;cursor:pointer}
+
+    /* ===== Header ===== */
+    header{position:fixed;top:0;left:0;width:100%;z-index:999;background:#fff;padding:.5rem 0;transition:box-shadow var(--transition)}
+    header.scrolled{box-shadow:var(--shadow-soft)}
+    .header-container{max-width:1100px;margin:0 auto;padding:0 1rem;display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;text-decoration:none;color:var(--green);font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
+    .logo img{height:30px;width:auto}
+    .header-actions{display:flex;align-items:center;gap:.5rem}
+
+    /* ===== Nav menu + mobile drawer ===== */
+    .nav-menu{display:flex;align-items:center;gap:.25rem}
+    .nav-link{padding:.5rem .8rem;border-radius:var(--radius-sm);color:var(--text);text-decoration:none;font-size:.9rem;font-weight:500;transition:color var(--transition);white-space:nowrap}
+    .nav-link:hover{color:var(--green)}
+    .menu-toggle{display:none;width:38px;height:38px;border-radius:var(--radius-sm);border:none;background:#fff;color:var(--text-strong);cursor:pointer;align-items:center;justify-content:center;transition:color var(--transition)}
+    .menu-toggle:hover{color:var(--green)}
+    .mobile-nav{position:fixed;top:0;right:0;width:270px;max-width:85vw;height:100vh;background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,.15);z-index:1100;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;padding:4.5rem 1.25rem 2rem}
+    .mobile-nav.open{transform:translateX(0)}
+    .mobile-nav .nav-link{padding:.9rem .5rem;border-bottom:1px solid var(--border);font-size:1rem;color:var(--text-strong)}
+    .mobile-nav .btn-primary{margin-top:1rem;justify-content:center}
+    .mobile-nav-close{position:absolute;top:.9rem;right:.9rem;width:38px;height:38px;border-radius:var(--radius-sm);border:none;background:#fff;color:var(--text-strong);cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .mobile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1050;opacity:0;pointer-events:none;transition:opacity .25s}
+    .mobile-overlay.open{opacity:1;pointer-events:auto}
+    @media(max-width:1024px){.nav-menu{display:none}.menu-toggle{display:flex}}
+    @media(max-width:768px){.btn-header-cta{display:none}}
+
+    /* ===== Breadcrumb (chỉ desktop) ===== */
+    .breadcrumb{display:none;background:#fff;padding:.7rem 1rem;font-size:.8rem;color:var(--text-muted);border-radius:var(--radius-md);margin-bottom:.8rem}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none}
+    .breadcrumb a:hover{color:var(--green)}
+    .breadcrumb .crumb-current{color:var(--text-strong)}
+
+    /* ===== Bố cục product detail (mobile: xếp dọc | desktop: 2 cột) ===== */
+    main{padding-top:46px}
+    .product-detail{background:#fff}
+    .pd-gallery,.pd-info{background:#fff}
+
+    /* ===== Khu ảnh sản phẩm (hero) ===== */
+    .gallery-stage{position:relative}
+    .gallery{position:relative;background:#fff}
+    .gallery-main{position:relative;width:100%;aspect-ratio:1/1;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;color:var(--text-muted);font-size:.9rem;border-radius:var(--radius-sm)}
+    .gallery-main svg{width:64px;height:64px;opacity:.4}
+    .gallery-index{position:absolute;right:.6rem;bottom:.6rem;background:rgba(0,0,0,.55);color:#fff;font-size:.72rem;padding:.15rem .55rem;border-radius:12px}
+    .gallery-dots{position:absolute;left:0;right:0;bottom:.7rem;display:flex;justify-content:center;gap:.3rem}
+    .gallery-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.6)}
+    .gallery-dot.dot-active{background:var(--primary);width:14px;border-radius:3px}
+    /* Dải thumbnail dọc - chỉ desktop */
+    .gallery-thumbs{display:none;flex-direction:column;gap:.45rem;flex:0 0 62px}
+    .gallery-thumb{width:62px;height:62px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer;transition:border-color var(--transition)}
+    .gallery-thumb svg{width:22px;height:22px;opacity:.45}
+    .gallery-thumb.thumb-active{border-color:var(--primary)}
+    .promo-strip{display:flex;gap:.3rem;flex-wrap:wrap;background:#fff;padding:.6rem 1rem}
+    .promo-badge{font-size:.66rem;font-weight:700;color:#fff;padding:.14rem .42rem;border-radius:var(--radius-sm);white-space:nowrap}
+    .pb-orange{background:var(--primary)}
+    .pb-green{background:var(--green)}
+    .pb-dark{background:var(--text-strong)}
+
+    /* ===== Dòng thương hiệu ===== */
+    .brand-line{display:flex;align-items:center;gap:.45rem;background:#fff;padding:.8rem 1rem .1rem}
+    .brand-tag{display:inline-flex;align-items:center;gap:.2rem;background:var(--green);color:#fff;font-size:.64rem;font-weight:700;padding:.14rem .4rem;border-radius:var(--radius-sm);text-transform:uppercase;letter-spacing:.03em}
+    .brand-name{color:var(--green);font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+
+    /* ===== Tiêu đề sản phẩm + SKU ===== */
+    .product-title{background:#fff;padding:.3rem 1rem .35rem;font-size:18px;font-weight:500;line-height:1.4;color:var(--text-strong)}
+    .product-sku{background:#fff;padding:.1rem 1rem .5rem;font-size:.78rem;color:var(--text-muted)}
+    .product-sku b{color:var(--text)}
+
+    /* ===== Hàng đánh giá + info box ===== */
+    .rating-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;background:#fff;padding:.5rem 1rem}
+    .rating-badge{background:var(--primary);color:#fff;font-size:.82rem;font-weight:700;padding:.12rem .45rem;border-radius:var(--radius-sm)}
+    .rating-meta{color:var(--text-muted);font-size:.82rem}
+    .info-box{margin:.6rem 1rem;padding:.5rem .75rem;font-size:.82rem;color:var(--primary);border:1px dashed var(--primary);border-radius:var(--radius-sm);background:var(--primary-soft)}
+
+    /* ===== Flash deal + đồng hồ đếm ngược ===== */
+    .flash-deal{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--primary);color:#fff;margin:.6rem 1rem;padding:.5rem .75rem;border-radius:var(--radius-md)}
+    .flash-deal-label{display:inline-flex;align-items:center;gap:.3rem;font-weight:700;font-size:.86rem}
+    .flash-deal-text{font-size:.78rem;opacity:.95}
+    .flash-deal-timer{display:inline-flex;align-items:center;gap:.2rem;margin-left:auto;font-size:.78rem;font-weight:700}
+    .flash-deal-timer .cd-box{background:rgba(0,0,0,.32);color:#fff;padding:.16rem .34rem;border-radius:var(--radius-sm);min-width:24px;text-align:center}
+
+    /* ===== Khối giá ===== */
+    .price-block{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;background:#fff;padding:.65rem 1rem .25rem}
+    .price-amount{color:var(--primary);font-size:1.9rem;font-weight:700}
+    .price-old{color:var(--text-muted);text-decoration:line-through;font-size:.95rem}
+    .price-badge{background:var(--primary);color:#fff;font-size:.78rem;font-weight:700;padding:.1rem .4rem;border-radius:var(--radius-sm)}
+    .price-meta{background:#fff;padding:0 1rem .55rem;font-size:.8rem;color:var(--text-muted)}
+    .price-meta b{color:var(--primary);font-weight:700}
+
+    /* ===== Tabs điều hướng (gạch chân cam) ===== */
+    .tabs{display:flex;gap:1.25rem;background:#fff;padding:0 1rem;overflow-x:auto;border-bottom:1px solid var(--border)}
+    .tab{padding:.85rem 0;color:var(--text-muted);text-decoration:none;font-size:.92rem;white-space:nowrap;border-bottom:2px solid transparent}
+    .tab-active{color:var(--text-strong);font-weight:700;border-bottom-color:var(--primary)}
+
+    /* ===== Chip variant ===== */
+    .variant-label{background:#fff;padding:.6rem 1rem .15rem;font-size:.85rem;font-weight:700;color:var(--text-strong)}
+    .variant-row{display:flex;gap:.5rem;flex-wrap:wrap;background:#fff;padding:.4rem 1rem .5rem}
+    .variant-chip{background:#fff;color:var(--text);border:1px solid var(--border);border-radius:var(--radius-pill);padding:.45rem 1rem;font-family:inherit;font-size:.85rem;cursor:pointer;transition:border-color var(--transition),color var(--transition)}
+    .variant-chip.variant-selected{border-color:var(--primary);color:var(--primary)}
+
+    /* ===== Bộ chọn số lượng ===== */
+    .qty-row{display:flex;align-items:center;gap:.75rem;background:#fff;padding:.45rem 1rem .6rem}
+    .qty-row>span{font-size:.85rem;font-weight:700;color:var(--text-strong)}
+    .qty-stepper{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden}
+    .qty-stepper button{width:34px;height:34px;background:#fff;border:none;color:var(--text-strong);font-size:1.15rem;line-height:1;cursor:pointer;font-family:inherit;transition:background var(--transition)}
+    .qty-stepper button:hover{background:var(--surface)}
+    .qty-stepper input{width:46px;height:34px;border:none;border-left:1px solid var(--border);border-right:1px solid var(--border);text-align:center;font-family:inherit;font-size:.95rem;color:var(--text-strong);-moz-appearance:textfield}
+    .qty-stepper input::-webkit-outer-spin-button,.qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+    /* ===== Nút hành động trong cột info (chỉ desktop - mobile dùng thanh đáy) ===== */
+    .pd-actions{display:none;gap:.55rem;background:#fff;padding:.7rem 1rem .9rem}
+    .pd-actions .pd-btn{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-decoration:none;border-radius:var(--radius-md);padding:.6rem .7rem;line-height:1.25}
+    .pd-btn-store{flex:0 0 40%;background:var(--green-dark);color:#fff}
+    .pd-btn-buy{flex:1;background:var(--primary);color:#fff}
+    .pd-btn-buy:hover{background:var(--primary-hover)}
+    .pd-btn-main{font-size:.98rem;font-weight:700}
+    .pd-btn-sub{font-size:.7rem;opacity:.95}
+
+    /* ===== Section heading (luôn XANH LÁ) ===== */
+    .section-heading{background:#fff;color:var(--green);font-weight:700;font-size:1rem;padding:.9rem 1rem .35rem}
+
+    /* ===== Accordion ===== */
+    .accordion{background:#fff}
+    .accordion-head{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:.9rem 1rem;font-family:inherit;font-size:.95rem;font-weight:700;color:var(--text-strong);cursor:pointer}
+    .accordion-chevron{transition:transform var(--transition);color:var(--text-muted)}
+    .accordion.open .accordion-chevron{transform:rotate(180deg)}
+    .accordion-body{display:none;padding:0 1rem 1rem;color:var(--text);font-size:.88rem}
+    .accordion.open .accordion-body{display:block}
+    .accordion-body p{margin-bottom:.5rem}
+    .spec-table{width:100%;border-collapse:collapse}
+    .spec-table td{padding:.4rem 0;vertical-align:top;font-size:.84rem;border-bottom:1px solid var(--border)}
+    .spec-table tr:last-child td{border-bottom:none}
+    .spec-table td:first-child{color:var(--text-muted);width:38%}
+
+    /* ===== Tem tròn tin cậy ===== */
+    .trust-row{display:flex;justify-content:space-around;flex-wrap:wrap;gap:.75rem;background:var(--green-soft);padding:1rem .5rem}
+    .trust-seal{display:flex;flex-direction:column;align-items:center;gap:.4rem;color:var(--green);font-size:.72rem;font-weight:500;text-align:center}
+    .trust-ring{width:48px;height:48px;border-radius:50%;border:2px solid var(--green);display:flex;align-items:center;justify-content:center}
+
+    /* ===== Khối đánh giá sản phẩm ===== */
+    .review-head{background:#fff;color:var(--green);font-weight:700;font-size:1rem;padding:.9rem 1rem .35rem}
+    .review-summary{display:flex;align-items:center;gap:.6rem;background:#fff;padding:.3rem 1rem .5rem}
+    .review-score{color:var(--primary);font-size:1.6rem;font-weight:700;line-height:1}
+    .rating-stars{color:var(--star);letter-spacing:1px}
+    .review-summary .rating-stars{font-size:.95rem}
+    .review-summary-meta{color:var(--text-muted);font-size:.8rem}
+    .review-list{background:#fff;padding:0 1rem 1rem}
+    .review-item{padding:.75rem 0;border-bottom:1px solid var(--border)}
+    .review-item:last-child{border-bottom:none}
+    .review-top{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem}
+    .review-avatar{width:32px;height:32px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.72rem;font-weight:700;flex-shrink:0}
+    .review-name{font-size:.82rem;font-weight:700;color:var(--text-strong)}
+    .review-item .rating-stars{font-size:.75rem}
+    .review-bought{display:inline-block;color:var(--green);font-size:.7rem;font-weight:500;margin-left:.3rem}
+    .review-body{font-size:.83rem;color:var(--text)}
+    .review-meta{font-size:.72rem;color:var(--text-muted);margin-top:.3rem}
+
+    /* ===== Form ===== */
+    .form-section{background:#fff;padding:1.1rem 1rem}
+    .form-wrapper{max-width:600px;margin:0 auto}
+    .form-title h3{font-size:1.15rem;font-weight:700;color:var(--green);margin-bottom:.25rem}
+    .form-title p{color:var(--text-muted);font-size:.85rem;margin-bottom:1rem}
+    .form-group{margin-bottom:.9rem}
+    .form-group label{display:block;font-weight:500;margin-bottom:.35rem;font-size:.84rem;color:var(--text-strong)}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:.7rem .8rem;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:var(--radius-md);font-family:inherit;font-size:1rem;transition:border-color var(--transition)}
+    .form-group textarea{min-height:88px;resize:vertical}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary)}
+    .form-group input.error,.form-group select.error,.form-group textarea.error{border-color:#d92d20}
+    .form-error{display:none;color:#d92d20;font-size:.78rem;margin-top:.3rem}
+    .form-group.has-error .form-error{display:block}
+    .hp-field{position:absolute;left:-9999px;opacity:0;pointer-events:none}
+    .form-submit{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;background:var(--primary);color:var(--on-color);border:none;padding:.85rem 1.5rem;border-radius:var(--radius-md);font-family:inherit;font-weight:700;font-size:1rem;cursor:pointer;transition:background var(--transition)}
+    .form-submit:hover{background:var(--primary-hover)}
+    .form-submit:disabled{opacity:.6;cursor:not-allowed}
+    .form-submit .spinner{display:none}
+    .form-submit.loading .btn-text,.form-submit.loading .btn-icon{display:none}
+    .form-submit.loading .spinner{display:block;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .form-fields.hidden{display:none}
+    .payment-qr{display:none}
+    .payment-qr.active{display:block}
+    .payment-qr>h3{font-size:1.15rem;font-weight:700;color:var(--green);margin-bottom:.5rem}
+    .payment-qr>p{color:var(--text-muted);font-size:.85rem;margin-bottom:1rem}
+    .qr-image-wrapper{text-align:center;padding:1rem;background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:1rem}
+    .qr-image-wrapper img{max-width:240px;width:100%}
+    .bank-info{background:var(--surface);border-radius:var(--radius-md);padding:.85rem;margin-bottom:1rem}
+    .bank-info-row{display:flex;justify-content:space-between;padding:.4rem 0;font-size:.88rem}
+    .bank-info-label{color:var(--text-muted)}
+    .bank-info-value{font-weight:700;color:var(--text-strong)}
+    .payment-note{font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem}
+    .payment-confirmed{display:none;text-align:center;padding:1.5rem 0}
+    .payment-confirmed.active{display:block}
+    .confirmed-icon{width:64px;height:64px;margin:0 auto .85rem;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center}
+    .check-payment-btn{width:100%;margin-top:.5rem;padding:.75rem;background:#fff;color:var(--green);border:1px solid var(--green);border-radius:var(--radius-md);font-family:inherit;font-weight:500;cursor:pointer;transition:background var(--transition),color var(--transition)}
+    .check-payment-btn:hover{background:var(--green);color:#fff}
+    .payment-status-msg{margin-top:.85rem;padding:.65rem .85rem;border-radius:var(--radius-md);font-size:.85rem}
+    .payment-status-msg.error{background:var(--primary-soft);color:#d92d20}
+    .payment-status-msg.success{background:var(--green-soft);color:var(--green)}
+
+    /* ===== Footer ===== */
+    footer{background:#fff;padding:1.5rem 1rem;text-align:center;border-top:1px solid var(--border)}
+    .footer-brand{color:var(--green);font-size:1.15rem;font-weight:700;margin-bottom:.4rem}
+    .footer-desc{color:var(--text-muted);font-size:.82rem;margin-bottom:.75rem}
+    .footer-links{display:flex;gap:1.25rem;justify-content:center;flex-wrap:wrap;margin-bottom:.75rem}
+    .footer-links a{color:var(--text);text-decoration:none;font-size:.82rem;transition:color var(--transition)}
+    .footer-links a:hover{color:var(--green)}
+    .footer-copy{color:var(--text-muted);font-size:.75rem}
+
+    /* ===== Thanh đáy 2 nút ===== */
+    .buybar{position:fixed;bottom:0;left:0;right:0;z-index:1000;display:flex;align-items:stretch;background:#fff;box-shadow:var(--shadow-soft);padding-bottom:env(safe-area-inset-bottom)}
+    .buybar-inner{display:flex;align-items:stretch;width:100%;max-width:1100px;margin:0 auto}
+    .buybar-store{flex:0 0 42%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--green-dark);color:#fff;text-decoration:none;font-size:.78rem;font-weight:500;text-align:center;padding:.5rem;line-height:1.25}
+    .buybar-cta{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--primary);color:#fff;text-decoration:none;line-height:1.2}
+    .buybar-cta:hover{background:var(--primary-hover)}
+    .buybar-cta-main{font-size:1rem;font-weight:700}
+    .buybar-cta-sub{font-size:.7rem}
+
+    /* ===== Responsive - DESKTOP (>=1024px): hero 2 cột ===== */
+    @media(min-width:1024px){
+      main{padding-top:54px}
+      .breadcrumb{display:block}
+      /* product-detail = lưới 2 cột: gallery trái + info phải */
+      .product-detail{display:grid;grid-template-columns:440px minmax(0,1fr);gap:1rem;background:transparent;align-items:start;padding:.2rem 0 0}
+      .pd-gallery{border:1px solid var(--border);border-radius:var(--radius-md);padding:.85rem;align-self:start}
+      .pd-info{border:1px solid var(--border);border-radius:var(--radius-md);padding:.3rem 0 .2rem;align-self:start}
+      /* gallery: dải thumbnail dọc + ảnh chính */
+      .gallery-stage{display:flex;gap:.55rem}
+      .gallery-thumbs{display:flex}
+      .gallery{flex:1;min-width:0}
+      .promo-strip{padding:.7rem .2rem 0}
+      /* nút hành động hiện trong cột info */
+      .pd-actions{display:flex}
+      .product-title{font-size:21px;padding-top:.5rem}
+      .price-amount{font-size:2.1rem}
+      /* các section dưới: căn giữa, nền trắng có viền */
+      .tabs,#detail,.trust-wrap,.review-wrap,.form-section{border:1px solid var(--border);border-radius:var(--radius-md);margin-top:.8rem}
+      .gap{display:none}
+      body{padding-bottom:72px}
+    }
+
+    @media(min-width:1024px) and (max-width:1140px){
+      .product-detail{grid-template-columns:380px minmax(0,1fr)}
+    }
+
+    /* ===== Responsive - tablet & mobile ===== */
+    @media(max-width:768px){
+      .form-section{padding:1.1rem .85rem}
+      .header-container{padding:0 .85rem}
+    }
+    @media(max-width:480px){
+      body{font-size:13.5px}
+      .gallery-main svg{width:52px;height:52px}
+      .price-amount{font-size:1.65rem}
+      .product-title{font-size:16px}
+      .form-section{padding:1.1rem .75rem}
+      /* Input >= 16px để iOS không auto-zoom khi focus */
+      .form-group input,.form-group select,.form-group textarea{font-size:16px;padding:.7rem .75rem}
+      .bank-info-row{flex-direction:column;gap:.2rem;align-items:flex-start}
+      .bank-info-value{word-break:break-all}
+      .confirmed-icon{width:56px;height:56px}
+      .confirmed-icon svg{width:34px;height:34px}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header ===== -->
+  <header id="header">
+    <div class="header-container">
+      <a href="#" class="logo">
+        <span>{{BRAND}}</span>
+      </a>
+      <nav class="nav-menu" id="navMenu" aria-label="Menu chính">
+        <a href="#gallery" class="nav-link">Sản phẩm</a>
+        <a href="#detail" class="nav-link">Mô tả</a>
+        <a href="#reviews" class="nav-link">Đánh giá</a>
+        <a href="#form" class="nav-link">Đặt mua</a>
+      </nav>
+      <div class="header-actions">
+        <a href="#form" class="btn-primary btn-header-cta">Mua online</a>
+        <button class="menu-toggle" id="menuToggle" aria-label="Mở menu" aria-expanded="false">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <aside class="mobile-nav" id="mobileNav" aria-label="Menu di động">
+    <button class="mobile-nav-close" id="mobileNavClose" aria-label="Đóng menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <a href="#gallery" class="nav-link">Sản phẩm</a>
+    <a href="#detail" class="nav-link">Mô tả</a>
+    <a href="#reviews" class="nav-link">Đánh giá</a>
+    <a href="#form" class="nav-link">Đặt mua</a>
+    <a href="#form" class="btn-primary">Mua online</a>
+  </aside>
+
+  <main>
+    <div class="page">
+
+      <!-- ===== Breadcrumb (chỉ hiện desktop) ===== -->
+      <nav class="breadcrumb" aria-label="Đường dẫn">
+        <a href="#">Trang chủ</a> &rsaquo;
+        <a href="#">Sản phẩm</a> &rsaquo;
+        <span class="crumb-current">{{PRODUCT_TITLE}}</span>
+      </nav>
+
+      <!-- ===== Khối product detail: desktop 2 cột | mobile xếp dọc ===== -->
+      <div class="product-detail">
+
+        <!-- Cột trái: ảnh sản phẩm -->
+        <div class="pd-gallery">
+          <div class="gallery-stage">
+            <div class="gallery-thumbs" id="galleryThumbs">
+              <button class="gallery-thumb thumb-active" type="button" aria-label="Ảnh 1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+              </button>
+              <button class="gallery-thumb" type="button" aria-label="Ảnh 2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+              </button>
+              <button class="gallery-thumb" type="button" aria-label="Ảnh 3">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+              </button>
+              <button class="gallery-thumb" type="button" aria-label="Ảnh 4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+              </button>
+              <button class="gallery-thumb" type="button" aria-label="Ảnh 5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+              </button>
+              <button class="gallery-thumb" type="button" aria-label="Ảnh 6">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+              </button>
+            </div>
+            <section class="gallery" id="gallery">
+              <div class="gallery-main">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span>Ảnh sản phẩm</span>
+                <span class="gallery-index" id="galleryIndex">1/6</span>
+                <div class="gallery-dots" id="galleryDots">
+                  <span class="gallery-dot dot-active"></span>
+                  <span class="gallery-dot"></span>
+                  <span class="gallery-dot"></span>
+                  <span class="gallery-dot"></span>
+                  <span class="gallery-dot"></span>
+                  <span class="gallery-dot"></span>
+                </div>
+              </div>
+            </section>
+          </div>
+          <div class="promo-strip">
+            <span class="promo-badge pb-orange">DEAL HOT</span>
+            <span class="promo-badge pb-green">CHÍNH HÃNG</span>
+            <span class="promo-badge pb-dark">HASAKI DEALS</span>
+            <span class="promo-badge pb-orange">GIẢM 29%</span>
+            <span class="promo-badge pb-green">FREESHIP 2H</span>
+          </div>
+        </div>
+
+        <!-- Cột phải: thông tin + CTA -->
+        <div class="pd-info">
+          <div class="brand-line">
+            <span class="brand-tag">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+              NowFree
+            </span>
+            <span class="brand-name">{{BRAND}}</span>
+          </div>
+
+          <h1 class="product-title reveal">{{PRODUCT_TITLE}}</h1>
+
+          <div class="rating-row reveal">
+            <span class="rating-badge">4.9 &#9733;</span>
+            <span class="rating-meta">(116 đánh giá) &middot; 614 hỏi đáp &middot; Mã SP: {{SKU}}</span>
+          </div>
+          <p class="product-sku">Thương hiệu: <b>{{BRAND}}</b> &middot; Hàng chính hãng - phân phối trực tiếp</p>
+
+          <!-- Flash deal + đồng hồ đếm ngược -->
+          <div class="flash-deal">
+            <span class="flash-deal-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+              FLASH DEAL
+            </span>
+            <span class="flash-deal-text">Kết thúc trong</span>
+            <span class="flash-deal-timer" id="flashTimer">
+              <span class="cd-box">00</span>:<span class="cd-box">02</span>:<span class="cd-box">29</span>:<span class="cd-box">40</span>
+            </span>
+          </div>
+
+          <div class="price-block reveal">
+            <span class="price-amount">{{PRICE}}đ</span>
+            <span class="price-old">{{PRICE_OLD}}đ</span>
+            <span class="price-badge">-29%</span>
+          </div>
+          <p class="price-meta">Giá thị trường: {{PRICE_OLD}}đ &mdash; Tiết kiệm <b>29%</b> (giá đã bao gồm VAT)</p>
+
+          <!-- Chip variant -->
+          <div class="variant-label">Chọn dung tích</div>
+          <div class="variant-row reveal">
+            <button class="variant-chip variant-selected" type="button">100ml</button>
+            <button class="variant-chip" type="button">200ml</button>
+            <button class="variant-chip" type="button">300ml</button>
+            <button class="variant-chip" type="button">500ml</button>
+          </div>
+
+          <!-- Bộ chọn số lượng -->
+          <div class="qty-row">
+            <span>Số lượng</span>
+            <span class="qty-stepper">
+              <button type="button" data-qty="dec" aria-label="Giảm số lượng">&minus;</button>
+              <input type="number" value="1" min="1" max="99" inputmode="numeric" aria-label="Số lượng">
+              <button type="button" data-qty="inc" aria-label="Tăng số lượng">+</button>
+            </span>
+          </div>
+
+          <div class="info-box">Bill 399K Tặng Túi Đựng Mỹ Phẩm (số lượng có hạn)</div>
+
+          <!-- Nút hành động desktop (mobile dùng thanh đáy 2 nút) -->
+          <div class="pd-actions">
+            <a href="#form" class="pd-btn pd-btn-store">
+              <span class="pd-btn-main">325/325 CN</span>
+              <span class="pd-btn-sub">Còn sản phẩm</span>
+            </a>
+            <a href="#form" class="pd-btn pd-btn-buy">
+              <span class="pd-btn-main">Mua online ngay</span>
+              <span class="pd-btn-sub">NowFree 2H &middot; trễ tặng 100k</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="gap"></div>
+
+      <!-- ===== Tabs điều hướng ===== -->
+      <nav class="tabs">
+        <a href="#gallery" class="tab tab-active">Tổng quan</a>
+        <a href="#detail" class="tab">Mô tả</a>
+        <a href="#reviews" class="tab">Đánh giá</a>
+      </nav>
+
+      <!-- ===== Khối gập accordion ===== -->
+      <section id="detail">
+        <h2 class="section-heading">Thông số sản phẩm</h2>
+        <div class="accordion reveal">
+          <button class="accordion-head" type="button" aria-expanded="false">
+            <span>Thông số sản phẩm</span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="accordion-body">
+            <table class="spec-table">
+              <tr><td>Thương hiệu</td><td>{{BRAND}}</td></tr>
+              <tr><td>Xuất xứ</td><td>Chính hãng</td></tr>
+              <tr><td>Dung tích</td><td>100ml</td></tr>
+              <tr><td>Loại da phù hợp</td><td>Mọi loại da</td></tr>
+              <tr><td>Hạn sử dụng</td><td>36 tháng kể từ ngày sản xuất</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="accordion reveal">
+          <button class="accordion-head" type="button" aria-expanded="false">
+            <span>Thành phần sản phẩm</span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="accordion-body">
+            <p>{{INGREDIENTS}}</p>
+            <p>Bảng thành phần đầy đủ được in trên bao bì sản phẩm. Sản phẩm không chứa Paraben, an toàn cho da nhạy cảm.</p>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="accordion reveal">
+          <button class="accordion-head" type="button" aria-expanded="false">
+            <span>Hướng dẫn sử dụng</span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="accordion-body">
+            <p>1. Làm sạch da mặt với sữa rửa mặt trước khi sử dụng.</p>
+            <p>2. Lấy một lượng vừa đủ, thoa đều lên da theo chuyển động tròn.</p>
+            <p>3. Sử dụng đều đặn sáng và tối để đạt hiệu quả tốt nhất.</p>
+            <p>4. Bảo quản nơi khô ráo, tránh ánh nắng trực tiếp.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="gap"></div>
+
+      <!-- ===== Tem tròn tin cậy ===== -->
+      <div class="trust-wrap">
+        <div class="trust-row reveal">
+          <div class="trust-seal">
+            <span class="trust-ring">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            </span>
+            <span>Hàng chính hãng</span>
+          </div>
+          <div class="trust-seal">
+            <span class="trust-ring">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </span>
+            <span>Freeship 48h</span>
+          </div>
+          <div class="trust-seal">
+            <span class="trust-ring">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </span>
+            <span>Đổi trả miễn phí</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap"></div>
+
+      <!-- ===== Khối đánh giá sản phẩm ===== -->
+      <div class="review-wrap">
+        <h2 class="review-head" id="reviews">Đánh Giá Sản Phẩm (116)</h2>
+        <div class="review-summary">
+          <span class="review-score">4.9</span>
+          <div>
+            <div class="rating-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="review-summary-meta">116 đánh giá - 98% khách hài lòng</div>
+          </div>
+        </div>
+        <div class="review-list reveal">
+          <div class="review-item">
+            <div class="review-top">
+              <span class="review-avatar">N</span>
+              <div>
+                <div class="review-name">Nguyễn T*** <span class="review-bought">Đã mua hàng</span></div>
+                <div class="rating-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              </div>
+            </div>
+            <p class="review-body">Sản phẩm chính hãng, dùng rất hợp da. Giao hàng nhanh, đóng gói cẩn thận. Sẽ ủng hộ Hasaki dài dài.</p>
+            <p class="review-meta">2026-05-20 - Phân loại: 100ml</p>
+          </div>
+          <div class="review-item">
+            <div class="review-top">
+              <span class="review-avatar">T</span>
+              <div>
+                <div class="review-name">Trần M*** <span class="review-bought">Đã mua hàng</span></div>
+                <div class="rating-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              </div>
+            </div>
+            <p class="review-body">Mua ở Hasaki yên tâm về chất lượng. Giá tốt hơn nhiều nơi khác, lại được tư vấn nhiệt tình.</p>
+            <p class="review-meta">2026-05-17 - Phân loại: 100ml</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap"></div>
+
+      <!-- ===== Khối form ===== -->
+      <section class="form-section" id="form">
+        <div class="form-wrapper">
+          <div class="form-title">
+            <h3>Thông tin đặt mua</h3>
+            <p>Vui lòng điền đầy đủ thông tin để hoàn tất đơn hàng.</p>
+          </div>
+          <form id="regForm" class="form-fields" novalidate>
+            <div class="hp-field" aria-hidden="true">
+              <label for="website">Website</label>
+              <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label for="fullname">Họ và tên *</label>
+              <input type="text" id="fullname" name="fullname" placeholder="VD: Nguyễn Văn A" required>
+              <div class="form-error">Vui lòng nhập họ tên</div>
+            </div>
+            <div class="form-group">
+              <label for="email">Email *</label>
+              <input type="email" id="email" name="email" placeholder="VD: email@gmail.com" required inputmode="email">
+              <div class="form-error">Vui lòng nhập email hợp lệ</div>
+            </div>
+            <div class="form-group">
+              <label for="phone">Số điện thoại *</label>
+              <input type="tel" id="phone" name="phone" placeholder="VD: 0901234567" required inputmode="tel">
+              <div class="form-error">Vui lòng nhập số điện thoại hợp lệ</div>
+            </div>
+            <!-- ============================================================
+                 [CUSTOM-FIELDS] Vung them truong khach hang nhap (tuy chon).
+                 3 truong mac dinh: ho ten / email / so dien thoai (o tren).
+                 Truong tuy chon (dia chi, tinh/thanh, ghi chu, so luong,
+                 dropdown phan loai...) DAT TAI DAY - giua phone va submit.
+                 Cach them dung contract (markup + validateField + payload):
+                 xem references/form-fields.md. GIU honeypot #website +
+                 18 ID JS-critical, KHONG dat id trung.
+                 ============================================================ -->
+            <button type="submit" class="form-submit" id="submitBtn">
+              <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+              <span class="btn-text">Đặt mua ngay</span>
+            </button>
+          </form>
+
+          <div class="payment-qr" id="paymentQR">
+            <h3>Đặt mua thành công!</h3>
+            <p>Quét mã QR bên dưới để chuyển khoản xác nhận đơn hàng.</p>
+            <div class="qr-image-wrapper"><img id="qrImage" src="" alt="QR Chuyển khoản"></div>
+            <div class="bank-info">
+              <div class="bank-info-row"><span class="bank-info-label">Ngân hàng</span><span class="bank-info-value">MB Bank</span></div>
+              <div class="bank-info-row"><span class="bank-info-label">Số tài khoản</span><span class="bank-info-value">{{STK}}</span></div>
+              <div class="bank-info-row"><span class="bank-info-label">Người nhận</span><span class="bank-info-value">GIAP DUC THANG</span></div>
+              <div class="bank-info-row"><span class="bank-info-label">Số tiền</span><span class="bank-info-value">{{AMOUNT}} VND</span></div>
+              <div class="bank-info-row"><span class="bank-info-label">Nội dung CK</span><span class="bank-info-value" id="transferContent">-</span></div>
+            </div>
+            <p class="payment-note">Chuyển khoản đúng nội dung để hệ thống tự động xác nhận.</p>
+            <button class="check-payment-btn" id="checkPaymentBtn" type="button">Tôi đã thanh toán, kiểm tra trạng thái</button>
+            <div class="payment-status-msg" id="paymentStatusMsg"></div>
+          </div>
+
+          <div class="payment-confirmed" id="paymentConfirmed">
+            <div class="confirmed-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h3>Đặt mua thành công!</h3>
+            <p style="color:var(--text-muted);margin-top:.4rem;font-size:.85rem;">Cảm ơn bạn đã đặt hàng. Chúng tôi sẽ liên hệ giao hàng sớm nhé.</p>
+          </div>
+        <!-- State 4: cam on - landing chi thu lead (khong co thanh toan QR) -->
+        <div class="payment-confirmed" id="formThanks">
+          <div class="confirmed-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3>Cảm ơn bạn đã đăng ký!</h3>
+          <p style="color:var(--text-secondary);margin-top:.5rem;">Chúng tôi sẽ liên hệ trong thời gian sớm nhất qua số điện thoại bạn vừa cung cấp.</p>
+        </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-brand">{{BRAND}}</div>
+    <p class="footer-desc">Hàng chính hãng 100% - Freeship 2H - Đổi trả miễn phí toàn quốc</p>
+    <div class="footer-links">
+      <a href="chinh-sach-bao-mat.html" target="_blank" rel="noopener">Chính sách bảo mật</a>
+      <a href="dieu-khoan-su-dung.html" target="_blank" rel="noopener">Điều khoản dịch vụ</a>
+      <a href="chinh-sach-thanh-toan.html" target="_blank" rel="noopener">Chính sách thanh toán</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 {{BRAND}}. All rights reserved.</p>
+  </footer>
+
+  <!-- ===== Thanh đáy 2 nút ===== -->
+  <div class="buybar">
+    <div class="buybar-inner">
+      <a href="#form" class="buybar-store">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span>325/325 CN còn SP</span>
+      </a>
+      <a href="#form" class="buybar-cta">
+        <span class="buybar-cta-main">Mua online</span>
+        <span class="buybar-cta-sub">NowFree 2H trễ tặng 100k</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // ===== Header scroll =====
+    var header=document.getElementById('header');
+    window.addEventListener('scroll',function(){header.classList.toggle('scrolled',window.scrollY>50);});
+
+    // ===== Reveal =====
+    var ro=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('active');});},{threshold:.1,rootMargin:'0px 0px -80px 0px'});
+    document.querySelectorAll('.reveal').forEach(function(el){ro.observe(el);});
+
+    // ===== Mobile menu drawer =====
+    var menuToggle=document.getElementById('menuToggle');
+    var mobileNav=document.getElementById('mobileNav');
+    var mobileOverlay=document.getElementById('mobileOverlay');
+    var mobileNavClose=document.getElementById('mobileNavClose');
+    function openMenu(){mobileNav.classList.add('open');mobileOverlay.classList.add('open');menuToggle.setAttribute('aria-expanded','true');document.body.style.overflow='hidden';}
+    function closeMenu(){mobileNav.classList.remove('open');mobileOverlay.classList.remove('open');menuToggle.setAttribute('aria-expanded','false');document.body.style.overflow='';}
+    menuToggle.addEventListener('click',openMenu);
+    mobileNavClose.addEventListener('click',closeMenu);
+    mobileOverlay.addEventListener('click',closeMenu);
+    mobileNav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',closeMenu);});
+
+    // ===== Smooth anchors (offset header - KHÔNG dùng scrollIntoView thuần) =====
+    document.querySelectorAll('a[href^="#"]').forEach(function(l){
+      l.addEventListener('click',function(e){
+        var href=this.getAttribute('href'); if(href==='#') return;
+        var t=document.querySelector(href);
+        if(t){
+          e.preventDefault();
+          var headerH=document.getElementById('header').offsetHeight||70;
+          var y=t.getBoundingClientRect().top+window.pageYOffset-headerH-10;
+          window.scrollTo({top:y,behavior:'smooth'});
+        }
+      });
+    });
+
+    // ===== Accordion toggle (mục 6.4 design-system.md) =====
+    document.querySelectorAll('.accordion-head').forEach(function(h){
+      h.addEventListener('click',function(){
+        var ac=h.closest('.accordion'); var open=ac.classList.toggle('open');
+        h.setAttribute('aria-expanded',open?'true':'false');
+      });
+    });
+
+    // ===== Chip variant chọn dung tích =====
+    document.querySelectorAll('.variant-chip').forEach(function(c){
+      c.addEventListener('click',function(){
+        var row=c.closest('.variant-row');
+        if(row)row.querySelectorAll('.variant-chip').forEach(function(x){x.classList.remove('variant-selected');});
+        c.classList.add('variant-selected');
+      });
+    });
+
+    // ===== Meta tracking helpers =====
+    function getCookie(n){var m=document.cookie.match(new RegExp('(^| )'+n+'=([^;]+)'));return m?decodeURIComponent(m[2]):'';}
+    function getFbc(){var c=getCookie('_fbc');if(c)return c;var p=new URLSearchParams(window.location.search);var fb=p.get('fbclid');if(fb){c='fb.1.'+Date.now()+'.'+fb;document.cookie='_fbc='+c+'; max-age='+(90*24*60*60)+'; path=/; SameSite=Lax';return c;}return '';}
+    function getFbp(){var c=getCookie('_fbp');if(c)return c;var r=Math.floor(Math.random()*2147483647);c='fb.1.'+Date.now()+'.'+r;document.cookie='_fbp='+c+'; max-age='+(90*24*60*60)+'; path=/; SameSite=Lax';return c;}
+    var userIP='';var ipResolved=false;
+    function tryCloudflare(){return fetch('https://www.cloudflare.com/cdn-cgi/trace',{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){var m=t.match(/ip=([^\n]+)/);if(m&&m[1])return m[1].trim();return Promise.reject('no ip');});}
+    function tryIpify(){return fetch('https://api.ipify.org?format=json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){if(d&&d.ip)return d.ip;return Promise.reject('no ip');});}
+    function tryIpinfo(){return fetch('https://ipinfo.io/json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){if(d&&d.ip)return d.ip;return Promise.reject('no ip');});}
+    tryCloudflare().catch(function(){return tryIpify();}).catch(function(){return tryIpinfo();}).then(function(ip){userIP=ip;}).catch(function(){}).then(function(){ipResolved=true;});
+
+    function removeDiacritics(s){var m={'à':'a','á':'a','ả':'a','ã':'a','ạ':'a','ă':'a','ằ':'a','ắ':'a','ẳ':'a','ẵ':'a','ặ':'a','â':'a','ầ':'a','ấ':'a','ẩ':'a','ẫ':'a','ậ':'a','è':'e','é':'e','ẻ':'e','ẽ':'e','ẹ':'e','ê':'e','ề':'e','ế':'e','ể':'e','ễ':'e','ệ':'e','ì':'i','í':'i','ỉ':'i','ĩ':'i','ị':'i','ò':'o','ó':'o','ỏ':'o','õ':'o','ọ':'o','ô':'o','ồ':'o','ố':'o','ổ':'o','ỗ':'o','ộ':'o','ơ':'o','ờ':'o','ớ':'o','ở':'o','ỡ':'o','ợ':'o','ù':'u','ú':'u','ủ':'u','ũ':'u','ụ':'u','ư':'u','ừ':'u','ứ':'u','ử':'u','ữ':'u','ự':'u','ỳ':'y','ý':'y','ỷ':'y','ỹ':'y','ỵ':'y','đ':'d'};return s.toLowerCase().split('').map(function(c){return m[c]||c;}).join('');}
+    function toTransferName(n){return removeDiacritics(n).toUpperCase().replace(/\s+/g,'');}
+    function generateCode(){var ch='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';var a=new Uint8Array(32);window.crypto.getRandomValues(a);var c='';for(var i=0;i<32;i++)c+=ch[a[i]%ch.length];return c;}
+
+    // ===== Form =====
+    var regForm=document.getElementById('regForm');
+    var submitBtn=document.getElementById('submitBtn');
+    function validateField(i){var g=i.closest('.form-group');if(!g)return true;var ok=true;if(i.type==='checkbox'||i.type==='radio'){if(i.required)ok=i.type==='radio'?!!(i.form||document).querySelector('input[name="'+i.name+'"]:checked'):i.checked;}else{var v=i.value.trim();if(i.required&&!v)ok=false;else if(i.type==='email'&&v)ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(v);else if(i.type==='tel'&&v)ok=/^(0[0-9]{9}|\+84[0-9]{9})$/.test(v);}if(ok){g.classList.remove('has-error');i.classList.remove('error');}else{g.classList.add('has-error');i.classList.add('error');}return ok;}
+    regForm.querySelectorAll('input[required]').forEach(function(i){i.addEventListener('blur',function(){validateField(this);});i.addEventListener('input',function(){if(this.classList.contains('error'))validateField(this);});});
+
+    // ==== CONFIG - TỰ ĐỔI khi deploy ====
+    var WEBHOOK_URL     = 'https://YOUR-BACKEND/webhook-landing'; // 1 URL duy nhất cho cả lead & check_pay
+    var BANK_CODE       = '{{BANK}}';           // mã VietQR (MB, VCB, TCB, ACB, BIDV, TPB, VPB...)
+    var BANK_STK        = '{{STK}}';   // số tài khoản
+    var ACCOUNT_NAME    = '{{ACCOUNT_NAME}}'; // HOA không dấu không space
+    var AMOUNT          = {{AMOUNT}};         // số tiền VND
+    var TRANSFER_PREFIX = '{{PREFIX}}';           // prefix nội dung CK
+    var registeredPhone='',registeredCode='';
+
+    // Chờ IP resolve (tối đa 2s) trước khi gửi payload
+    function waitForIP(cb){if(ipResolved){cb();return;}var waited=0;var iv=setInterval(function(){waited+=100;if(ipResolved||waited>=2000){clearInterval(iv);cb();}},100);}
+
+    regForm.addEventListener('submit',function(e){
+      e.preventDefault();
+      if(submitBtn.disabled)return; // chan double-submit khi dang gui
+      if(document.getElementById('website').value)return; // honeypot
+      var ok=true;
+      regForm.querySelectorAll('input[required]').forEach(function(i){if(!validateField(i))ok=false;});
+      if(!ok)return;
+
+      submitBtn.classList.add('loading');submitBtn.disabled=true;
+
+      waitForIP(function(){
+      var eventId='lead_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);
+      var regCode=generateCode();
+      var queryParams=new URLSearchParams(window.location.search);
+      var payload={
+        event:'lead', // phân luồng - backend đọc field này
+        fullname:document.getElementById('fullname').value.trim(),
+        email:document.getElementById('email').value.trim(),
+        phone:document.getElementById('phone').value.trim(),
+        code:regCode,
+        timestamp:new Date().toISOString(),
+        event_time:Math.floor(Date.now()/1000),
+        event_id:eventId,
+        fbc:getFbc(),fbp:getFbp(),
+        fbclid:queryParams.get('fbclid')||'',
+        client_user_agent:navigator.userAgent||'',
+        client_ip_address:userIP,
+        event_source_url:window.location.href,
+        action_source:'website',
+        event_name:'Lead',
+        utm_source:queryParams.get('utm_source')||'',
+        utm_medium:queryParams.get('utm_medium')||'',
+        utm_campaign:queryParams.get('utm_campaign')||'',
+        utm_content:queryParams.get('utm_content')||'',
+        utm_term:queryParams.get('utm_term')||'',
+        ref:queryParams.get('ref')||''
+      };
+
+      // KHÔNG gọi Meta Conversions API ở đây - backend tự xử lý qua webhook này
+      fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+        .then(function(r){
+          submitBtn.classList.remove('loading');if(!r.ok)submitBtn.disabled=false;
+          if(r.ok){
+            // Pixel dedup bằng cùng event_id
+            if(typeof fbq!=='undefined')fbq('track','Lead',{content_name:document.title,value:{{AMOUNT}},currency:'VND'},{eventID:eventId});
+
+            // Hiển thị QR thanh toán
+            registeredPhone=payload.phone;registeredCode=regCode;
+            var nameClean=toTransferName(payload.fullname);
+            var addInfo=nameClean+' '+TRANSFER_PREFIX+' '+payload.phone;
+            var qrUrl='https://img.vietqr.io/image/'+BANK_CODE+'-'+BANK_STK+'-compact2.png'
+                     +'?amount='+AMOUNT
+                     +'&addInfo='+encodeURIComponent(addInfo)
+                     +'&accountName='+encodeURIComponent(ACCOUNT_NAME);
+            var paymentQREl=document.getElementById('paymentQR');
+            if(paymentQREl){
+              var qrImgEl=document.getElementById('qrImage');if(qrImgEl)qrImgEl.src=qrUrl;
+              var transferEl=document.getElementById('transferContent');if(transferEl)transferEl.textContent=addInfo;
+              var formTitleEl=document.querySelector('.form-title');if(formTitleEl)formTitleEl.style.display='none';
+              regForm.classList.add('hidden');
+              paymentQREl.classList.add('active');
+            }else{
+              // M12 - landing chi thu lead (Webhook lead-only HOAC Google Sheet storage): an form, hien thank-you
+              var formThanksEl=document.getElementById('formThanks');
+              if(formThanksEl){
+                var ft=document.querySelector('.form-title');if(ft)ft.style.display='none';
+                regForm.classList.add('hidden');
+                formThanksEl.classList.add('active');
+              }
+            }
+          }else{
+            alert('Gửi đặt mua thất bại. Vui lòng thử lại nhé!');
+          }
+        })
+        .catch(function(err){
+          submitBtn.classList.remove('loading');submitBtn.disabled=false;
+          alert('Lỗi kết nối. Vui lòng thử lại nhé!');
+          console.error(err);
+        });
+      }); // end waitForIP
+    });
+
+    // ===== Kiểm tra thanh toán (cùng webhook, event:'check_pay') =====
+    var checkPaymentBtn=document.getElementById('checkPaymentBtn');
+    var paymentStatusMsg=document.getElementById('paymentStatusMsg');
+    if(checkPaymentBtn){
+      checkPaymentBtn.addEventListener('click',function(){
+        if(!registeredPhone||!registeredCode)return;
+        var oldLabel=checkPaymentBtn.textContent;
+        checkPaymentBtn.disabled=true;checkPaymentBtn.textContent='Đang kiểm tra...';
+        // KHÔNG gọi CAPI ở đây - backend tự xử lý qua webhook này
+        fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:'check_pay',phone:registeredPhone,code:registeredCode})})
+          .then(function(r){return r.json().catch(function(){return{};});})
+          .then(function(data){
+            checkPaymentBtn.disabled=false;checkPaymentBtn.textContent=oldLabel;
+            // Backend trả { "status":"success" } khi đã nhận thanh toán, { "status":"pending" } khi chưa.
+            // BẮT BUỘC hỏi user cấu trúc Response thực tế của backend rồi sửa điều kiện này cho khớp.
+            if(data&&data.status==='success'){
+              document.getElementById('paymentQR').classList.remove('active');
+              document.getElementById('paymentConfirmed').classList.add('active');
+            }else{
+              paymentStatusMsg.textContent='Chưa nhận được thanh toán. Vui lòng chuyển khoản đúng nội dung rồi thử lại sau ít phút nhé.';
+              paymentStatusMsg.className='payment-status-msg error';
+            }
+          })
+          .catch(function(err){
+            checkPaymentBtn.disabled=false;checkPaymentBtn.textContent=oldLabel;
+            paymentStatusMsg.textContent='Lỗi kết nối. Vui lòng thử lại nhé!';
+            paymentStatusMsg.className='payment-status-msg error';
+            console.error(err);
+          });
+      });
+    }
+  </script>
+
+  <!-- ===== Tăng cường UI (bổ sung - KHÔNG ảnh hưởng logic form/tracking) ===== -->
+  <script>
+    // ----- Đồng hồ đếm ngược Flash Deal (ngày:giờ:phút:giây) -----
+    (function(){
+      var timer=document.getElementById('flashTimer');
+      if(!timer)return;
+      var boxes=timer.querySelectorAll('.cd-box');
+      if(boxes.length<4)return;
+      // Thời lượng demo: 0 ngày 2 giờ 29 phút 40 giây - chỉnh theo nhu cầu chiến dịch
+      var end=Date.now()+((0*86400)+(2*3600)+(29*60)+40)*1000;
+      function pad(n){return(n<10?'0':'')+n;}
+      function tick(){
+        var s=Math.max(0,Math.floor((end-Date.now())/1000));
+        var d=Math.floor(s/86400);s-=d*86400;
+        var h=Math.floor(s/3600);s-=h*3600;
+        var m=Math.floor(s/60);s-=m*60;
+        boxes[0].textContent=pad(d);
+        boxes[1].textContent=pad(h);
+        boxes[2].textContent=pad(m);
+        boxes[3].textContent=pad(s);
+      }
+      tick();setInterval(tick,1000);
+    })();
+
+    // ----- Bộ chọn số lượng -----
+    (function(){
+      document.querySelectorAll('.qty-stepper').forEach(function(st){
+        var input=st.querySelector('input');
+        var dec=st.querySelector('[data-qty="dec"]');
+        var inc=st.querySelector('[data-qty="inc"]');
+        if(!input)return;
+        function clamp(){var n=parseInt(input.value,10);if(isNaN(n)||n<1)n=1;if(n>99)n=99;input.value=n;}
+        if(dec)dec.addEventListener('click',function(){input.value=(parseInt(input.value,10)||1)-1;clamp();});
+        if(inc)inc.addEventListener('click',function(){input.value=(parseInt(input.value,10)||1)+1;clamp();});
+        input.addEventListener('change',clamp);
+      });
+    })();
+
+    // ----- Dải thumbnail desktop: đổi ảnh đang chọn + đồng bộ chỉ số/dot -----
+    (function(){
+      var thumbs=document.querySelectorAll('#galleryThumbs .gallery-thumb');
+      var dots=document.querySelectorAll('#galleryDots .gallery-dot');
+      var indexEl=document.getElementById('galleryIndex');
+      if(!thumbs.length)return;
+      thumbs.forEach(function(t,i){
+        t.addEventListener('click',function(){
+          thumbs.forEach(function(x){x.classList.remove('thumb-active');});
+          t.classList.add('thumb-active');
+          dots.forEach(function(d,j){d.classList.toggle('dot-active',j===i);});
+          if(indexEl)indexEl.textContent=(i+1)+'/'+thumbs.length;
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

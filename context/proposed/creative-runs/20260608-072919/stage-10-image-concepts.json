@@ -1,0 +1,66 @@
+{
+  "run_id": "20260608-072919",
+  "persona_ref": "P4",
+  "concepts": [
+    {
+      "concept_id": "IMG-1",
+      "angle": "PUSH — deadline panic + stuck-skill wall (A1 + A2): open on the pain so Thảo self-selects.",
+      "headline": "Còn 6 tuần nộp hồ sơ, Speaking vẫn 5.5?",
+      "sub_copy": "Còn kịp — nếu biết luyện đúng.",
+      "visual_desc": "vertical 9:16, a smartphone showing an IELTS band card beside a wall calendar counting down, warm anxious lighting, a Vietnamese student's hand; all copy overlaid as caption, not baked",
+      "size": "1080x1920",
+      "cta": "Kiểm tra band miễn phí",
+      "claim_refs": []
+    },
+    {
+      "concept_id": "IMG-2",
+      "angle": "PUSH — the 'học mãi' wall, no feedback loop (A2/A3): name the frustration of not knowing what is wrong.",
+      "headline": "Học mãi mà không biết sai ở đâu?",
+      "sub_copy": "AI chấm Writing & Speaking, chỉ ra đúng lỗi cần sửa.",
+      "visual_desc": "square 1:1, split frame — left a frustrated learner with crossed-out notes, right a clean AI feedback panel highlighting an error and its fix; product UI in Prep brand colors; copy overlaid as caption",
+      "size": "1080x1080",
+      "cta": "Chấm thử Writing miễn phí",
+      "claim_refs": []
+    },
+    {
+      "concept_id": "IMG-3",
+      "angle": "PULL — roadmap to a named band (A4): pay off the panic with a clear daily plan.",
+      "headline": "Lộ trình rõ ràng tới band bạn cần.",
+      "sub_copy": "Mỗi ngày biết chính xác phải luyện gì.",
+      "visual_desc": "vertical 9:16, a clean mobile Study Plan dashboard with today's tasks and a progress line rising toward a goal flag, optimistic bright palette; the goal band number is a caption overlay, not baked",
+      "size": "1080x1920",
+      "cta": "Xem lộ trình của bạn",
+      "claim_refs": []
+    },
+    {
+      "concept_id": "IMG-4",
+      "angle": "DEFUSE anxiety — peer-scale social proof (A5): the only PrepEdu number, full anchor text, to de-risk before a parent pays.",
+      "headline": "Hơn 500.000 học viên đã tin chọn Prep",
+      "sub_copy": "Đồng hành cùng bạn tới band mục tiêu.",
+      "visual_desc": "square 1:1, celebratory brand lockup with a grid of diverse young Vietnamese learner avatars, confident bright mood; the 500.000+ trust line is a deterministic caption overlay, NEVER rendered by the image model",
+      "size": "1080x1080",
+      "cta": "Kiểm tra band miễn phí",
+      "claim_refs": ["CLM-008"]
+    },
+    {
+      "concept_id": "IMG-5",
+      "angle": "PULL — the AI-scoring mechanism answers 'can an app fix Speaking/Writing?' (A4/A8) without any outcome claim.",
+      "headline": "AI chỉ ra đúng chỗ Speaking & Writing cần sửa.",
+      "sub_copy": "Luyện đúng lỗi, không học mò.",
+      "visual_desc": "vertical 9:16, screen-recording style of an AI scoring a speaking waveform with a pronunciation flag and a writing error with a suggested fix, clean product UI, Prep brand colors; copy overlaid as caption",
+      "size": "1080x1920",
+      "cta": "Chấm thử miễn phí",
+      "claim_refs": []
+    },
+    {
+      "concept_id": "IMG-6",
+      "angle": "DEFUSE habit — one-tap low-commitment trigger (A10): break free-app inertia with a free band-check to Zalo OA.",
+      "headline": "Biết ngay bạn còn cách band mục tiêu bao xa.",
+      "sub_copy": "Kiểm tra trình độ miễn phí, nhận lộ trình qua Zalo OA.",
+      "visual_desc": "square 1:1, a friendly mobile free-level-check CTA button with a short band-check flow and a Zalo OA badge, clean approachable product shot; button and badge text overlaid as caption",
+      "size": "1080x1080",
+      "cta": "Kiểm tra band miễn phí",
+      "claim_refs": []
+    }
+  ]
+}

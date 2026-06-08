@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/stage-proposal.schema.json",
+  "title": "Stage 01–05 proposal — frontmatter + required-sections contract",
+  "description": "Lightweight shared typed contract for the MARKDOWN stages of /mkt-creative-run (design §2/§6.1). Stages 01–05 are prose PROPOSALS (market read, segments, motivators, force-map, personas) written to context/proposed/ for human review — they are NOT JSON. Their typed contract is therefore (a) this YAML FRONTMATTER object and (b) a required_sections convention: the H2/H3 headings the proposal must contain so a structural check can confirm the stage produced the expected shape. Stage map: Stage 00 = ads-signal.schema.json (deterministic JSON); Stages 01–05 = markdown validated by THIS schema's frontmatter + required headings; Stages 06–10 = the typed JSON schemas stage-06..stage-10. A validator parses the markdown frontmatter into this object and asserts each required_sections heading is present in the body. status gates promotion: draft → reviewed → approved before any proposed/ content is merged into approved context/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["frontmatter", "required_sections"],
+  "properties": {
+    "frontmatter": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The YAML frontmatter block at the top of a Stage 01–05 markdown proposal. The five required keys (status/source/owner/updated/market) are the provenance floor; the optional keys carry the extra trace some stages emit (e.g. a sample stage names its persona/run_id/locale).",
+      "required": ["status", "source", "owner", "updated", "market"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["draft", "reviewed", "approved"],
+          "description": "Review state of the proposal. draft = first-pass (default); reviewed = a human has read it; approved = promoted/ready to merge into approved context/. Gates promotion."
+        },
+        "source": { "type": "string", "description": "Where the proposal came from (e.g. '/mkt-creative-run Stages 03–04 (UNVERIFIED — first-pass)')." },
+        "owner": { "type": "string", "description": "Accountable owner (e.g. an email) for reviewing/merging this proposal." },
+        "updated": { "type": "string", "description": "Last-updated date of the proposal (YYYY-MM-DD)." },
+        "market": { "type": "string", "description": "Primary market the proposal addresses (e.g. 'VN'), from marketing.config.json." },
+        "locale": { "type": "string", "description": "Optional primary locale (e.g. 'vi-VN') when the proposal is locale-specific." },
+        "kind": { "type": "string", "description": "Optional artifact-kind note (e.g. a SAMPLE banner string) some hand-built proposals carry." },
+        "persona": { "type": "string", "description": "Optional persona this proposal centers on (Stage 05 / sample artifacts)." },
+        "run_id": { "type": "string", "description": "Optional run id (e.g. 20260608-072919) when the proposal belongs to a specific creative run." },
+        "derived_from": { "type": "string", "description": "Optional upstream artifact this proposal derives from (e.g. a prior stage file)." }
+      }
+    },
+    "required_sections": {
+      "type": "array",
+      "description": "The H2/H3 heading texts (without the leading #s) the proposal body MUST contain for this stage. A structural validator asserts each string appears as a heading in the markdown — the typed equivalent of 'this stage produced the expected sections'. Convention, not the prose itself.",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
+}

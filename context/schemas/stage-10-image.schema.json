@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prepedu.com/schemas/stage-10-image.schema.json",
+  "title": "Stage 10 — Image-ad concepts",
+  "description": "Typed I/O contract for /mkt-creative-run Stage 10 (design §2/§6.1 — no free-text handoffs). Stage 10 expands the storyboard / brief into a set of static image-ad concepts for one persona (typically ~6). Each concept names its angle, headline, sub-copy, the visual description (the image-prompt seed the generator expands), size, CTA, and every claim it asserts (claim_refs). As in Stage 09, claim/number text is a deterministic caption overlay, never model-rendered — claim_refs travel with the concept. provenance: run_id + persona_ref.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "persona_ref", "concepts"],
+  "$defs": {
+    "claimRef": {
+      "type": "string",
+      "pattern": "^CLM-[0-9]{3,}$",
+      "description": "A reference to one approved/declared claim id in context/claims.json (e.g. \"CLM-008\"). The bare id only — render markers ([[...]]/{{...}}) are presentation. The deterministic claims floor reads these to fail-close on unverified claims."
+    },
+    "claimRefs": {
+      "type": "array",
+      "description": "Every claim id this concept's copy (headline + sub_copy + cta) asserts (empty when the concept makes no PrepEdu claim). Typed surface for the claims gate — never inferred from prose.",
+      "items": { "$ref": "#/$defs/claimRef" },
+      "uniqueItems": true
+    }
+  },
+  "properties": {
+    "run_id": { "type": "string", "description": "Timestamped run id (e.g. 20260608-072919) — ties this artifact to the run manifest." },
+    "persona_ref": { "type": "string", "description": "Persona these concepts target, referencing context/proposed/audience-personas.md (e.g. \"Persona 4 — Thảo (Segment A)\")." },
+    "concepts": {
+      "type": "array",
+      "description": "The image-ad concepts (typically ~6 distinct angles on the same persona). Each is independently shippable as a static image ad.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["concept_id", "angle", "headline", "sub_copy", "visual_desc", "size", "cta", "claim_refs"],
+        "properties": {
+          "concept_id": { "type": "string", "description": "Stable id of the concept within this run (e.g. \"IMG-1\"). Lets the judge rank concepts." },
+          "angle": { "type": "string", "description": "The strategic angle / motivator this concept leads on (the why-this-concept-exists trace)." },
+          "headline": { "type": "string", "description": "Primary on-image headline (locale-native). Copy-bearing → its claims are in claim_refs." },
+          "sub_copy": { "type": "string", "description": "Supporting sub-copy (locale-native). Empty string when the concept uses headline only. Copy-bearing → claims in claim_refs." },
+          "visual_desc": { "type": "string", "description": "The visual description / image-prompt seed the generator expands. Claim/number text is NEVER baked here — it is overlaid as a deterministic caption (see claim_refs)." },
+          "size": { "type": "string", "description": "Output size / placement spec (e.g. \"1080x1080\" square in-feed, \"1080x1920\" 9:16 story)." },
+          "cta": { "type": "string", "description": "The call-to-action text (locale-native). Copy-bearing; any claim it carries is listed in claim_refs." },
+          "claim_refs": { "$ref": "#/$defs/claimRefs" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrepKit Console</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ansi-to-html@0.7.2/lib/ansi_to_html.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-card-hover: #1a1a26;
+      --bg-elevated: #1e1e2e;
+      --border: #2a2a3a;
+      --border-hover: #3a3a5a;
+      --text: #e4e4ef;
+      --text-muted: #8888a0;
+      --text-dim: #5a5a70;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.15);
+      --accent-soft: rgba(99, 102, 241, 0.08);
+      --green: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.15);
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.15);
+      --yellow: #eab308;
+      --yellow-glow: rgba(234, 179, 8, 0.15);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-lg: 16px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.3);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .light {
+      --bg: #f5f5f7;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f0f0f5;
+      --bg-elevated: #ffffff;
+      --border: #e0e0e8;
+      --border-hover: #c0c0d0;
+      --text: #1a1a2e;
+      --text-muted: #6b6b80;
+      --text-dim: #9999aa;
+      --accent-glow: rgba(99, 102, 241, 0.08);
+      --accent-soft: rgba(99, 102, 241, 0.04);
+      --shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .shell { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: 56px 1fr; min-height: 100vh; }
+    .topbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid var(--border); background: var(--bg-card); backdrop-filter: blur(12px); z-index: 10; position: sticky; top: 0; }
+    .sidebar { border-right: 1px solid var(--border); background: var(--bg-card); padding: 16px; overflow-y: auto; position: sticky; top: 56px; height: calc(100vh - 56px); }
+    .content { padding: 24px; overflow-y: auto; }
+
+    @media (max-width: 768px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .sidebar.open { display: block; position: fixed; top: 56px; left: 0; bottom: 0; width: 280px; z-index: 20; box-shadow: var(--shadow); }
+    }
+
+    /* Topbar */
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+    .logo svg { width: 24px; height: 24px; }
+    .version { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+    .conn-indicator { width: 8px; height: 8px; border-radius: 50%; transition: var(--transition); }
+    .conn-indicator.online { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
+    .conn-indicator.offline { background: var(--red); box-shadow: 0 0 8px var(--red-glow); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .icon-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; color: var(--text-muted); cursor: pointer; font-size: 14px; transition: var(--transition); display: flex; align-items: center; gap: 6px; }
+    .icon-btn:hover { background: var(--bg-card-hover); color: var(--text); border-color: var(--border-hover); }
+
+    /* Pack badges */
+    .pack-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); }
+
+    /* Sidebar */
+    .sidebar-section { margin-bottom: 20px; }
+    .sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px; padding: 0 8px; }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; transition: var(--transition); font-size: 13px; font-weight: 500; border: none; background: none; width: 100%; text-align: left; }
+    .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text); }
+    .sidebar-item.active { background: var(--accent-soft); color: var(--accent); }
+    .sidebar-item .badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; background: var(--border); color: var(--text-dim); margin-left: auto; }
+
+    /* Cards */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: var(--transition); }
+    .card:hover { border-color: var(--border-hover); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Status cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+    .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px; }
+    .stat-value { font-size: 20px; font-weight: 700; }
+    .stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* Progress bar */
+    .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #818cf8); border-radius: 2px; transition: width 0.5s ease; }
+
+    /* Command grid */
+    .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .cmd-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: var(--transition); position: relative; overflow: hidden; }
+    .cmd-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), transparent); opacity: 0; transition: var(--transition); }
+    .cmd-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 16px var(--accent-glow); }
+    .cmd-card:hover::before { opacity: 1; }
+    .cmd-card.disabled { opacity: 0.4; pointer-events: none; }
+    .cmd-card.running { border-color: var(--yellow); box-shadow: 0 0 16px var(--yellow-glow); }
+    .cmd-name { font-family: var(--mono); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .cmd-name .slash { color: var(--accent); }
+    .cmd-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    .cmd-tier { position: absolute; top: 8px; right: 8px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 4px; background: var(--border); color: var(--text-dim); }
+    .cmd-tier.essential { background: var(--accent-soft); color: var(--accent); }
+
+    /* Output terminal */
+    .terminal { background: #0d1117; border: 1px solid #21262d; border-radius: var(--radius); font-family: var(--mono); font-size: 13px; overflow: hidden; }
+    .terminal-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #161b22; border-bottom: 1px solid #21262d; }
+    .terminal-dots { display: flex; gap: 6px; }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red { background: #ff5f57; }
+    .terminal-dot.yellow { background: #febc2e; }
+    .terminal-dot.green { background: #28c840; }
+    .terminal-title { font-size: 12px; color: #8b949e; }
+    .terminal-body { padding: 16px; max-height: 500px; overflow-y: auto; color: #c9d1d9; white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+    .terminal-body .stderr { color: #f48771; }
+
+    /* Suggestion banner */
+    .suggestion { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--accent-soft); border: 1px solid rgba(99, 102, 241, 0.2); color: var(--text); font-size: 13px; margin-bottom: 24px; }
+    .suggestion-icon { font-size: 18px; }
+
+    /* Error banner */
+    .error-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--red-glow); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--text); font-size: 13px; margin-bottom: 16px; }
+
+    /* Activity feed */
+    .activity-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .activity-dot.ok { background: var(--green); }
+    .activity-dot.fail { background: var(--red); }
+    .activity-cmd { font-family: var(--mono); font-weight: 500; }
+    .activity-time { margin-left: auto; color: var(--text-dim); font-size: 11px; }
+
+    /* Plan browser */
+    .plan-tree { font-size: 13px; }
+    .plan-name { font-weight: 600; padding: 6px 0; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .plan-name:hover { color: var(--accent); }
+    .plan-file { padding: 3px 0 3px 20px; cursor: pointer; color: var(--text-muted); transition: var(--transition); font-family: var(--mono); font-size: 12px; }
+    .plan-file:hover { color: var(--accent); }
+    .plan-preview { margin-top: 12px; padding: 16px; background: var(--bg-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border); max-height: 400px; overflow-y: auto; font-size: 13px; line-height: 1.6; }
+    .plan-preview h1, .plan-preview h2, .plan-preview h3 { margin: 16px 0 8px; }
+    .plan-preview h1 { font-size: 18px; }
+    .plan-preview h2 { font-size: 15px; }
+    .plan-preview h3 { font-size: 14px; }
+    .plan-preview code { font-family: var(--mono); background: var(--bg-card); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    .plan-preview pre { background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); overflow-x: auto; }
+    .plan-preview ul, .plan-preview ol { padding-left: 20px; }
+
+    /* Onboarding overlay */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.3s ease; }
+    .overlay-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; max-width: 480px; width: 90%; box-shadow: 0 24px 48px rgba(0,0,0,0.4); }
+    .overlay-card h2 { font-size: 22px; margin-bottom: 8px; }
+    .overlay-card p { color: var(--text-muted); margin-bottom: 16px; font-size: 14px; }
+    .overlay-card ul { padding-left: 20px; margin-bottom: 20px; color: var(--text-muted); font-size: 13px; }
+    .overlay-card li { margin-bottom: 6px; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Buttons */
+    .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: var(--transition); border: none; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #5558e6; transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-glow); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+    .btn-ghost:hover { background: var(--bg-card-hover); color: var(--text); }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+    .btn-danger { background: transparent; border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    .btn-danger:hover { background: var(--red-glow); }
+
+    /* Section spacing */
+    .section { margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); }
+
+    /* Keyboard shortcut hint */
+    kbd { font-family: var(--mono); font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-dim); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+  </style>
+</head>
+<body x-data="app()" x-init="init()" :class="{ light: !darkMode }">
+
+  <!-- Onboarding overlay -->
+  <template x-if="showOnboarding">
+    <div class="overlay" @click.self="showOnboarding = false">
+      <div class="overlay-card">
+        <div style="font-size:32px; margin-bottom:12px;">&#9889;</div>
+        <h2>Welcome to PrepKit Console</h2>
+        <p>Your visual dashboard for managing plans and running commands — no terminal needed.</p>
+        <ul>
+          <li>Click any <strong>command card</strong> to execute it</li>
+          <li>Press <kbd>/</kbd> to toggle all commands</li>
+          <li>Browse active plans in the sidebar</li>
+          <li>Watch real-time output in the terminal panel</li>
+        </ul>
+        <button class="btn btn-primary" @click="showOnboarding = false" style="width:100%;">Get Started</button>
+      </div>
+    </div>
+  </template>
+
+  <div class="shell">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        PrepKit
+        <span class="version" x-text="'v' + manifest.version"></span>
+        <template x-for="pack in manifest.packs">
+          <span class="pack-badge" x-text="pack"></span>
+        </template>
+      </div>
+      <div class="topbar-actions">
+        <span class="conn-indicator" :class="connected ? 'online' : 'offline'" :title="connected ? 'Connected' : 'Disconnected'"></span>
+        <button class="icon-btn" @click="toggleTheme()" :title="darkMode ? 'Light mode' : 'Dark mode'" x-text="darkMode ? '&#9728;&#65039;' : '&#9790;&#65039;'"></button>
+        <button class="icon-btn" @click="showAll = !showAll"><kbd>/</kbd> <span x-text="showAll ? 'Essential' : 'All cmds'"></span></button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" :class="{ open: sidebarOpen }">
+      <!-- Quick stats -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Status</div>
+        <div class="sidebar-item" :class="{ active: activeView === 'dashboard' }" @click="activeView = 'dashboard'">
+          <span>&#128202;</span> Dashboard
+        </div>
+        <div class="sidebar-item" :class="{ active: activeView === 'commands' }" @click="activeView = 'commands'">
+          <span>&#9889;</span> Commands
+          <span class="badge" x-text="manifest.commands.length"></span>
+        </div>
+      </div>
+
+      <!-- Plans -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Active Plans</div>
+        <template x-if="plans.length === 0">
+          <div style="padding: 8px 12px; font-size: 12px; color: var(--text-dim);">No active plans</div>
+        </template>
+        <template x-for="plan in plans" :key="plan.name">
+          <div>
+            <div class="sidebar-item" @click="togglePlan(plan.name)">
+              <span x-text="expandedPlan === plan.name ? '&#128194;' : '&#128193;'"></span>
+              <span x-text="plan.name.replace(/^\d+-\d+-/, '')" style="font-size:12px;"></span>
+            </div>
+            <template x-if="expandedPlan === plan.name">
+              <div style="padding-left: 16px;">
+                <template x-for="file in plan.files" :key="file">
+                  <div class="plan-file" @click="viewPlanFile(plan.name, file)" x-text="file"></div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- Activity -->
+      <div class="sidebar-section" x-show="activity.length > 0">
+        <div class="sidebar-label">Recent</div>
+        <template x-for="item in activity.slice(0, 5)" :key="item.ts">
+          <div class="activity-item" style="padding: 4px 8px; border: none;">
+            <span class="activity-dot" :class="item.ok ? 'ok' : 'fail'"></span>
+            <span class="activity-cmd" style="font-size:12px;" x-text="'/' + item.cmd"></span>
+            <span class="activity-time" x-text="item.ago"></span>
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="content">
+      <!-- Error banner -->
+      <template x-if="errorMsg">
+        <div class="error-banner">
+          <span>&#9888;&#65039;</span>
+          <span x-text="errorMsg" style="flex:1;"></span>
+          <button class="btn btn-sm btn-ghost" @click="errorMsg = ''">Dismiss</button>
+        </div>
+      </template>
+
+      <!-- Dashboard view -->
+      <template x-if="activeView === 'dashboard'">
+        <div>
+          <!-- Stats -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Active Plan</div>
+              <div class="stat-value" x-text="status.plan || 'None'" :style="{ fontSize: status.plan ? '16px' : '20px' }"></div>
+              <template x-if="status.plan">
+                <div class="stat-sub" x-text="status.planMode + ' / ' + status.planStatus"></div>
+              </template>
+              <template x-if="status.taskProgress">
+                <div class="progress-bar" style="margin-top:8px;">
+                  <div class="progress-fill" :style="{ width: taskPercent + '%' }"></div>
+                </div>
+              </template>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Last Build</div>
+              <div class="stat-value" style="font-size:14px;" x-text="status.lastBuild || 'Never'"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Last Validate</div>
+              <div class="stat-value" style="font-size:14px;" x-text="status.lastValidate || 'Never'"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Commands Used</div>
+              <div class="stat-value" x-text="status.commandsUsed?.length || 0"></div>
+              <div class="stat-sub" x-text="'of ' + manifest.commands.length + ' available'"></div>
+            </div>
+          </div>
+
+          <!-- Suggestion -->
+          <template x-if="status.suggestion">
+            <div class="suggestion">
+              <span class="suggestion-icon">&#128161;</span>
+              <span x-text="status.suggestion"></span>
+            </div>
+          </template>
+
+          <!-- Quick commands -->
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Quick Commands</span>
+            </div>
+            <div class="cmd-grid">
+              <template x-for="cmd in visibleCommands" :key="cmd.id">
+                <div class="cmd-card" :class="{ running: runningCmd === cmd.id, disabled: !claudeAvailable && cmd.id !== 'doctor' }" @click="executeCmd(cmd)">
+                  <span class="cmd-tier" :class="cmd.tier" x-text="cmd.tier" x-show="showAll"></span>
+                  <div class="cmd-name"><span class="slash">/</span><span x-text="cmd.id"></span></div>
+                  <div class="cmd-desc" x-text="cmd.description || ''"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Plan preview -->
+          <template x-if="planPreview.html">
+            <div class="section">
+              <div class="section-header">
+                <span class="section-title" x-text="planPreview.plan + ' / ' + planPreview.file"></span>
+                <button class="btn btn-sm btn-ghost" @click="planPreview = {}">Close</button>
+              </div>
+              <div class="plan-preview" x-html="planPreview.html"></div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Commands view (full grid with pack grouping) -->
+      <template x-if="activeView === 'commands'">
+        <div>
+          <template x-for="group in commandGroups" :key="group.label">
+            <div class="section">
+              <div class="section-header">
+                <span class="section-title" x-text="group.label"></span>
+                <span class="badge" style="font-size:11px; padding:2px 8px; border-radius:10px; background:var(--border); color:var(--text-dim);" x-text="group.commands.length + ' commands'"></span>
+              </div>
+              <div class="cmd-grid">
+                <template x-for="cmd in group.commands" :key="cmd.id">
+                  <div class="cmd-card" :class="{ running: runningCmd === cmd.id, disabled: !claudeAvailable && cmd.id !== 'doctor' }" @click="executeCmd(cmd)">
+                    <span class="cmd-tier" :class="cmd.tier" x-text="cmd.tier"></span>
+                    <div class="cmd-name"><span class="slash">/</span><span x-text="cmd.id"></span></div>
+                    <div class="cmd-desc" x-text="cmd.description || ''"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Terminal output -->
+      <template x-if="outputVisible">
+        <div class="section" style="margin-top: 24px;">
+          <div class="terminal">
+            <div class="terminal-header">
+              <div class="terminal-dots">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+              </div>
+              <span class="terminal-title" x-text="'/' + (runningCmd || lastCmd || '') + (runningCmd ? ' (running...)' : '')"></span>
+              <div style="display:flex; gap:6px;">
+                <button x-show="runningCmd" @click="cancelCmd()" class="btn btn-sm btn-danger">Cancel</button>
+                <button @click="outputVisible = false" class="btn btn-sm btn-ghost">Close</button>
+              </div>
+            </div>
+            <div class="terminal-body" x-ref="output" x-html="outputHtml"></div>
+          </div>
+        </div>
+      </template>
+    </main>
+  </div>
+
+  <script>
+    let ansiConvert = null;
+    try { if (typeof AnsiToHtml !== 'undefined') ansiConvert = new AnsiToHtml({ escapeXML: true }); } catch {}
+    if (typeof marked !== 'undefined') {
+      marked.setOptions({ breaks: true });
+      const renderer = new marked.Renderer();
+      renderer.html = function(text) { return '<pre>' + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'; };
+      marked.use({ renderer });
+    }
+
+    function app() {
+      return {
+        manifest: { version: '', packs: [], commands: [] },
+        status: {},
+        plans: [],
+        planPreview: {},
+        expandedPlan: '',
+        showAll: false,
+        darkMode: true,
+        sidebarOpen: false,
+        activeView: 'dashboard',
+        outputVisible: false,
+        outputHtml: '',
+        runningCmd: null,
+        lastCmd: null,
+        processId: null,
+        activity: [],
+        connected: true,
+        claudeAvailable: true,
+        errorMsg: '',
+        showOnboarding: false,
+
+        get visibleCommands() {
+          if (this.showAll) return this.manifest.commands;
+          return this.manifest.commands.filter(c => c.tier === 'essential');
+        },
+
+        get commandGroups() {
+          const packs = this.manifest.packs;
+          const cmds = this.manifest.commands;
+          const groups = [{ label: 'Core', commands: [] }];
+          const packGroups = {};
+          for (const p of packs) packGroups[p] = { label: p.charAt(0).toUpperCase() + p.slice(1) + ' Pack', commands: [] };
+          for (const cmd of cmds) {
+            const match = packs.find(p => cmd.id.startsWith(p + '-'));
+            if (match) packGroups[match].commands.push(cmd);
+            else groups[0].commands.push(cmd);
+          }
+          return [...groups, ...Object.values(packGroups)].filter(g => g.commands.length > 0);
+        },
+
+        get taskPercent() {
+          if (!this.status.taskProgress) return 0;
+          const [d, t] = this.status.taskProgress.split('/').map(Number);
+          return t > 0 ? Math.round((d / t) * 100) : 0;
+        },
+
+        async init() {
+          await this.refresh();
+          await this.checkClaude();
+          await this.loadPlans();
+          if (!this.status.commandsUsed?.length) this.showOnboarding = true;
+          setInterval(() => this.refreshStatus(), 5000);
+          setInterval(() => this.loadPlans(), 15000);
+          document.addEventListener('keydown', e => {
+            if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+              e.preventDefault();
+              this.showAll = !this.showAll;
+            }
+            if (e.key === 'Escape') {
+              this.showOnboarding = false;
+              if (this.planPreview.html) this.planPreview = {};
+            }
+          });
+        },
+
+        togglePlan(name) { this.expandedPlan = this.expandedPlan === name ? '' : name; },
+
+        async refresh() {
+          try {
+            const [m, s] = await Promise.all([fetch('/api/manifest').then(r => r.json()), fetch('/api/status').then(r => r.json())]);
+            this.manifest = m; this.status = s; this.connected = true;
+          } catch { this.connected = false; this.errorMsg = 'Lost connection to server.'; }
+        },
+
+        async refreshStatus() {
+          try {
+            this.status = await fetch('/api/status').then(r => r.json());
+            this.connected = true;
+            if (this.errorMsg === 'Lost connection to server.') this.errorMsg = '';
+          } catch { this.connected = false; this.errorMsg = 'Lost connection to server.'; }
+        },
+
+        async checkClaude() {
+          try {
+            const r = await fetch('/api/check-claude').then(r => r.json());
+            this.claudeAvailable = r.available;
+            if (!r.available) this.errorMsg = r.error || 'Claude CLI not found.';
+          } catch {}
+        },
+
+        async loadPlans() {
+          try { this.plans = (await fetch('/api/plans').then(r => r.json())).plans || []; } catch {}
+        },
+
+        async viewPlanFile(planName, filePath) {
+          try {
+            const text = await fetch(`/api/plans/${planName}/${filePath}`).then(r => r.text());
+            let html = typeof marked !== 'undefined' ? marked.parse(text) : `<pre>${this.escapeHtml(text)}</pre>`;
+            html = this.sanitizeHtml(html);
+            this.planPreview = { plan: planName, file: filePath, html };
+            this.activeView = 'dashboard';
+          } catch { this.planPreview = { plan: planName, file: filePath, html: '<em>Error loading file</em>' }; }
+        },
+
+        sanitizeHtml(html) {
+          return html.replace(/<script[\s>][\s\S]*?<\/script>/gi, '').replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '').replace(/javascript:/gi, 'blocked:').replace(/<iframe[\s>][\s\S]*?<\/iframe>/gi, '').replace(/<object[\s>][\s\S]*?<\/object>/gi, '').replace(/<embed[\s>][\s\S]*?<\/embed>/gi, '');
+        },
+
+        async executeCmd(cmd) {
+          if (this.runningCmd) return;
+          if (!this.claudeAvailable && cmd.id !== 'doctor') { this.errorMsg = 'Claude CLI not available.'; return; }
+          const args = cmd.needsArgs ? prompt(`Arguments for /${cmd.id}:`, '') : '';
+          if (args === null && cmd.needsArgs) return;
+          this.runningCmd = cmd.id; this.lastCmd = cmd.id; this.outputHtml = ''; this.outputVisible = true; this.errorMsg = '';
+          try {
+            const res = await fetch('/api/execute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd.id, args: args || '' }) });
+            if (!res.ok) { const err = await res.json(); this.errorMsg = err.error || 'Failed.'; this.runningCmd = null; return; }
+            this.processId = (await res.json()).processId;
+            this.streamOutput(this.processId);
+          } catch (e) { this.outputHtml = `Error: ${e.message}`; this.runningCmd = null; }
+        },
+
+        streamOutput(pid) {
+          const es = new EventSource(`/api/stream/${pid}`);
+          es.addEventListener('stdout', e => {
+            this.outputHtml += this.renderOutput(e.data);
+            this.$nextTick(() => { const el = this.$refs.output; if (el) el.scrollTop = el.scrollHeight; });
+          });
+          es.addEventListener('stderr', e => { this.outputHtml += `<span class="stderr">${this.renderOutput(e.data)}</span>`; });
+          es.addEventListener('status', e => {
+            const data = JSON.parse(e.data);
+            this.activity.unshift({ cmd: this.runningCmd, ok: data.code === 0, ts: Date.now(), ago: 'just now' });
+            if (!data.ok && data.error) this.errorMsg = data.error;
+            this.runningCmd = null; this.processId = null; es.close();
+            this.refreshStatus(); this.loadPlans();
+          });
+          es.onerror = () => { es.close(); if (this.runningCmd) { this.errorMsg = 'Stream lost.'; this.runningCmd = null; } };
+        },
+
+        async cancelCmd() { if (this.processId) await fetch(`/api/cancel/${this.processId}`, { method: 'POST' }); },
+
+        renderOutput(text) {
+          if (ansiConvert) { try { return ansiConvert.toHtml(text).replace(/\n/g, '<br>'); } catch {} }
+          return this.escapeHtml(text);
+        },
+
+        escapeHtml(text) { return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); },
+
+        toggleTheme() { this.darkMode = !this.darkMode; }
+      };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+{
+  "run_id": "20260608-072919",
+  "derived_from": "stage-08-script.json",
+  "spec": {
+    "canvas": "1080x1920 (9:16 vertical)",
+    "duration_s": 15,
+    "muted_first": true,
+    "frame_count": 7
+  },
+  "frames": [
+    {
+      "frame": 1,
+      "timecode": "0.0-2.0s",
+      "visual": "Tight on a phone: mock IELTS band card reading 'Speaking 5.5'; a corner wall calendar reads '6 tuần', ticking.",
+      "on_screen_text": "Còn 6 tuần nộp hồ sơ, Speaking vẫn 5.5?",
+      "vo": "Còn sáu tuần nữa là tới hạn… mà Speaking vẫn 5.5.",
+      "motion": "Snap-in; red pulse on '6 tuần'; clock-tick SFX.",
+      "purpose_force_ref": "PUSH",
+      "image_prompt_seed": "vertical 9:16, close-up of a smartphone showing an IELTS band-score card, a wall calendar in soft focus behind, warm anxious lighting, a Vietnamese student's hand, realistic; no text rendered in image",
+      "claim_refs": []
+    },
+    {
+      "frame": 2,
+      "timecode": "2.0-4.0s",
+      "visual": "Montage: crossed-out notebook pages; a learner sighs at a laptop.",
+      "on_screen_text": "Học mãi mà không biết sai ở đâu.",
+      "vo": "Học mãi mà chẳng biết mình sai chỗ nào, nên mãi không lên.",
+      "motion": "Fast jump cuts; music drops to one tense note.",
+      "purpose_force_ref": "PUSH",
+      "image_prompt_seed": "vertical 9:16, a tired young Vietnamese student sighing at a laptop, scattered crossed-out study notebook pages, dim desk lamp, muted anxious palette, realistic; no text rendered in image",
+      "claim_refs": []
+    },
+    {
+      "frame": 3,
+      "timecode": "4.0-6.5s",
+      "visual": "Screen-cap: AI marks a Writing error and shows the fix; a Speaking waveform with a pronunciation flag.",
+      "on_screen_text": "AI chấm Writing & Speaking — chỉ ra đúng lỗi cần sửa.",
+      "vo": "Prep chấm Writing và Speaking bằng AI — chỉ cho bạn đúng chỗ sai cần sửa.",
+      "motion": "UI highlight animation; music lifts.",
+      "purpose_force_ref": "PULL",
+      "image_prompt_seed": "screen-recording style UI of an AI writing-feedback panel highlighting a grammar error with a suggested fix beside a speaking waveform, clean product UI, Prep brand colors, 9:16; no claim text baked",
+      "claim_refs": []
+    },
+    {
+      "frame": 4,
+      "timecode": "6.5-9.0s",
+      "visual": "Clean Study Plan UI: today's tasks; a progress line climbing to a '6.5' flag.",
+      "on_screen_text": "Lộ trình rõ ràng — biết mỗi ngày học gì.",
+      "vo": "Một lộ trình rõ ràng tới band bạn cần — mỗi ngày biết chính xác phải học gì.",
+      "motion": "Upward camera drift; checkmarks tick on.",
+      "purpose_force_ref": "PULL",
+      "image_prompt_seed": "clean mobile study-plan dashboard UI, a rising progress line toward a goal flag, optimistic bright palette, 9:16 product shot; goal number overlaid as caption, not baked",
+      "claim_refs": []
+    },
+    {
+      "frame": 5,
+      "timecode": "9.0-11.5s",
+      "visual": "Logo lockup; counter animates to 500.000+; an avatar grid of diverse young learners.",
+      "on_screen_text": "Hơn 500.000 học viên đã tin chọn Prep",
+      "vo": "Hơn năm trăm nghìn học viên đã tin chọn Prep.",
+      "motion": "Counter roll-up; confident music swell.",
+      "purpose_force_ref": "ANXIETY",
+      "image_prompt_seed": "celebratory brand lockup, a large animated counter placeholder, a grid of diverse young Vietnamese learner avatars, confident bright mood, 9:16; the number and trust line are a deterministic caption overlay, NEVER rendered by the image model",
+      "claim_refs": ["CLM-008"]
+    },
+    {
+      "frame": 6,
+      "timecode": "11.5-13.5s",
+      "visual": "A 'Kiểm tra band miễn phí' button; a 30-second mock band-check flow; Zalo OA badge appears.",
+      "on_screen_text": "Kiểm tra band miễn phí — biết ngay còn thiếu bao nhiêu.",
+      "vo": "Kiểm tra trình độ miễn phí — biết ngay bạn còn cách band mục tiêu bao xa.",
+      "motion": "Cursor taps button; button-tap SFX.",
+      "purpose_force_ref": "HABIT",
+      "image_prompt_seed": "mobile UI of a free level-check call-to-action button and a short band-check flow, a Zalo OA badge, clean friendly product shot, 9:16; button label overlaid as caption",
+      "claim_refs": []
+    },
+    {
+      "frame": 7,
+      "timecode": "13.5-15.0s",
+      "visual": "End-card: Prep logo + Zalo OA badge + CTA button held.",
+      "on_screen_text": "Prep — Nhắn Zalo OA để nhận lộ trình.",
+      "vo": "",
+      "motion": "Logo sting; gentle hold (muted-safe).",
+      "purpose_force_ref": "HABIT",
+      "image_prompt_seed": "minimal brand end-card, Prep logo centered, a Zalo OA badge, a single CTA button, lots of clean space, 9:16; all text overlaid as caption, not baked",
+      "claim_refs": []
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "prepedu-ai-product",
+  "description": "PrepEdu marketing setup with customer-specific context (legacy preset name retained for validator compatibility).",
+  "selectedPacks": [
+    "marketing",
+    "customer-prepedu"
+  ],
+  "deliveryDefaults": {
+    "defaultMode": "build"
+  }
+}

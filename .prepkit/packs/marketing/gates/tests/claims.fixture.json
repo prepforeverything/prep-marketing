@@ -1,0 +1,14 @@
+{
+  "_comment": "Hermetic claim registry for the claims-check.sh regression suite (gates/tests/run.sh). NOT the live registry — passed via --claims so tests never touch context/claims.json.",
+  "claims": [
+    { "claim_id": "CLM-001", "status": "approved", "market": "VN", "wording": "Cam kết đầu ra theo lộ trình học", "evidence": "Hợp đồng cam kết đầu ra 2024" },
+    { "claim_id": "CLM-002", "status": "approved", "market": "VN", "wording": "Điều kiện áp dụng cam kết đầu ra", "evidence": "Điều khoản chương trình 2024" },
+    { "claim_id": "CLM-100", "status": "approved", "market": "VN", "wording": "Hơn 500.000 học viên đã học tại PrepEdu", "evidence": "Số liệu nội bộ 2025" },
+    { "claim_id": "CLM-101", "status": "approved", "market": "VN", "wording": "Ưu đãi mùa thi", "evidence": "Chương trình khuyến mãi", "expiry": "2020-01-01" },
+    { "claim_id": "CLM-102", "status": "approved", "market": "VN", "wording": "Khoá học IELTS", "evidence": "Catalog khoá học 2025" },
+    { "claim_id": "CLM-103", "status": "unverified", "market": "VN", "wording": "Tỷ lệ đạt mục tiêu cao" },
+    { "claim_id": "CLM-200", "status": "approved", "market": "VN", "wording": "Hơn 500.000 học viên", "evidence": "fixture", "anchors": { "numbers": ["500.000", "500000"], "mustInclude": ["học viên"] } },
+    { "claim_id": "CLM-300", "source": "fixture (per-locale)", "locales": { "VN": { "status": "approved", "wording": "Hơn 300.000 học viên", "evidence": "fixture VN", "anchors": { "numbers": ["300.000", "300000"], "mustInclude": ["học viên"] } } } },
+    { "claim_id": "CLM-400", "status": "approved", "market": "VN", "wording": "PrepEdu khác biệt so với đối thủ (comparative — evidence intentionally empty)" }
+  ]
+}
