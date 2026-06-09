@@ -51,7 +51,7 @@ from [nodejs.org](https://nodejs.org), then run the **clone + `./install.sh`** s
 </details>
 
 ## Start here
-> 📖 **Guides:** **[Install & Setup](.prepkit/docs/guides/installation.md)** (get running) · **[Team User Guide](.prepkit/docs/guides/marketing-user-guide.md)** (why the kit, daily tasks, big campaigns, automation — in plain language) · **[Publishing Landing Pages](.prepkit/docs/guides/landing-page-publishing.md)** (put pages online).
+> 📖 **Guides:** **[Install & Setup](.prepkit/docs/guides/installation.md)** (get running) · **[Team User Guide](.prepkit/docs/guides/marketing-user-guide.md)** (why the kit, daily tasks, big campaigns, automation — in plain language) · **[Publishing Landing Pages](.prepkit/docs/guides/landing-page-publishing.md)** (put pages online) · **[Teammate Publish SOP](.prepkit/docs/guides/sop-teammate-publishing.md)** (a marketer's step-by-step).
 
 1. **`/mkt-setup`** — one time: checks tools, walks you through your brand/product context, and
    (optionally) connects analytics.
