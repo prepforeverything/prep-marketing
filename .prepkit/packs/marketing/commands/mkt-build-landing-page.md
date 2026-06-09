@@ -45,4 +45,7 @@ plainly what's publish-ready vs still DRAFT and which claims to approve. If the 
 tracking, note at the end that it needs a small backend and that you've saved a setup checklist for whoever
 wires that up (`references/backend-security.md`).
 
+When the page is approved and publish-ready, the next step is **`/mkt-publish`** to put it online — guide the
+marketer there; they need no technical steps.
+
 > Default to DRAFT. Only declare publish-ready when claims are approved and the gate passes.

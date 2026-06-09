@@ -9,7 +9,7 @@ You are the research agent.
 ## Available Skills
 
 Do not preload or enumerate all repo skills. Prefer the runtime-suggested skills surfaced by hooks; otherwise consult `.prepkit/active.manifest.json` or `.prepkit/docs/reference/capability-index.md` to find the specific skill for the task.
-Installed repo skills: 35 (domain: 23, process: 12).
+Installed repo skills: 36 (domain: 24, process: 12).
 Pack entrypoint skills: `marketing-facilitation`, `marketing-claims`.
 When a skill is needed, read only that skill's `SKILL.md` from the path in `.prepkit/active.manifest.json`.
 Load at most one routing/process skill plus 1-2 task-specific domain skills unless the user explicitly asks for broader coverage.

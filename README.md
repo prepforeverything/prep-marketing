@@ -51,7 +51,7 @@ from [nodejs.org](https://nodejs.org), then run the **clone + `./install.sh`** s
 </details>
 
 ## Start here
-> 📖 **Guides:** **[Install & Setup](.prepkit/docs/guides/installation.md)** (get running) · **[Team User Guide](.prepkit/docs/guides/marketing-user-guide.md)** (why the kit, daily tasks, big campaigns, automation — in plain language).
+> 📖 **Guides:** **[Install & Setup](.prepkit/docs/guides/installation.md)** (get running) · **[Team User Guide](.prepkit/docs/guides/marketing-user-guide.md)** (why the kit, daily tasks, big campaigns, automation — in plain language) · **[Publishing Landing Pages](.prepkit/docs/guides/landing-page-publishing.md)** (put pages online).
 
 1. **`/mkt-setup`** — one time: checks tools, walks you through your brand/product context, and
    (optionally) connects analytics.
@@ -60,7 +60,7 @@ from [nodejs.org](https://nodejs.org), then run the **clone + `./install.sh`** s
 3. **`/mkt-campaign`** — a full, guided campaign end-to-end (the "golden path").
 
 ### Task commands (in your configured language, claims-checked)
-- **Content & Brand:** `/mkt-build-landing-page`, `/mkt-write-blog`, `/mkt-social-pack`
+- **Content & Brand:** `/mkt-build-landing-page` → `/mkt-publish` (put it online), `/mkt-write-blog`, `/mkt-social-pack`
 - **Growth:** `/mkt-seo-audit`, plus paid/CRO planning via `/mkt`
 - **GTM:** `/mkt-launch` · **Retention:** `/mkt-email-sequence` · **Ops:** `/mkt-report`
 - **Tools & research:** `/mkt-connect` (read-only first), `/mkt-research` (proposes context, never

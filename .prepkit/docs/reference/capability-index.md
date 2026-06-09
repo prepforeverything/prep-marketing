@@ -47,6 +47,7 @@ Selected packs: `marketing`, `customer-prepedu`
 - `marketing-reporting` → `.prepkit/packs/marketing/skills/domain/marketing-reporting/SKILL.md`
 - `marketing-asset-generation` → `.prepkit/packs/marketing/skills/domain/marketing-asset-generation/SKILL.md`
 - `marketing-landing-page` → `.prepkit/packs/marketing/skills/domain/marketing-landing-page/SKILL.md`
+- `marketing-publish` → `.prepkit/packs/marketing/skills/domain/marketing-publish/SKILL.md`
 - `sea-prep-gtm` → `.prepkit/packs/marketing/skills/domain/sea-prep-gtm/SKILL.md`
 
 ## Process Skills
@@ -99,6 +100,7 @@ Selected packs: `marketing`, `customer-prepedu`
 - `mkt-connect` → `.prepkit/packs/marketing/commands/mkt-connect.md`
 - `mkt-research` → `.prepkit/packs/marketing/commands/mkt-research.md`
 - `mkt-build-landing-page` → `.prepkit/packs/marketing/commands/mkt-build-landing-page.md`
+- `mkt-publish` → `.prepkit/packs/marketing/commands/mkt-publish.md`
 - `mkt-write-blog` → `.prepkit/packs/marketing/commands/mkt-write-blog.md`
 - `mkt-social-pack` → `.prepkit/packs/marketing/commands/mkt-social-pack.md`
 - `mkt-seo-audit` → `.prepkit/packs/marketing/commands/mkt-seo-audit.md`

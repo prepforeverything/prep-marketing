@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+// verify-publish.mjs — CI safety-net gate for the landing-page publish repo.
+// Runs in GitHub Actions on every push/PR. Asserts every published page is publish-ready:
+//   - has a publish-meta.json written by the kit with gate.passed === true
+//   - every claim it used is approved and not past its expiry
+//   - no template placeholders ({{…}}) or untransformed claim tags ([[CLM-…]]) leaked into the HTML
+// No external dependencies. Exit 1 on any failure. (Managed by the PrepEdu Marketing Kit — do not hand-edit.)
+import fs from "node:fs";
+import path from "node:path";
+
+const ROOT = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
+const SKIP = new Set([".git", ".github", "node_modules"]);
+const today = new Date().toISOString().slice(0, 10);
+const fails = [];
+
+// every directory that contains an index.html is a published page
+function findPages(dir, out = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory()) {
+      if (!SKIP.has(e.name)) findPages(path.join(dir, e.name), out);
+    } else if (e.name === "index.html" && dir !== ROOT) {
+      out.push(dir); // the apex root index.html is not a campaign page (no publish-meta)
+    }
+  }
+  return out;
+}
+
+const pages = findPages(ROOT);
+for (const dir of pages) {
+  const rel = path.relative(ROOT, dir) || ".";
+
+  if (fs.statSync(path.join(dir, "index.html")).size === 0) fails.push(`${rel}: index.html is empty`);
+
+  const metaPath = path.join(dir, "publish-meta.json");
+  if (!fs.existsSync(metaPath)) {
+    fails.push(`${rel}: missing publish-meta.json — pages must be published via the kit (/mkt-publish), not by hand`);
+  } else {
+    let meta = null;
+    try { meta = JSON.parse(fs.readFileSync(metaPath, "utf8")); }
+    catch { fails.push(`${rel}: publish-meta.json is not valid JSON`); }
+    if (meta) {
+      if (!meta.gate || meta.gate.passed !== true) fails.push(`${rel}: claims gate not marked passed in publish-meta.json`);
+      for (const c of meta.claims || []) {
+        if (c.status !== "approved") fails.push(`${rel}: claim ${c.id} is "${c.status}", not approved`);
+        if (c.expiry && c.expiry < today) fails.push(`${rel}: claim ${c.id} expired ${c.expiry}`);
+      }
+    }
+  }
+
+  for (const e of fs.readdirSync(dir)) {
+    if (!e.endsWith(".html")) continue;
+    const html = fs.readFileSync(path.join(dir, e), "utf8");
+    if (html.includes("{{")) fails.push(`${rel}/${e}: contains an unfilled {{…}} placeholder`);
+    if (html.includes("[[CLM-")) fails.push(`${rel}/${e}: contains an untransformed [[CLM-…]] claim tag`);
+  }
+}
+
+if (!pages.length) {
+  console.log("publish-gate: no pages to verify.");
+  process.exit(0);
+}
+if (fails.length) {
+  console.error("publish-gate FAILED:\n - " + fails.join("\n - "));
+  process.exit(1);
+}
+console.log(`publish-gate PASSED: ${pages.length} page(s) verified.`);

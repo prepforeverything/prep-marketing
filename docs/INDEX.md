@@ -33,6 +33,7 @@ How-to content, operating procedures, and working conventions.
 - `getting-started.md`
 - `installation.md`
 - `knowledge-capture.md`
+- `landing-page-publishing.md`
 - `marketing-user-guide.md`
 - `mcp-semantic-memory.md`
 - `pack-composition.md`

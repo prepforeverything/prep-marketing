@@ -41,6 +41,7 @@ brand review under the hood, so nothing skips the publish gate. Use the marketin
 routing table to pick, confirm the route in one sentence, then run the command. Common jobs:
 - End-to-end campaign → `/mkt-campaign` (the guided golden path).
 - Landing page → `/mkt-build-landing-page`.
+- Put a finished page online (publish it) → `/mkt-publish`.
 - Blog / SEO article → `/mkt-write-blog`.
 - Social posts (your market's channels — `context/markets/<active-market>.md`) → `/mkt-social-pack`.
 - SEO / ASO audit → `/mkt-seo-audit`.

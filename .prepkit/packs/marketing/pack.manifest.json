@@ -130,6 +130,10 @@
           "path": ".prepkit/packs/marketing/skills/domain/marketing-landing-page/SKILL.md"
         },
         {
+          "id": "marketing-publish",
+          "path": ".prepkit/packs/marketing/skills/domain/marketing-publish/SKILL.md"
+        },
+        {
           "id": "sea-prep-gtm",
           "path": ".prepkit/packs/marketing/skills/domain/sea-prep-gtm/SKILL.md"
         }
@@ -232,6 +236,10 @@
     {
       "id": "mkt-build-landing-page",
       "path": ".prepkit/packs/marketing/commands/mkt-build-landing-page.md"
+    },
+    {
+      "id": "mkt-publish",
+      "path": ".prepkit/packs/marketing/commands/mkt-publish.md"
     },
     {
       "id": "mkt-write-blog",

@@ -1,0 +1,36 @@
+# __PROJECT__ — campaign landing pages
+
+This repo holds the **published** marketing landing pages served at **https://__SUBDOMAIN__/**.
+It is managed automatically by the marketing kit (`/mkt-publish`). **Do not hand-edit pages here** —
+edit and re-publish from the kit so the claims gate always runs.
+
+## Layout
+
+    wrangler.jsonc            # Cloudflare Workers static-assets config
+    .assetsignore            # keeps .git / config / CI files OUT of the served site
+    verify-publish.mjs        # CI gate (the publish-gate workflow runs this)
+    index.html                # apex page (https://__SUBDOMAIN__/)
+    <locale>/<campaign-slug>/
+      index.html              # the page
+      chinh-sach-bao-mat.html # policy pages
+      ...                     # images, etc.
+      publish-meta.json       # provenance the CI gate checks (written by the kit)
+
+Served at `https://__SUBDOMAIN__/<locale>/<campaign-slug>/`.
+
+## How it deploys
+
+- **Cloudflare Workers (Static Assets)** is connected to this repo (Git integration). A push to the production
+  branch runs `npx wrangler deploy`, which uploads the static files and serves them at https://__SUBDOMAIN__/.
+- **`publish-gate`** (GitHub Actions → `verify-publish.mjs`) checks every page is publish-ready: a kit-written
+  `publish-meta.json` with the claims gate passed, all claims approved and unexpired, and no leaked
+  `{{…}}` placeholders or `[[CLM-…]]` tags in the HTML.
+
+## One-time setup (maintainer)
+
+1. Create this (empty) repo, then initialize it from the kit: `node .prepkit/packs/marketing/scripts/publish-landing.mjs --init`
+   (seeds `wrangler.jsonc`, `.assetsignore`, the CI gate, and an apex `index.html`, then pushes the production branch).
+2. Connect it as a Cloudflare Worker (Workers & Pages → Create → import this repository). Deploy command:
+   `npx wrangler deploy`. Then add the custom domain `__SUBDOMAIN__`.
+
+After that, the marketing team publishes pages with `/mkt-publish` — no git or Cloudflare needed.

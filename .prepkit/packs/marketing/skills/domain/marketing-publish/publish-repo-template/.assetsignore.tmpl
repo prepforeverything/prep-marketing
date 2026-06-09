@@ -1,0 +1,12 @@
+# Files in the repo that must NEVER be served as part of the public site.
+# (Workers Static Assets uploads the assets directory as-is; without this it would
+# serve .git, build config, and the CI gate. Pages live at <locale>/<slug>/.)
+.git
+.github
+.wrangler
+node_modules
+.assetsignore
+wrangler.jsonc
+verify-publish.mjs
+*.md
+**/publish-meta.json

@@ -1,0 +1,259 @@
+#!/usr/bin/env node
+// publish-landing.mjs — deterministic engine that takes a built landing page from
+// assets/landing/<slug>/ and publishes it to the Cloudflare Pages publish repo.
+//
+// Flow (matches the approved plan):
+//   1. Run the EXISTING claims gate (claims-check.sh --mode publish) — abort on FAIL.
+//   2. Sync a local working clone of the publish repo (clone or fetch).
+//   3. Export the page folder (HTML + policy pages + images) into <locale>/<slug>/,
+//      write publish-meta.json (provenance the CI gate checks), drop internal-only files.
+//   4. Default: push a campaign/<locale>-<slug> branch -> Cloudflare builds a PREVIEW.
+//      --promote: merge that branch into the production branch -> Cloudflare deploys LIVE.
+//
+// The skill/command drives this; the marketer never sees git or Cloudflare.
+// Config comes from context/marketing.config.json -> publish{} (never hardcoded).
+//
+// Usage:
+//   node publish-landing.mjs --slug <slug> [--locale vi] [--promote] [--page-dir <path>] [--dry-run] [--json]
+//   Exit 0 = OK, 1 = gate/operation failed, 2 = usage/config error.
+
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = process.env.PREP_KIT_ROOT
+  ? path.resolve(process.env.PREP_KIT_ROOT)
+  : path.resolve(__dirname, "../../../../");
+
+// ---- args -----------------------------------------------------------------
+function parseArgs(argv) {
+  const a = { promote: false, dryRun: false, json: false };
+  for (let i = 0; i < argv.length; i++) {
+    const t = argv[i];
+    if (t === "--slug") a.slug = argv[++i];
+    else if (t === "--locale") a.locale = argv[++i];
+    else if (t === "--page-dir") a.pageDir = argv[++i];
+    else if (t === "--dry-run") a.dryRun = true;
+    else if (t === "--init") a.init = true;
+    else if (t === "--json") a.json = true;
+    else if (t === "-h" || t === "--help") a.help = true;
+  }
+  return a;
+}
+
+function die(code, msg) {
+  console.error(msg);
+  process.exit(code);
+}
+
+// run a command, return stdout; throw with captured output on failure
+function run(cmd, cmdArgs, opts = {}) {
+  return execFileSync(cmd, cmdArgs, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    ...opts,
+  });
+}
+const git = (cwd, ...g) => run("git", ["-C", cwd, ...g]).trim();
+
+// ---- config ---------------------------------------------------------------
+function loadConfig() {
+  const p = path.join(ROOT, "context", "marketing.config.json");
+  if (!fs.existsSync(p)) die(2, `config not found: ${p} (run /mkt-setup first)`);
+  const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+  const pub = cfg.publish || {};
+  if (!pub.repo || !pub.repo.remote) {
+    die(2, "config.publish.repo.remote is not set — finish the one-time Phase-0 setup, then set it in context/marketing.config.json.");
+  }
+  const primaryLocale = cfg.primaryLocale || "vi-VN";
+  return {
+    market: (cfg.primaryMarket || "VN").toUpperCase(),
+    subdomain: pub.subdomain || "lp.example.com",
+    projectName: pub.projectName || "landing",
+    defaultLocale: (pub.localeSegment || primaryLocale.split("-")[0] || "vi").toLowerCase(),
+    remote: pub.repo.remote,
+    productionBranch: pub.repo.productionBranch || "main",
+    checkout: path.isAbsolute(pub.repo.localCheckout || "")
+      ? pub.repo.localCheckout
+      : path.join(ROOT, pub.repo.localCheckout || ".prepkit/.publish-cache/landing"),
+  };
+}
+
+// ---- claims gate (reuse the existing deterministic gate) -------------------
+function runGate(copyFile, market) {
+  const gate = path.join(ROOT, ".prepkit/packs/marketing/gates/scripts/claims-check.sh");
+  if (!fs.existsSync(gate)) die(1, `claims gate not found: ${gate}`);
+  try {
+    const out = run("bash", [gate, copyFile, "--mode", "publish", "--market", market], {
+      cwd: ROOT,
+      env: { ...process.env, PREP_KIT_ROOT: ROOT },
+    });
+    return { passed: true, output: out };
+  } catch (e) {
+    return { passed: false, output: `${e.stdout || ""}${e.stderr || ""}`.trim() };
+  }
+}
+
+// snapshot the claims referenced in the copy, for the provenance file CI validates
+function snapshotClaims(copyText) {
+  const claimsPath = path.join(ROOT, "context", "claims.json");
+  const raw = JSON.parse(fs.readFileSync(claimsPath, "utf8"));
+  const list = Array.isArray(raw) ? raw : raw.claims || [];
+  const byId = Object.fromEntries(list.map((c) => [c.claim_id, c]));
+  const ids = [...new Set([...copyText.matchAll(/\[\[(CLM-\d+)\]\]/g)].map((m) => m[1]))];
+  return ids.map((id) => {
+    const c = byId[id] || {};
+    return { id, status: c.status || "unknown", market: c.market || "", expiry: c.expiry || "" };
+  });
+}
+
+// ---- export ---------------------------------------------------------------
+// Copy the page folder into the publish repo, EXCLUDING internal-only files.
+// copy.md and report/markdown stay in the kit; they must not be served publicly.
+function exportPage(pageDir, targetDir) {
+  fs.rmSync(targetDir, { recursive: true, force: true });
+  fs.mkdirSync(targetDir, { recursive: true });
+  fs.cpSync(pageDir, targetDir, {
+    recursive: true,
+    filter: (src) => {
+      const base = path.basename(src);
+      if (base === "copy.md") return false; // internal source copy — never publish
+      if (base.endsWith(".md")) return false; // notes/reports stay in the kit
+      return true;
+    },
+  });
+}
+
+// Seed the publish repo's CI gate + config on first publish (idempotent). Returns seeded paths.
+// Templates use a .tmpl suffix so the kit's own tooling never runs them; _headers keeps that exact
+// (Cloudflare-required) name on seed.
+const TEMPLATE_DIR = path.join(__dirname, "../skills/domain/marketing-publish/publish-repo-template");
+const TEMPLATE_MAP = {
+  "wrangler.jsonc.tmpl": "wrangler.jsonc",            // Workers Static Assets config (npx wrangler deploy)
+  ".assetsignore.tmpl": ".assetsignore",              // keep .git / config / CI files OUT of the served site
+  "verify-publish.mjs.tmpl": "verify-publish.mjs",
+  "publish-gate.yml.tmpl": ".github/workflows/publish-gate.yml",
+  "README.md.tmpl": "README.md",
+  "_headers.tmpl": "_headers",
+  "root-index.html.tmpl": "index.html",              // apex page at https://<subdomain>/
+};
+function seedTemplateIfMissing(co, cfg, force = false) {
+  if (!force && fs.existsSync(path.join(co, "verify-publish.mjs"))) return [];
+  const subs = { __SUBDOMAIN__: cfg.subdomain, __PROJECT__: cfg.projectName };
+  const seeded = [];
+  for (const [tmpl, dest] of Object.entries(TEMPLATE_MAP)) {
+    const src = path.join(TEMPLATE_DIR, tmpl);
+    if (!fs.existsSync(src)) continue;
+    let content = fs.readFileSync(src, "utf8");
+    for (const [k, v] of Object.entries(subs)) content = content.split(k).join(v);
+    const out = path.join(co, dest);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, content);
+    seeded.push(dest);
+  }
+  return seeded;
+}
+
+// ---- init (one-time: scaffold + push the publish repo) --------------------
+function initRepo(cfg, a) {
+  const co = cfg.checkout;
+  if (!fs.existsSync(path.join(co, ".git"))) {
+    fs.mkdirSync(path.dirname(co), { recursive: true });
+    try { run("git", ["clone", cfg.remote, co]); }
+    catch (e) { die(1, `could not clone publish repo (${cfg.remote}). Create it on GitHub + check push access.\n${e.stderr || e.message}`); }
+  }
+  try { git(co, "fetch", "--prune", "origin"); } catch {}
+  try { git(co, "checkout", "-B", cfg.productionBranch, `origin/${cfg.productionBranch}`); }
+  catch { git(co, "checkout", "-B", cfg.productionBranch); }
+  const seeded = seedTemplateIfMissing(co, cfg, true);
+  git(co, "add", "-A");
+  try { git(co, "commit", "-m", "chore: initialize publish repo (Cloudflare static assets + CI gate)"); }
+  catch { /* nothing to commit — already initialized */ }
+  try { git(co, "push", "-u", "origin", cfg.productionBranch); }
+  catch (e) { die(1, `push failed to ${cfg.remote} — check your git push access.\n${e.stderr || e.message}`); }
+  const result = { ok: true, init: true, project: cfg.projectName, branch: cfg.productionBranch, seeded };
+  console.log(a.json ? JSON.stringify(result, null, 2)
+    : `✓ Initialized "${cfg.projectName}" on ${cfg.productionBranch} (seeded ${seeded.length} files).\n  Next: in Cloudflare, Retry build. Site root will be https://${cfg.subdomain}/`);
+}
+
+// ---- main -----------------------------------------------------------------
+function main() {
+  const a = parseArgs(process.argv.slice(2));
+  const USAGE = "usage: publish-landing.mjs --slug <slug> [--locale vi] [--page-dir <path>] [--dry-run] [--json]\n       publish-landing.mjs --init   (one-time: scaffold + push the publish repo)";
+  if (a.help) die(0, USAGE);
+  const cfg = loadConfig();
+  if (a.init) { initRepo(cfg, a); return; }
+  if (!a.slug) die(2, USAGE);
+  const locale = (a.locale || cfg.defaultLocale).toLowerCase();
+  const slug = a.slug;
+  const pageDir = a.pageDir ? path.resolve(a.pageDir) : path.join(ROOT, "assets/landing", slug);
+  const liveUrl = `https://${cfg.subdomain}/${locale}/${slug}/`;
+
+  // validate inputs
+  const indexHtml = path.join(pageDir, "index.html");
+  if (!fs.existsSync(indexHtml)) die(2, `no landing page at ${pageDir} (expected index.html). Build it with /mkt-build-landing-page first.`);
+  const copyFile = path.join(pageDir, "copy.md");
+  if (!fs.existsSync(copyFile)) die(2, `no copy.md at ${pageDir} — the claims gate needs the tagged copy. Re-run the build.`);
+
+  // (1) GATE — the primary enforcement. Nothing leaves the kit if claims aren't approved.
+  const gate = runGate(copyFile, cfg.market);
+  if (!gate.passed) {
+    console.error("✗ Claims gate FAILED — not published. Approve the claims below in context/claims.md, then retry.\n");
+    console.error(gate.output);
+    process.exit(1);
+  }
+  const meta = {
+    slug, locale, market: cfg.market,
+    subdomain: cfg.subdomain, url: liveUrl,
+    builtAt: new Date().toISOString(),
+    gate: { passed: true, mode: "publish", tool: "claims-check.sh" },
+    claims: snapshotClaims(fs.readFileSync(copyFile, "utf8")),
+    generatedBy: "publish-landing.mjs",
+  };
+
+  // (dry run) — verify gate + export locally without touching the remote
+  if (a.dryRun) {
+    const target = path.join(ROOT, ".prepkit/.publish-cache/_dryrun", locale, slug);
+    exportPage(pageDir, target);
+    fs.writeFileSync(path.join(target, "publish-meta.json"), JSON.stringify(meta, null, 2) + "\n");
+    const result = { ok: true, dryRun: true, slug, locale, exportedTo: target, liveUrl, gatePassed: true };
+    console.log(a.json ? JSON.stringify(result, null, 2) : `✓ DRY RUN ok — gate passed, page exported to ${target}\n  would go live at: ${liveUrl}`);
+    return;
+  }
+
+  // (2) SYNC the publish-repo working clone
+  const co = cfg.checkout;
+  if (!fs.existsSync(path.join(co, ".git"))) {
+    fs.mkdirSync(path.dirname(co), { recursive: true });
+    try { run("git", ["clone", cfg.remote, co]); }
+    catch (e) { die(1, `could not clone publish repo (${cfg.remote}). Check Phase-0 setup + push access.\n${e.stderr || e.message}`); }
+  }
+  try { git(co, "fetch", "--prune", "origin"); }
+  catch (e) { die(1, `git fetch failed in ${co}\n${e.stderr || e.message}`); }
+
+  // (3) PUBLISH LIVE — export onto the production branch and push; Cloudflare deploys it.
+  try { git(co, "checkout", "-B", cfg.productionBranch, `origin/${cfg.productionBranch}`); }
+  catch { git(co, "checkout", "-B", cfg.productionBranch); } // first publish ever (empty repo)
+  const seeded = seedTemplateIfMissing(co, cfg);
+  const target = path.join(co, locale, slug);
+  exportPage(pageDir, target);
+  fs.writeFileSync(path.join(target, "publish-meta.json"), JSON.stringify(meta, null, 2) + "\n");
+  try {
+    if (seeded.length) git(co, "add", "-A");
+    else git(co, "add", "--", `${locale}/${slug}`);
+    git(co, "commit", "-m", `publish: ${locale}/${slug}`);
+  } catch (e) {
+    die(1, `nothing to commit — this exact page is already published (no changes to deploy).\n${e.stderr || e.message}`);
+  }
+  try {
+    git(co, "push", "origin", cfg.productionBranch);
+  } catch (e) {
+    die(1, `push failed — check push access to ${cfg.remote}.\n${e.stderr || e.message}`);
+  }
+  const result = { ok: true, published: true, slug, locale, liveUrl, gatePassed: true };
+  console.log(a.json ? JSON.stringify(result, null, 2) : `✓ PUBLISHED — ${liveUrl}\n  (Cloudflare deploys from ${cfg.productionBranch}; allow ~1 min, then hard-refresh.)`);
+}
+
+main();
