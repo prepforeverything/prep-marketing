@@ -1,0 +1,15 @@
+{
+  "preset": "",
+  "presetPath": "",
+  "selectedPacks": [
+    "marketing",
+    "customer-prepedu"
+  ],
+  "selectedHosts": [
+    "claude-code"
+  ],
+  "deliveryDefaults": {
+    "defaultMode": "build"
+  },
+  "version": 2
+}

@@ -1178,12 +1178,53 @@ function checkConsolidatedLayout(h) {
 // Public API
 // ---------------------------------------------------------------------------
 
+// Guards against the silent core-only degradation: pack sources exist on disk but
+// the build selected none of them (e.g. a fresh clone whose first-run auto-build fell
+// back to `build-kit.mjs` core-only), which drops pack commands like /mkt while the
+// rest of the kit still reports healthy.
+function checkPackCoverage(h) {
+  const name = "pack-coverage";
+  const packsRoot = h.abs(path.join(".prepkit", "packs"));
+  let available = [];
+  try {
+    available = fs.readdirSync(packsRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory()
+        && fs.existsSync(path.join(packsRoot, entry.name, "pack.manifest.json")))
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return { name, status: "pass", message: "No pack sources to verify" };
+  }
+  if (available.length === 0) {
+    return { name, status: "pass", message: "No pack sources to verify" };
+  }
+  const selected = [
+    ...(readPackSelection(h.kitRoot)?.selectedPacks || []),
+    ...(readActiveManifestSafe(h)?.composition?.selectedPacks || [])
+  ].filter(Boolean);
+  if (selected.length === 0) {
+    return {
+      name,
+      status: "warn",
+      message: `Pack source(s) present (${available.join(", ")}) but the build selected none — `
+        + `the kit is in a core-only state, so pack commands (e.g. /mkt) are inactive. `
+        + `Run ./install.sh, or: node .prepkit/scripts/build-pack.mjs --packs ${available.join(",")}`
+    };
+  }
+  return {
+    name,
+    status: "pass",
+    message: `Pack(s) built: ${[...new Set(selected)].sort().join(", ")}`
+  };
+}
+
 function runAt(kitRoot) {
   const h = makeHelpers(kitRoot);
   const checks = [
     checkManifest(h),
     checkConsolidatedLayout(h),
     checkGeneratedFiles(h),
+    checkPackCoverage(h),
     checkClaudeSettingsRuntime(h),
     checkCodexArtifacts(h),
     checkAntigravityArtifacts(h),

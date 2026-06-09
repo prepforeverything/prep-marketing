@@ -53,8 +53,10 @@ each step by hand if you ever need to.
 ## What `install.sh` does for you
 
 Each of these is a step you could run by hand — `install.sh` just runs them in order and reports
-clearly. (Opening the project in Claude Code also triggers the **first-run build** automatically, so
-even without the script the kit builds itself on first open.)
+clearly. (Opening the project in Claude Code also triggers the **first-run build** automatically: it
+reads the committed pack selection and builds the marketing kit, so even without the script you get
+working `/mkt` commands. `install.sh` is still the recommended path — it also checks prerequisites,
+scaffolds `.env`, and runs the health check.)
 
 | Step | By hand | Notes |
 |---|---|---|
