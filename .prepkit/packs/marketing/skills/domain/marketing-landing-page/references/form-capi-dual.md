@@ -150,7 +150,7 @@ function cleanReferrer(r) {
 ```js
 // 1 URL webhook duy nhất cho cả luồng lead & check_pay — user đổi URL này.
 // PHẢI để top-level (script scope) để handler check_pay trong payment-qr.md dùng chung biến này.
-var WEBHOOK_URL = 'https://YOUR-BACKEND/webhook-landing';
+var WEBHOOK_URL = '/api/lead';
 
 // Cho IP resolve VA cookie _ttp (TikTok Pixel set bat dong bo) san sang. Toi da 2.5s.
 function trackingReady(){ return ipResolved && !!getCookie('_ttp'); }

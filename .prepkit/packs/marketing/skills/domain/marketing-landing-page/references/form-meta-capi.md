@@ -191,7 +191,7 @@ function getFbp() {
 ```js
 // 1 URL webhook duy nhất cho cả luồng lead & check_pay — user đổi URL này.
 // PHẢI để top-level (script scope) để handler check_pay trong payment-qr.md dùng chung biến này.
-var WEBHOOK_URL = 'https://YOUR-BACKEND/webhook-landing';
+var WEBHOOK_URL = '/api/lead';
 
 // Chờ IP resolve (tối đa 2s) trước khi gửi payload — đảm bảo client_ip_address có giá trị
 function waitForIP(cb){

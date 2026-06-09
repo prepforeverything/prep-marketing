@@ -31,8 +31,9 @@ deterministic engine `.prepkit/packs/marketing/scripts/publish-landing.mjs`. All
 3. **Internal copy stays internal.** The engine publishes the HTML + policy pages + images and writes a small
    `publish-meta.json` provenance file; it deliberately drops `copy.md` and any `.md` notes, and a seeded
    `.assetsignore` keeps `.git`/config/CI files out of the served site. Don't add them back.
-4. **No secrets.** Cloudflare deploys from the publish repo by its own Git integration and the engine pushes with
-   the maintainer's existing git credentials. Never put a Cloudflare API token in the repo, config, or a prompt.
+4. **No secrets in the repo.** Cloudflare deploys by its own Git integration and the engine pushes with the
+   maintainer's existing git credentials. The form-forward webhook URL + optional Turnstile are **Cloudflare Worker
+   secrets** (set once by a maintainer — see the publish runbook), never in the repo, config, or a prompt.
 5. **The kit does the git/Cloudflare work, the marketer doesn't.** Surface only links and plain outcomes.
 
 ## Preconditions
@@ -69,8 +70,9 @@ deterministic engine `.prepkit/packs/marketing/scripts/publish-landing.mjs`. All
 
 - The live link (step 3) once published.
 - A one-line publish summary in the active plan's `reports/` (what went live, where, which claims).
-- Plain-language handoff: if the page has a form/payment, restate that lead capture needs the backend wired
-  (the build saved that checklist) — the page is live regardless.
+- Plain-language handoff: if the page has a form, leads post to the site's own /api/lead endpoint and forward to
+  the CRM once the one-time `FORWARD_WEBHOOK_URL` Worker secret is set (a maintainer step, not per-page) — the page
+  is live regardless.
 
 ## Anti-patterns
 
@@ -84,6 +86,9 @@ deterministic engine `.prepkit/packs/marketing/scripts/publish-landing.mjs`. All
 
 - **First publish ever** needs the publish repo initialized (`--init`, a one-time maintainer step). After that,
   every page is just `/mkt-publish`.
+- **Lead form backend:** the published Worker receives the page's form (at the same-origin /api/lead) and forwards
+  it to your CRM. It works once a maintainer sets the `FORWARD_WEBHOOK_URL` Worker secret — one-time, for all pages;
+  until then the form replies "not configured yet" and the page is still live. Setup is in the publish runbook.
 - **Cache:** the stable subdomain may briefly serve a cached version after publish — hard-refresh; content-hashed
   image names avoid stale assets.
 - **A real staging preview** (a separate URL before live) is intentionally NOT part of this flow — the build's

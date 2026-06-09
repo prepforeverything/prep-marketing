@@ -68,6 +68,14 @@ no CAPI), use `marketing-asset-generation/references/html-assembly.md` instead �
    not borders; flat styles (apple, shopify, shopee, …) follow their own `design-system.md`. Numbered cards use
    gradient/badge treatments; form titles centre over QR. Per-style rules live in each `design-system.md`.
 10. **DRAFT by default.** Declare publish-ready only after claims are approved and brand review passes.
+11. **Same-origin form backend + consent.** The form posts to the published site's own /api/lead endpoint — the
+    publish Worker forwards each lead to your CRM (n8n/Lark) and the payload carries `utm_*` per lead. Starters
+    already default `WEBHOOK_URL` to that endpoint; use an external URL only if the user supplies one. Every lead
+    form ships a **required** consent checkbox + `agree` payload field (in the starter scaffold) linking the
+    privacy policy (Nghị định 13/2023) — keep it, don't remove; ref `references/form-fields.md` §4. Wiring the
+    backend itself is `marketing-publish`'s job, not a per-page hand-off.
+12. **Analytics in `<head>`.** Inject the GTM + Cloudflare Web Analytics snippet (`references/analytics-head.md`)
+    from `context/marketing.config.json` → `analytics`; skip any empty value.
 
 ## The standards process — 8 steps
 
@@ -94,7 +102,10 @@ no CAPI), use `marketing-asset-generation/references/html-assembly.md` instead �
    the Pixel snippet + tracking for `form-tiktok-capi.md`, for both add `form-capi-dual.md`, and for none
    strip the Meta loader** (don't leave Meta in a TikTok/none page — it leaks visitor data); paste `_utils.md`
    JS first + (if QR) `payment-qr.md`; paste inline icons; expand `[CUSTOM-FIELDS]` per
-   `references/form-fields.md`; footer links the policy pages (relative paths).
+   `references/form-fields.md`; keep the starter's **required consent checkbox** (§4 — do not remove) and, if
+   `forms.turnstile.enabled`, add the Turnstile widget (§8); inject the analytics `<head>` snippet
+   (`references/analytics-head.md`) from config; footer links the policy pages (relative paths). Leave the
+   starter's `WEBHOOK_URL` default (the same-origin /api/lead backend) unless the user supplies an external URL.
 7. **Generate policy pages** (`references/policy-pages.md`): `chinh-sach-bao-mat.html` + `dieu-khoan-su-dung.html`
    for every page, `chinh-sach-thanh-toan.html` if there's QR — same folder, content matching the actual page.
 8. **Preview-verify + publish gate.** Render → screenshot → vision-score the whole page (`--task evaluate`),
@@ -136,6 +147,7 @@ keep the invariant principles, icon system, and form contract intact.
 | `references/sections-core.md` | every page — hero, FAQ, final CTA, footer, header+drawer, features, buttons |
 | `references/sections-advanced.md` | advanced sections — stats, countdown, hero video, pricing, before/after, numbered badges |
 | `references/_utils.md` | every page with a form — shared JS (cookie, IP fetch, diacritics, validate); paste **before** platform helpers |
+| `references/analytics-head.md` | every page — GTM + Cloudflare Web Analytics `<head>` snippet (config-driven) |
 | `references/form-meta-capi.md` | CAPI = Meta |
 | `references/form-tiktok-capi.md` | CAPI = TikTok |
 | `references/form-capi-dual.md` | CAPI = both (dedup `event_id`, one form/one webhook) |
@@ -167,8 +179,9 @@ keep the invariant principles, icon system, and form contract intact.
 
 - Preview-verify needs Playwright (`npm i -D playwright && npx playwright install chromium`); without it the
   browser runner fails — fall back to reviewing the HTML by eye, don't hard-block.
-- The form captures nothing until a backend webhook exists. With a placeholder `WEBHOOK_URL`, leads are lost
-  until the developer wires it per `references/backend-security.md` — say so at handoff.
+- The form posts to the published site's own /api/lead (the publish Worker -> your CRM), not an external URL.
+  Leads flow once the Worker's `FORWARD_WEBHOOK_URL` secret is set — a one-time maintainer step (see
+  `marketing-publish`), not a per-page task. Until then the form replies "not configured yet"; say so at handoff.
 - Google-Sheet storage is lead-only: it can't do server-side CAPI or VietQR payment. The skill forces
   payment = no when storage = Google Sheet (Batch 1 validation in `references/storage-google-sheet.md`).
 - Don't cross design-system rules: glass styles (liquid-glass) separate blocks by space/shadow with no borders;

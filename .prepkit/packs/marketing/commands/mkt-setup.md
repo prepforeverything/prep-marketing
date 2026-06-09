@@ -30,6 +30,20 @@ Write the answers to `context/marketing.config.json` (start from
 `companyName`, `primaryLocale`, `primaryMarket`, `markets`, `businessType`,
 `governance.publishGate`). Read it back to confirm.
 
+## 1b. Tracking & lead capture (optional — can skip and add later)
+These power page analytics + the contact form; all optional. Ask plainly:
+- **Google Tag Manager Container ID?** (looks like `GTM-XXXXXXX`) — if they have one, every page logs traffic and
+  they manage GA4/ads tags with no code. Write to `analytics.gtmContainerId`. (Optional Cloudflare Web Analytics
+  token → `analytics.cfWebAnalyticsToken`.)
+- **Where should contact-form leads go?** A webhook URL from their automation (n8n) or Lark Base. Explain it is
+  saved as a **Cloudflare Worker secret** during publish setup, **not** in the kit — so just note it down now; the
+  kit only records that forms post to `/api/lead`. (Optional spam shield: Cloudflare Turnstile — its public site
+  key → `forms.turnstile.siteKey`; the secret is a Worker secret.)
+Write **only the public values** (GTM id, CF token, Turnstile site key) to `context/marketing.config.json` (the
+`analytics`/`forms` blocks already exist in the template). **Never** write a webhook URL or any secret to the config
+or repo. If they don't have these yet, leave them empty — pages still build + publish; forms/analytics light up
+once set (see the publishing runbook).
+
 ## 2. Scaffold context/ (fresh install only — never overwrite populated files)
 Offer two paths:
 - **Start fresh (recommended for a new team):** copy the neutral templates into place —

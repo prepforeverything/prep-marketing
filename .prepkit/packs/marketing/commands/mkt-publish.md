@@ -31,9 +31,10 @@ Activate the `marketing-publish` skill (it owns the how — the claims gate and 
    `.claude/rules/plan-finalization.md` — save the publish summary to the active plan's `reports/`, commit the
    plan's own files, and close/archive the plan. Never hand the marketer a command to run.
 
-5. **Say what still needs a human, plainly.** If the page has a sign-up form or payment, remind them lead capture
-   only works once the small backend is wired (the build already saved that checklist) — the page is live either
-   way. Mention it may take about a minute to appear and to refresh if they see an old version.
+5. **Say what still needs a human, plainly.** If the page has a sign-up form: leads are received by the site itself
+   and forwarded to your CRM — this works as soon as the one-time connection is set up (a maintainer task, done
+   once for *all* pages, not per page). If it hasn't been set yet, the page is still live; the form just isn't
+   collecting yet. Mention it may take about a minute to appear and to refresh if they see an old version.
 
 > Default stance: a page is **not** publish-ready until the claims gate passes. Reassure the marketer they need
 > no technical details — they pick the page, check the screenshot, and approve. You handle the rest.

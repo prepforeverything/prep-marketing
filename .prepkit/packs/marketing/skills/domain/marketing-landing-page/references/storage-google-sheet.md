@@ -41,7 +41,7 @@ So với phiên bản webhook, frontend chỉ đổi:
 
 ```js
 // Trước (webhook):
-var WEBHOOK_URL = 'https://YOUR-BACKEND/webhook-landing';
+var WEBHOOK_URL = '/api/lead';
 
 // Sau (Google Sheet via GAS Web App):
 var WEBHOOK_URL = 'https://script.google.com/macros/s/YOUR_DEPLOY_ID/exec';

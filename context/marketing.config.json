@@ -20,5 +20,16 @@
       "productionBranch": "main",
       "localCheckout": ".prepkit/.publish-cache/prepedu-landing"
     }
+  },
+  "analytics": {
+    "_note": "Public tracking IDs only — injected into every built page's <head> by /mkt-build-landing-page. Real secrets (CAPI tokens etc.) never live here. Empty values are skipped.",
+    "gtmContainerId": "",
+    "cfWebAnalyticsToken": ""
+  },
+  "forms": {
+    "_note": "The published Cloudflare Worker serves <backendPath> and forwards each lead to your automation. The forward URL + shared secret + Turnstile secret are Cloudflare Worker SECRETS (wrangler secret put) — NOT stored here. Only the public Turnstile site key lives in config.",
+    "backendPath": "/api/lead",
+    "forward": { "kind": "n8n", "secretName": "FORWARD_WEBHOOK_URL" },
+    "turnstile": { "enabled": false, "siteKey": "" }
   }
 }

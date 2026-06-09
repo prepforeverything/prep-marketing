@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = process.argv[2] ? path.resolve(process.argv[2]) : process.cwd();
-const SKIP = new Set([".git", ".github", ".wrangler", "node_modules"]);
+const SKIP = new Set([".git", ".github", ".wrangler", "node_modules", "worker"]);
 const today = new Date().toISOString().slice(0, 10);
 const fails = [];
 

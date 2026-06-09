@@ -135,6 +135,7 @@ const TEMPLATE_MAP = {
   "wrangler.jsonc.tmpl": "wrangler.jsonc",            // Workers Static Assets config (npx wrangler deploy)
   ".assetsignore.tmpl": ".assetsignore",              // keep .git / config / CI files OUT of the served site
   "verify-publish.mjs.tmpl": "verify-publish.mjs",
+  "worker-index.js.tmpl": "worker/index.js",          // the Worker: serves assets + POST /api/lead form backend
   "publish-gate.yml.tmpl": ".github/workflows/publish-gate.yml",
   "README.md.tmpl": "README.md",
   "_headers.tmpl": "_headers",

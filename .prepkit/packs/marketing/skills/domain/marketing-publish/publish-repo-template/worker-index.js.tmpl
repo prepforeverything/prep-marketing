@@ -1,0 +1,94 @@
+// worker/index.js — the published-site Cloudflare Worker.
+// Serves the static landing pages AND receives the registration form at POST /api/lead, then forwards
+// each lead to your automation (n8n webhook / Lark Base) over HTTPS. Managed by the marketing kit —
+// do not hand-edit; re-seed from the kit instead.
+//
+// Secrets (set with `wrangler secret put`, NEVER committed):
+//   FORWARD_WEBHOOK_URL    (required) the n8n/Lark inbound webhook each lead is forwarded to
+//   FORWARD_SHARED_SECRET  (optional) sent as `X-Webhook-Secret` so your automation trusts only this Worker
+//   TURNSTILE_SECRET       (optional) if set, the form's Cloudflare Turnstile token is verified server-side
+//
+// Only /api/* runs this Worker first (wrangler `run_worker_first`); every other path is served straight
+// from static assets with zero added latency. Forwarding is best-effort and stateless by design — front a
+// Cloudflare rate-limiting rule on /api/* and let your automation own storage/dedup/CAPI.
+
+const LEAD_EVENT_ID = /^lead_\d{10,16}_[a-z0-9]{8,12}$/; // matches the id the page generates (see backend-security)
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE = /^(0\d{9}|\+84\d{9})$/;
+const MAX_BODY = 20 * 1024; // 20 KB — a lead is tiny; cap abusive payloads
+
+const json = (obj, status = 200) =>
+  new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/lead") {
+      if (request.method !== "POST") return json({ status: "error", message: "method not allowed" }, 405);
+      return handleLead(request, env);
+    }
+    return env.ASSETS.fetch(request); // everything else → the static landing pages
+  },
+};
+
+async function handleLead(request, env) {
+  const raw = await request.text();
+  if (raw.length > MAX_BODY) return json({ status: "error", message: "payload too large" }, 413);
+  let p;
+  try { p = JSON.parse(raw); } catch { return json({ status: "error", message: "bad json" }, 400); }
+
+  // Honeypot: a filled #website means a bot bypassed the page JS — 200 + drop silently so it won't retry.
+  if (p.website) return json({ status: "success" });
+
+  if (p.event === "lead") {
+    // event_id format — a non-matching id means the payload was hand-crafted, not built by the page.
+    if (!LEAD_EVENT_ID.test(p.event_id || "")) return json({ status: "error", message: "bad event_id" }, 400);
+    // Re-validate the fields the page only checks for UX (frontend validation is never a security control).
+    if (!EMAIL.test(p.email || "") || (p.email || "").length > 254) return json({ status: "error", message: "bad email" }, 400);
+    if (!PHONE.test(p.phone || "")) return json({ status: "error", message: "bad phone" }, 400);
+    if (env.TURNSTILE_SECRET) {
+      const ok = await verifyTurnstile(p["cf-turnstile-response"], request.headers.get("CF-Connecting-IP"), env.TURNSTILE_SECRET);
+      if (!ok) return json({ status: "error", message: "captcha failed" }, 403);
+    }
+  } else if (p.event === "check_pay") {
+    // check_pay carries no event_id; its auth is the (phone, code) pair. Format-gate before forwarding so the
+    // Worker can't be used as an open relay to probe the automation. Reply "pending" (not an error) to avoid
+    // leaking whether a record exists. Pair a Cloudflare rate-limit rule on /api/* with this (see runbook).
+    if (!PHONE.test(p.phone || "") || !/^[A-Za-z0-9]{32}$/.test(p.code || "")) return json({ status: "pending" });
+  } else {
+    return json({ status: "error", message: "unknown event" }, 400);
+  }
+
+  // Trust the edge for the client IP, not the client-supplied value (which can be spoofed).
+  p.client_ip_address = request.headers.get("CF-Connecting-IP") || p.client_ip_address || "";
+  delete p["cf-turnstile-response"]; // never forward the captcha token
+
+  if (!env.FORWARD_WEBHOOK_URL) {
+    // Not wired yet (the one-time Phase-0 secret). Don't 500 — tell the page plainly; no lead lost to a bad URL.
+    return json({ status: "error", message: "lead backend not configured yet" }, 503);
+  }
+  try {
+    const headers = { "content-type": "application/json" };
+    if (env.FORWARD_SHARED_SECRET) headers["X-Webhook-Secret"] = env.FORWARD_SHARED_SECRET;
+    const r = await fetch(env.FORWARD_WEBHOOK_URL, { method: "POST", headers, body: JSON.stringify(p) });
+    let out = null;
+    try { out = await r.json(); } catch { /* automation returned non-JSON */ }
+    if (out && out.status) return json(out);           // relay the automation's own status when it gives one
+    return json({ status: r.ok ? "success" : "error" }, r.ok ? 200 : 502);
+  } catch {
+    return json({ status: "error", message: "forward failed" }, 502); // page shows retry; nothing silently dropped
+  }
+}
+
+async function verifyTurnstile(token, ip, secret) {
+  if (!token) return false;
+  const body = new FormData();
+  body.append("secret", secret);
+  body.append("response", token);
+  if (ip) body.append("remoteip", ip);
+  try {
+    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body });
+    const d = await r.json();
+    return !!d.success;
+  } catch { return false; }
+}

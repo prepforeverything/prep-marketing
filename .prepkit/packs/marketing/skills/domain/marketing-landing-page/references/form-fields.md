@@ -8,7 +8,7 @@
 
 Trước khi build, hỏi user (gộp trong batch `AskUserQuestion`): **landing này cần thu thập những trường nào?**
 
-- **Mặc định (luôn có, không cần hỏi lại)**: Họ tên + Email + Số điện thoại — 3 trường tối thiểu, đủ cho đa số landing lead-gen.
+- **Mặc định (luôn có, không cần hỏi lại)**: Họ tên + Email + Số điện thoại — 3 trường tối thiểu, đủ cho đa số landing lead-gen — **cộng 1 checkbox đồng ý xử lý dữ liệu (BẮT BUỘC, Nghị định 13/2023)** đặt ngay trước nút submit (markup ở §4, biến thể Checkbox).
 - **Tùy chọn thêm** (multi-select — user chọn 0 hoặc nhiều): Địa chỉ, Tỉnh/Thành phố, Ghi chú / lời nhắn, Số lượng, Dropdown phân loại (ngành quan tâm, gói dịch vụ, nguồn biết đến…), hoặc trường khác user tự nêu.
 - Nếu user không nêu rõ → giữ đúng 3 trường mặc định, KHÔNG tự thêm.
 
@@ -27,7 +27,7 @@ Không hỏi quá sâu: 1 câu multi-select là đủ. Trường nào suy luận
 | Số lượng | `quantity` | input | `number` | tùy |
 | Phân loại / ngành quan tâm | `category` | select | — | tùy |
 | Nguồn biết đến | `source_channel` | input/select | `text` | tùy |
-| Đồng ý điều khoản | `agree` | checkbox | `checkbox` | tùy |
+| Đồng ý xử lý dữ liệu *(mặc định — bắt buộc)* | `agree` | checkbox | `checkbox` | **có** |
 
 `id` đặt theo **camelCase hoặc snake_case ASCII, không dấu**, mô tả đúng nội dung. Tên trường trong `payload` nên trùng với `id` để dễ map ở backend.
 
@@ -209,7 +209,7 @@ Cân nhắc kỹ trước khi thu (chỉ thu khi thực sự cần và có lý d
 - **Địa chỉ nhà chi tiết** — chỉ thu khi landing có giao hàng vật lý. Landing sự kiện/khóa học/ebook thường không cần.
 - **Ngày sinh đầy đủ** — nếu chỉ cần xác định độ tuổi thì hỏi năm sinh hoặc khoảng tuổi, không cần ngày/tháng.
 
-**Lưu ý pháp lý**: tại Việt Nam, Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân phân loại các mục trên là "dữ liệu cá nhân nhạy cảm" — thu thập đòi hỏi sự đồng ý rõ ràng và biện pháp bảo vệ chặt chẽ. Form landing đã có link Chính sách bảo mật ở footer (xem `policy-pages.md`); nếu thu nhiều thông tin cá nhân, cân nhắc thêm 1 checkbox đồng ý xử lý dữ liệu ngay trên form. Đây là khuyến nghị kỹ thuật, không phải tư vấn pháp lý — nhắc user rà soát với người có chuyên môn.
+**Lưu ý pháp lý**: tại Việt Nam, Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân phân loại các mục trên là "dữ liệu cá nhân nhạy cảm" — thu thập đòi hỏi sự đồng ý rõ ràng và biện pháp bảo vệ chặt chẽ. **Mọi form lead BẮT BUỘC có 1 checkbox đồng ý xử lý dữ liệu** (biến thể Checkbox ở §4: `required` + link tới Chính sách bảo mật) — đây là điều kiện publish, không phải tùy chọn. Form cũng phải có link Chính sách bảo mật ở footer (xem `policy-pages.md`). Đây là khuyến nghị kỹ thuật, không phải tư vấn pháp lý — nhắc user rà soát với người có chuyên môn.
 
 ## 7. Ví dụ hoàn chỉnh — thêm "Tỉnh/Thành" (select bắt buộc) + "Ghi chú" (textarea tùy chọn)
 
@@ -247,3 +247,13 @@ Cân nhắc kỹ trước khi thu (chỉ thu khi thực sự cần và có lý d
 ```
 
 Xong: CSS đã tự cover select/textarea, honeypot + 18 ID không đụng tới, backend nhận thêm `province` + `note` trong payload `lead`.
+
+## 8. Turnstile chống bot (tùy chọn — chỉ khi `forms.turnstile.enabled = true`)
+
+Form đã có honeypot + double-submit guard sẵn. Nếu cần thêm CAPTCHA, bật Cloudflare Turnstile — thêm **3 chỗ**:
+
+1. `<head>`: `<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`
+2. Trong `#regForm`, ngay trên nút submit: `<div class="cf-turnstile" data-sitekey="DAN_SITEKEY_TU_forms.turnstile.siteKey"></div>` (Turnstile tự chèn input ẩn `cf-turnstile-response`).
+3. payload `lead` — thêm token: `'cf-turnstile-response': (document.querySelector('[name="cf-turnstile-response"]')||{}).value || ''`
+
+Worker publish verify token server-side bằng secret `TURNSTILE_SECRET`. **Thứ tự BẮT BUỘC**: bật `forms.turnstile.enabled` + `siteKey` rồi **build lại trang (có widget) TRƯỚC**, sau đó mới `wrangler secret put TURNSTILE_SECRET`. Set secret khi trang chưa có widget → token rỗng → Worker trả **403 cho mọi submit**. Để `enabled:false` (mặc định) thì bỏ qua hoàn toàn — đừng thêm widget, đừng set secret.

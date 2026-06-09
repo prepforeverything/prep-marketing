@@ -6,9 +6,10 @@ edit and re-publish from the kit so the claims gate always runs.
 
 ## Layout
 
-    wrangler.jsonc            # Cloudflare Workers static-assets config
-    .assetsignore            # keeps .git / config / CI files OUT of the served site
+    wrangler.jsonc            # Cloudflare Worker + static-assets config
+    .assetsignore            # keeps .git / config / CI / worker source OUT of the served site
     verify-publish.mjs        # CI gate (the publish-gate workflow runs this)
+    worker/index.js           # the Worker: serves the pages + receives the form at POST /api/lead
     index.html                # apex page (https://__SUBDOMAIN__/)
     <locale>/<campaign-slug>/
       index.html              # the page
@@ -26,11 +27,29 @@ Served at `https://__SUBDOMAIN__/<locale>/<campaign-slug>/`.
   `publish-meta.json` with the claims gate passed, all claims approved and unexpired, and no leaked
   `{{…}}` placeholders or `[[CLM-…]]` tags in the HTML.
 
+## Lead capture (form backend)
+
+Pages with a registration form POST to **`/api/lead`** on this same site — handled by `worker/index.js`,
+which validates + spam-gates the submission and forwards it to your automation (n8n webhook or Lark Base)
+over HTTPS. The form is **same-origin**, so there is no third-party endpoint exposed in the page HTML.
+
+The forward target and secrets are **Cloudflare Worker secrets** — never committed here:
+
+    wrangler secret put FORWARD_WEBHOOK_URL     # required: your n8n / Lark inbound webhook URL
+    wrangler secret put FORWARD_SHARED_SECRET   # optional: sent as X-Webhook-Secret so the automation trusts only this Worker
+    wrangler secret put TURNSTILE_SECRET        # optional: ONLY after the page ships the Turnstile widget (else every submit 403s)
+
+Until `FORWARD_WEBHOOK_URL` is set, the page is live but the form replies "not configured yet" (no leads lost
+to a wrong URL). After setting secrets, redeploy (`npx wrangler deploy`).
+
 ## One-time setup (maintainer)
 
 1. Create this (empty) repo, then initialize it from the kit: `node .prepkit/packs/marketing/scripts/publish-landing.mjs --init`
    (seeds `wrangler.jsonc`, `.assetsignore`, the CI gate, and an apex `index.html`, then pushes the production branch).
 2. Connect it as a Cloudflare Worker (Workers & Pages → Create → import this repository). Deploy command:
    `npx wrangler deploy`. Then add the custom domain `__SUBDOMAIN__`.
+3. Set the lead-forward secrets (see **Lead capture** above) so forms reach your CRM, then redeploy. Add
+   (recommended) a Cloudflare rate-limiting rule on `/api/*` (e.g. 20 req/min/IP) — `/api/lead` is public and the
+   Worker is stateless by design.
 
 After that, the marketing team publishes pages with `/mkt-publish` — no git or Cloudflare needed.
