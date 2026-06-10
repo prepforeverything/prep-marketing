@@ -4,10 +4,10 @@ How to get the kit running on a machine, up to the point where you can run `/mkt
 working. For day-to-day use after this, see the **[Team User Guide](./marketing-user-guide.md)**.
 
 Two audiences:
-- **A — Joining the existing kit** (most people): the team's repo already has the commands and the
-  brand context committed. Clone it, run one command, and you're ready.
-- **B — Standing it up fresh** (a new machine or new project): same one command, plus optional secrets
-  and memory.
+- **A — Marketers / teammates** (most people): one copy-paste command installs everything and ends
+  inside Claude Code with the setup questions — no git, no terminal skills needed.
+- **B — Developers & maintainers** (editing the kit itself): clone the repo with git and build with
+  `./install.sh`.
 
 ---
 
@@ -36,15 +36,28 @@ tarball, so even `git` isn't required):
 curl -fsSL https://raw.githubusercontent.com/prepforeverything/prep-marketing/main/bootstrap.sh | bash
 ```
 
-When it finishes, run `claude` to sign in (paid Pro/Max plan), then type `/mkt-setup`. The only step it
-can't automate is that interactive sign-in. It's safe to re-run and never overwrites an existing
-`context/`. The kit lands in `~/prep-marketing` (override with `PREP_DIR=/path`).
+When the install finishes it **opens Claude Code inside the kit for you**: sign in when asked (paid
+Pro/Max plan), trust the folder, and answer the setup interview's questions — the command queues
+`/mkt-setup` automatically on a fresh install, and just opens the kit when your team's config already
+exists. There is nothing else to run.
+
+Useful to know:
+- The kit lands in `~/prep-marketing` (override with `PREP_DIR=/path`).
+- **Re-running the same line updates the kit in place** — your `context/` (brand data, claims,
+  config), built pages, and `.env` are always kept.
+- Because the kit arrives as a tarball, there's **no git checkout on the machine** — teammates never
+  see branches, diffs, or merge conflicts.
+- `PREP_NO_LAUNCH=1` skips the hand-off into Claude Code (for CI or scripted installs).
 
 > **Windows:** this one-liner is macOS/Linux only. Install Claude Code (`winget install
-> Anthropic.ClaudeCode`) and Node.js ([nodejs.org](https://nodejs.org)), then use **The fast path**
+> Anthropic.ClaudeCode`) and Node.js ([nodejs.org](https://nodejs.org)), then use **The git path**
 > below inside **Git Bash** (from [Git for Windows](https://git-scm.com/download/win)).
 
-## The fast path (if you already have the tools)
+## The git path (developers & maintainers)
+
+Use this only if you'll **edit the kit itself** (or you just prefer git). Day-to-day marketing
+machines are better served by the one-liner above: it has no git working tree to keep clean and
+updates by re-running one command.
 
 ```bash
 git clone https://github.com/prepforeverything/prep-marketing.git
@@ -156,6 +169,7 @@ Other hosts: the kit can also target Codex (via a generated `AGENTS.md`, `.agent
 
 | Symptom | Fix |
 |---|---|
+| One-liner finished but no setup questions appeared | In the Claude Code window it opened, type `/mkt-setup` and press Enter. (If it didn't open Claude Code at all, run `cd ~/prep-marketing && claude` yourself.) |
 | `./install.sh: permission denied` | Run `chmod +x install.sh` once, or use `bash install.sh`. |
 | `node: command not found` | Install Node.js 18+ (`node --version` to confirm), then re-run `./install.sh`. |
 | Slash commands don't appear | Reopen the project folder in Claude Code; if still missing, re-run `./install.sh`. |

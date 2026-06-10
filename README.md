@@ -7,17 +7,19 @@ work, checks every claim, and asks for your approval before anything is "publish
 
 ## Install (one command)
 
-**Brand-new computer, nothing installed yet?** This one line installs Claude Code, Node.js, **and** the
-kit — no tools required first, no admin password:
+One line, on a brand-new computer or an old one. It installs Claude Code, Node.js, and the kit —
+no tools required first, no admin password — then **opens Claude Code for you with the setup
+interview ready**:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/prepforeverything/prep-marketing/main/bootstrap.sh | bash
 ```
 
-When it finishes, sign in to Claude Code (run `claude` — needs a paid Pro/Max plan) and type
-**`/mkt-setup`**. That's the whole setup.
+Sign in when Claude Code asks (paid Claude plan — Pro or Max) and answer the setup questions in
+plain language. That's the whole install: no git, no branches, nothing else to run. Re-running the
+same line later updates the kit in place (your brand data in `context/` is always kept).
 
-**Already have git, Node.js, and Claude Code?** Clone and build directly instead:
+**Developer or maintainer?** You can clone and build directly instead:
 
 ```bash
 git clone https://github.com/prepforeverything/prep-marketing.git
@@ -37,10 +39,11 @@ admin password, and it doesn't even need `git`).
 1. **Open the Terminal** — press `Cmd`+`Space`, type `Terminal`, press `Enter`. A plain text window
    opens; that's where the command goes.
 2. **Paste the one-line command** from **Install** above, then press `Enter`. It downloads and sets up
-   Claude Code, Node.js, and the kit (a few minutes).
-3. When it says **"Almost there"**, sign in to Claude Code: type `claude`, press `Enter` — it opens
-   your browser to log in. *This needs a paid Claude plan (Pro or Max);* a free account won't work.
-4. Type **`/mkt-setup`** and follow the questions.
+   Claude Code, Node.js, and the kit (a few minutes), then opens Claude Code for you.
+3. **Sign in when Claude Code asks** — it opens your browser to log in. *This needs a paid Claude
+   plan (Pro or Max);* a free account won't work. Say yes when it asks to trust the folder.
+4. **Answer the setup questions** in plain language — company, market, how careful to be with
+   claims. (If no questions appear, type `/mkt-setup` and press `Enter`.)
 
 It's safe to re-run if anything looks off, and it never overwrites your brand data.
 

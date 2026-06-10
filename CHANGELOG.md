@@ -6,6 +6,23 @@ source changes under `.prepkit/` (the generated `.claude/` surface follows on re
 
 ## [Unreleased]
 
+### Changed
+- **Install is now truly one command.** `bootstrap.sh` ends by opening Claude Code inside the kit
+  with the setup interview queued (`/mkt-setup` on a fresh install; plain Claude Code when the team
+  config already exists) — sign in, answer the questions, done. No more "now run claude and type
+  /mkt-setup" homework. Skipped when not at a terminal or `PREP_NO_LAUNCH=1`; the printed
+  instructions remain as the fallback. Re-running the same line updates the kit in place (tarball
+  installs have no `.git`, so end-user machines never see branches or diffs); user data
+  (`context/`, built pages, `.env`) survives by construction.
+- **Node install path simplified.** The bootstrap always uses the official Node tarball into
+  `~/.local` when Node is missing (the silent `brew install node` branch — slow, opaque, and with
+  brew-specific failure modes — is gone), and the Claude Code installer's output is now shown when
+  it fails instead of being swallowed.
+- **Setup can't get lost.** Until `context/marketing.config.json` exists, every session start
+  prints a one-line pointer to `/mkt-setup` (previously only the very first session showed a
+  welcome). README + installation guide now lead with the one-liner and frame the git clone path
+  as the developers/maintainers route.
+
 ## [0.0.1] — 2026-06-08
 
 First tagged release of the PrepEdu Marketing Kit — the golden-path campaign system, the claims

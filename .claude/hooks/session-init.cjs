@@ -716,6 +716,14 @@ function main() {
       emit("");
     }
 
+    // Setup-pending nudge: no context/marketing.config.json means /mkt-setup never
+    // finished (bootstrap hands off straight into it, but the user may have exited
+    // early). Unlike the one-time welcome above, this fires on EVERY session start
+    // until the config exists — one line, and the wizard itself is idempotent.
+    if (!showWelcome && !fs.existsSync(path.join(kitRoot, "context", "marketing.config.json"))) {
+      emit("Setup isn't finished: type /mkt-setup — a short interview that configures your company, market, and governance.");
+    }
+
     // Refresh kit-state.projectStack + detectedContext from a fresh repo
     // detection if the recorded stack is empty/stale. Idempotent — never
     // overwrites greenfield-wizard or user-confirmed records. Safe-fail.

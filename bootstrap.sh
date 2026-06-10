@@ -5,14 +5,13 @@
 #   curl -fsSL https://raw.githubusercontent.com/prepforeverything/prep-marketing/main/bootstrap.sh | bash
 #
 # Installs everything a fresh Mac/Linux machine needs — Claude Code, Node.js, and the
-# kit itself — without you installing anything first. No admin password on the common
-# path (Node goes into ~/.local; the kit is fetched as a tarball, so git isn't needed).
+# kit itself — without you installing anything first. No admin password (Node goes
+# into ~/.local; the kit is fetched as a tarball, so git isn't needed), and it ends by
+# opening Claude Code inside the kit with the setup interview queued: sign in when
+# asked (paid Claude Pro/Max plan), answer the questions, and you're done.
 #
-# The ONE thing it can't do for you: sign in to Claude Code. That's an interactive
-# browser login and needs a paid Claude plan (Pro/Max) — the script ends by telling
-# you exactly how.
-#
-# Safe to re-run. It never re-downloads over an existing kit (your context/ is kept).
+# Safe to re-run: an existing install gets the latest kit code, your context/ is kept.
+# Set PREP_NO_LAUNCH=1 to skip the hand-off into Claude Code (CI, scripted installs).
 
 set -u
 
@@ -36,7 +35,7 @@ die()  { printf '\n  %s✗ %s%s\n\n' "$RED" "$*" "$RESET" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 say "${BOLD}PrepEdu Marketing Kit — bootstrap${RESET}"
-say "${DIM}Installs Claude Code, Node.js, and the kit. The only step left for you afterward is signing in to Claude Code.${RESET}"
+say "${DIM}Installs Claude Code, Node.js, and the kit — then opens Claude Code so you can sign in and answer the setup questions. That's the whole install.${RESET}"
 
 # --- 0. Platform + curl --------------------------------------------------------
 have curl || die "curl is required but not found. (It ships with macOS; on Linux: apt/dnf install curl.)"
@@ -65,10 +64,11 @@ node_ok() { have node && [ "$(node -v 2>/dev/null | sed 's/^v//; s/\..*$//')" -g
 
 # --- 1. Node.js (the kit's scripts run on it) ----------------------------------
 step "Node.js (the kit's scripts run on it)"
+# Deliberately NOT `brew install node` even when Homebrew exists: brew can stall for
+# minutes on its own auto-update and fails in brew-specific ways. The official tarball
+# into ~/.local is fast, deterministic, and has exactly one failure mode (the network).
 if node_ok; then
   ok "Node $(node -v) already installed"
-elif have brew; then
-  brew install node >/dev/null 2>&1 && ok "Installed Node via Homebrew ($(node -v))" || die "Homebrew node install failed. Install Node 18+ from https://nodejs.org and re-run."
 else
   tarball="node-${NODE_VERSION}-${PLAT_OS}-${PLAT_ARCH}.tar.gz"
   url="https://nodejs.org/dist/${NODE_VERSION}/${tarball}"
@@ -94,7 +94,12 @@ if have claude; then
   ok "Claude Code already installed ($(claude --version 2>/dev/null | head -1))"
 else
   say "  ${DIM}running the official installer (claude.ai/install.sh)${RESET}"
-  curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1 || warn "Claude Code installer reported an issue."
+  clog="$(mktemp)"
+  if ! curl -fsSL https://claude.ai/install.sh | bash >"$clog" 2>&1; then
+    warn "Claude Code installer reported an issue:"
+    tail -n 6 "$clog" | sed 's/^/      /'
+  fi
+  rm -f "$clog"
   ensure_local_path
   if have claude; then ok "Installed Claude Code ($(claude --version 2>/dev/null | head -1))"
   else warn "Claude Code isn't on PATH yet — install it from https://claude.com/claude-code, then re-run."; fi
@@ -183,16 +188,41 @@ step "Building the kit"
 [ -f "$INSTALL_DIR/install.sh" ] || die "install.sh not found in $INSTALL_DIR — the download may be incomplete; re-run."
 ( cd "$INSTALL_DIR" && bash ./install.sh ) || die "Kit build failed. Re-run this command; if it persists, send the output above to your kit maintainer."
 
-# --- Done ----------------------------------------------------------------------
+# --- 5. Hand off into Claude Code (setup happens in there) ----------------------
+# The setup interview lives INSIDE Claude Code (/mkt-setup), so instead of printing
+# homework we open Claude Code in the kit right here. stdin must be rebound to the
+# terminal: under `curl … | bash` stdin is the script pipe, which a TTY app can't read.
+# Claude Code's own first launch handles sign-in (paid Pro/Max) and folder trust, then
+# the queued setup interview starts. Skipped when not interactive or PREP_NO_LAUNCH=1.
+can_launch() {
+  [ "${PREP_NO_LAUNCH:-0}" != "1" ] && have claude && [ -t 1 ] && { : </dev/tty; } 2>/dev/null
+}
+if can_launch && cd "$INSTALL_DIR" 2>/dev/null; then
+  say ""
+  say "${GREEN}${BOLD}Everything is installed.${RESET} Opening Claude Code in the kit now…"
+  say "  ${DIM}• First time here? It will ask you to sign in (paid Claude plan — Pro or Max) and to trust this folder.${RESET}"
+  if [ -f "$INSTALL_DIR/context/marketing.config.json" ]; then
+    say "  ${DIM}• Your team is already configured — just say what you want, or type /mkt.${RESET}"
+    say "  ${DIM}• Publishing pages from this machine later needs one extra one-time step: gh auth login (teammate SOP).${RESET}"
+    say ""
+    exec claude </dev/tty
+  else
+    say "  ${DIM}• Then a short setup interview starts — answer in plain language. (If it doesn't start, type /mkt-setup.)${RESET}"
+    say "  ${DIM}• Publishing pages from this machine later needs one extra one-time step: gh auth login (teammate SOP).${RESET}"
+    say ""
+    exec claude "/mkt-setup" </dev/tty
+  fi
+fi
+
+# --- Done (no hand-off possible: not a terminal, PREP_NO_LAUNCH=1, or no claude) --
 say ""
-say "${GREEN}${BOLD}Almost there — one human step left.${RESET}"
+say "${GREEN}${BOLD}Installed.${RESET} Two steps left, in one window:"
 say ""
-say "  ${BOLD}1. Sign in to Claude Code${RESET}  ${DIM}(needs a paid Claude plan — Pro or Max)${RESET}"
-say "       claude            ${DIM}# run this once; it opens your browser to log in${RESET}"
-say ""
-say "  ${BOLD}2. Start the kit${RESET}"
+say "  ${BOLD}1. Open the kit in Claude Code${RESET}"
 say "       cd $INSTALL_DIR"
-say "       claude            ${DIM}# then type /mkt-setup${RESET}"
+say "       claude            ${DIM}# first run: sign in (paid Claude plan — Pro or Max)${RESET}"
+say ""
+say "  ${BOLD}2. Type /mkt-setup${RESET}  ${DIM}— a short interview that configures your company and market${RESET}"
 say ""
 say "  ${DIM}Will you publish pages from this machine? One more one-time step (per the teammate SOP):${RESET}"
 say "  ${DIM}    gh auth login     # sign in to GitHub in your browser; then ask your maintainer to add you to the publish repo${RESET}"
