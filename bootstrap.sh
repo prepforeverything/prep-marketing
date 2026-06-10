@@ -142,11 +142,31 @@ if ! have git; then
 fi
 
 # --- 3. Fetch the kit (tarball — no git required) ------------------------------
+# Re-running this script on an existing install UPDATES the kit code in place: tarball installs
+# have no .git so `git pull` is impossible — without this, a machine that hit a bug would never
+# receive its fix. User data survives by construction: the tarball's context/ is stripped before
+# copying (never overwrite the team's live config/claims), and cp only overwrites files the
+# tarball CONTAINS — built pages, session state, caches, .env are not in it, so they're untouched.
 step "The kit itself"
+url="https://codeload.github.com/${REPO_SLUG}/tar.gz/refs/heads/${REPO_BRANCH}"
 if [ -d "$INSTALL_DIR/.prepkit" ]; then
-  ok "Kit already at $INSTALL_DIR — keeping your context/ and just rebuilding"
+  say "  ${DIM}kit already at $INSTALL_DIR — updating kit code (your context/, pages, and settings are kept)${RESET}"
+  say "  ${DIM}downloading ${url}${RESET}"
+  tmp="$(mktemp -d)"
+  if curl -fsSL "$url" | tar -xz -C "$tmp"; then
+    src="$(find "$tmp" -maxdepth 1 -type d -name "*-${REPO_BRANCH}" | head -1)"
+    if [ -n "$src" ]; then
+      rm -rf "$src/context"            # live team config/claims always win over the seed
+      cp -R "$src/." "$INSTALL_DIR/"
+      ok "Updated the kit to the latest version"
+    else
+      warn "Update archive looked empty — keeping the current version."
+    fi
+  else
+    warn "Could not download the update — keeping the current version (it still works)."
+  fi
+  rm -rf "$tmp"
 else
-  url="https://codeload.github.com/${REPO_SLUG}/tar.gz/refs/heads/${REPO_BRANCH}"
   say "  ${DIM}downloading ${url}${RESET}"
   tmp="$(mktemp -d)"
   curl -fsSL "$url" | tar -xz -C "$tmp" || die "Could not download the kit from $url"
