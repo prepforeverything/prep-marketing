@@ -11,7 +11,7 @@
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 try {
   let input = {};
-  try { input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8')); } catch { /* no stdin */ }
+  try { input = JSON.parse(fs.readFileSync(0, 'utf8')); } catch { /* no stdin */ } // fd 0, not '/dev/stdin' (ENXIO on Linux pipes)
   const ti = input.tool_input || input.toolInput || {};
   const file = ti.file_path || ti.path || '';
   if (!file) process.exit(0);

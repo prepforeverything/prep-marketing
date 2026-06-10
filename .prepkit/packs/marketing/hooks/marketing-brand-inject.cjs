@@ -20,7 +20,7 @@ const AGENTS = [
 const CAMPAIGN_AGENTS = ['marketing-campaign-diagnostician', 'marketing-reviewer'];
 
 try {
-  const input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf-8'));
+  const input = JSON.parse(fs.readFileSync(0, 'utf-8')); // fd 0, not '/dev/stdin' (ENXIO on Linux pipes)
   const agentId = (input.agent_id || '').toLowerCase();
   const isBrandAgent = AGENTS.some((t) => agentId.includes(t));
   const isCampaignAgent = CAMPAIGN_AGENTS.some((t) => agentId.includes(t));

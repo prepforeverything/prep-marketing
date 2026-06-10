@@ -5,7 +5,7 @@
 const fs = require('fs'), path = require('path');
 try {
   // SessionStart sends a JSON payload on stdin; we don't need its fields here.
-  try { fs.readFileSync('/dev/stdin', 'utf-8'); } catch { /* no stdin is fine */ }
+  try { fs.readFileSync(0, 'utf-8'); } catch { /* no stdin is fine */ } // fd 0, not '/dev/stdin' (ENXIO on Linux pipes)
 
   const root = process.cwd();
   const hasContext = fs.existsSync(path.join(root, 'context'));

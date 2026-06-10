@@ -22,7 +22,9 @@ const fs = require('fs'), path = require('path'), os = require('os'), cp = requi
 
 try {
   let input = {};
-  try { input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8')); } catch { process.exit(0); } // no stdin ⇒ fail-open
+  // fd 0, NOT the '/dev/stdin' path: re-opening the path throws ENXIO on Linux when stdin is a
+  // pipe whose writer already closed (e.g. spawnSync {input}) — which silently fail-opened this gate.
+  try { input = JSON.parse(fs.readFileSync(0, 'utf8')); } catch { process.exit(0); } // no stdin ⇒ fail-open
   const ti = input.tool_input || input.toolInput || {};
   const file = ti.file_path || ti.path || '';
   if (!file) process.exit(0);
