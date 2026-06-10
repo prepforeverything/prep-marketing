@@ -1,11 +1,13 @@
-// publish-landing.test.mjs — regression suite for the publish engine's offline codepaths:
-// arg/config validation, the claims-gate invocation, and --dry-run export (the exact code the
-// live publish path runs, minus git sync/push).
+// publish-landing.test.mjs — regression suite for the publish engine:
+// arg/config validation, the claims-gate invocation, --dry-run export, --preflight (gate + repo
+// access probe, the check that runs BEFORE the marketer is promised anything), --market
+// passthrough, and the REAL publish path (clone-if-absent → export <locale>/<slug>/ → commit to
+// main) against a local bare remote.
 //
-// Hermetic by construction: PREP_KIT_ROOT points at a temp fixture tree containing a copy of the
-// real claims-check.sh + the proven gate fixtures (gates/tests/*). The publish-repo remote is an
-// invalid URL and the suite asserts no clone is ever attempted — if a future edit makes --dry-run
-// touch the network/remote, these tests fail loudly.
+// Hermetic by construction: PREP_KIT_ROOT points at temp fixture trees containing a copy of the
+// real claims-check.sh + the proven gate fixtures (gates/tests/*). The default fixture's remote is
+// an invalid URL and the suite asserts no clone is ever attempted for gate-only paths; the publish
+// fixture's remote is a LOCAL bare repo (`git init --bare`) — no network, ever.
 //
 // Run: node --test .prepkit/packs/marketing/scripts/tests/
 import { test, before, after } from "node:test";
@@ -21,8 +23,10 @@ const ENGINE = path.join(__dirname, "../publish-landing.mjs");
 const GATE = path.join(__dirname, "../../gates/scripts/claims-check.sh");
 const GATE_FIXTURES = path.join(__dirname, "../../gates/tests");
 
-let root; // fixture kit root (PREP_KIT_ROOT)
+let root; // fixture kit root (PREP_KIT_ROOT) — remote is an invalid URL (never cloned)
 let emptyRoot; // fixture with no config at all
+let liveRoot; // fixture whose remote is a LOCAL bare repo — exercises the real publish path
+let bareRemote; // the local bare "publish repo" liveRoot pushes to
 
 function runEngine(args, kitRoot = root) {
   return spawnSync(process.execPath, [ENGINE, ...args], {
@@ -31,8 +35,37 @@ function runEngine(args, kitRoot = root) {
   });
 }
 
-function seedPage(slug, { copyFrom, withCopy = true } = {}) {
-  const dir = path.join(root, "assets/landing", slug);
+// a kit fixture tree: config (pointing publish at `remote`) + hermetic claims registry + real gate
+function makeKitRoot(prefix, remote) {
+  const r = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.mkdirSync(path.join(r, "context"), { recursive: true });
+  fs.writeFileSync(
+    path.join(r, "context/marketing.config.json"),
+    JSON.stringify(
+      {
+        primaryMarket: "VN",
+        primaryLocale: "vi-VN",
+        publish: {
+          subdomain: "lp.test.example",
+          projectName: "test-lp",
+          localeSegment: "vi",
+          repo: { remote, productionBranch: "main" },
+        },
+      },
+      null,
+      2
+    )
+  );
+  fs.copyFileSync(path.join(GATE_FIXTURES, "claims.fixture.json"), path.join(r, "context/claims.json"));
+  // the engine resolves the gate inside PREP_KIT_ROOT — give the fixture tree the real script
+  const gateDir = path.join(r, ".prepkit/packs/marketing/gates/scripts");
+  fs.mkdirSync(gateDir, { recursive: true });
+  fs.copyFileSync(GATE, path.join(gateDir, "claims-check.sh"));
+  return r;
+}
+
+function seedPage(kitRoot, slug, { copyFrom, withCopy = true } = {}) {
+  const dir = path.join(kitRoot, "assets/landing", slug);
   fs.mkdirSync(path.join(dir, "img"), { recursive: true });
   fs.writeFileSync(path.join(dir, "index.html"), "<!doctype html><html><body><h1>Demo</h1></body></html>\n");
   fs.writeFileSync(path.join(dir, "img/hero.png"), "fake-png-bytes");
@@ -42,43 +75,26 @@ function seedPage(slug, { copyFrom, withCopy = true } = {}) {
 }
 
 before(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "publish-engine-test-"));
+  root = makeKitRoot("publish-engine-test-", "https://invalid.example/never-cloned.git");
   emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "publish-engine-empty-"));
 
-  // context: config + the hermetic claims registry the gate fixtures were written against
-  fs.mkdirSync(path.join(root, "context"), { recursive: true });
-  fs.writeFileSync(
-    path.join(root, "context/marketing.config.json"),
-    JSON.stringify(
-      {
-        primaryMarket: "VN",
-        primaryLocale: "vi-VN",
-        publish: {
-          subdomain: "lp.test.example",
-          projectName: "test-lp",
-          localeSegment: "vi",
-          repo: { remote: "https://invalid.example/never-cloned.git", productionBranch: "main" },
-        },
-      },
-      null,
-      2
-    )
-  );
-  fs.copyFileSync(path.join(GATE_FIXTURES, "claims.fixture.json"), path.join(root, "context/claims.json"));
+  // a local bare repo standing in for github.com/<org>/<publish-repo> (hermetic — no network)
+  bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "publish-engine-remote-"));
+  const init = spawnSync("git", ["init", "--bare", "-b", "main", bareRemote], { encoding: "utf8" });
+  if (init.status !== 0) throw new Error(`could not init bare fixture repo: ${init.stderr}`);
+  liveRoot = makeKitRoot("publish-engine-live-", bareRemote);
 
-  // the engine resolves the gate inside PREP_KIT_ROOT — give the fixture tree the real script
-  const gateDir = path.join(root, ".prepkit/packs/marketing/gates/scripts");
-  fs.mkdirSync(gateDir, { recursive: true });
-  fs.copyFileSync(GATE, path.join(gateDir, "claims-check.sh"));
-
-  seedPage("demo-pass", { copyFrom: "pass-clean.md" }); // approved CLM-100 → publish-mode PASS
-  seedPage("demo-fail", { copyFrom: "fail-untagged-claim.md" }); // untagged claim → publish-mode FAIL
-  seedPage("demo-nocopy", { withCopy: false });
+  seedPage(root, "demo-pass", { copyFrom: "pass-clean.md" }); // approved CLM-100 → publish-mode PASS
+  seedPage(root, "demo-fail", { copyFrom: "fail-untagged-claim.md" }); // untagged claim → publish-mode FAIL
+  seedPage(root, "demo-nocopy", { withCopy: false });
+  seedPage(liveRoot, "demo-pass", { copyFrom: "pass-clean.md" });
 });
 
 after(() => {
   fs.rmSync(root, { recursive: true, force: true });
   fs.rmSync(emptyRoot, { recursive: true, force: true });
+  fs.rmSync(liveRoot, { recursive: true, force: true });
+  fs.rmSync(bareRemote, { recursive: true, force: true });
 });
 
 // ---- usage / config validation (exit 2) ------------------------------------
@@ -169,4 +185,84 @@ test("dry-run is repeatable (clean re-export, still exit 0)", () => {
 test("dry-run never touches the publish remote (no clone attempted)", () => {
   // default checkout path under the fixture root would exist if any git sync ran
   assert.equal(fs.existsSync(path.join(root, ".prepkit/.publish-cache/landing")), false);
+});
+
+// ---- preflight: gate + repo access verified BEFORE any promise (exit 0/1) -----
+
+test("preflight: gate FAIL + unreachable remote → exit 1, BOTH walls reported, no clone", () => {
+  const r = runEngine(["--slug", "demo-fail", "--preflight", "--json"]);
+  assert.equal(r.status, 1);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.ok, false);
+  assert.equal(out.preflight, true);
+  assert.equal(out.gatePassed, false);
+  assert.equal(out.remoteAccess, false);
+  assert.ok(out.gateOutput, "failing claims must be surfaced");
+  assert.ok(out.remoteDetail, "the git error must be surfaced");
+  assert.equal(fs.existsSync(path.join(root, ".prepkit/.publish-cache/landing")), false);
+});
+
+test("preflight: gate PASS but no repo access → exit 1, remoteAccess:false (the teammate-machine case)", () => {
+  const r = runEngine(["--slug", "demo-pass", "--preflight", "--json"]);
+  assert.equal(r.status, 1);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.gatePassed, true);
+  assert.equal(out.remoteAccess, false);
+  assert.ok(out.remoteDetail);
+});
+
+test("preflight: gate PASS + reachable remote → exit 0 with target path + live URL", () => {
+  const r = runEngine(["--slug", "demo-pass", "--preflight", "--json"], liveRoot);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.ok, true);
+  assert.equal(out.gatePassed, true);
+  assert.equal(out.remoteAccess, true);
+  assert.equal(out.targetPath, "vi/demo-pass/");
+  assert.equal(out.liveUrl, "https://lp.test.example/vi/demo-pass/");
+  // preflight is read-only: it must not have cloned anything
+  assert.equal(fs.existsSync(path.join(liveRoot, ".prepkit/.publish-cache/landing")), false);
+});
+
+// ---- --market passthrough -----------------------------------------------------
+
+test("--market changes the gate verdict (VN-approved claim FAILS for TH)", () => {
+  const r = runEngine(["--slug", "demo-pass", "--dry-run", "--market", "TH", "--json"]);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /Claims gate FAILED/);
+});
+
+// ---- the real publish path, against a local bare remote (hermetic) -------------
+
+test("publish: pulls the repo if absent, creates <locale>/<slug>/, commits to main", () => {
+  const r = runEngine(["--slug", "demo-pass", "--json"], liveRoot);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.published, true);
+  assert.equal(out.liveUrl, "https://lp.test.example/vi/demo-pass/");
+
+  // the commit must land on the remote's production branch (this is what triggers the deploy)
+  const tree = spawnSync("git", ["ls-tree", "-r", "--name-only", "main"], { cwd: bareRemote, encoding: "utf8" });
+  const files = tree.stdout.split("\n");
+  for (const f of [
+    "vi/demo-pass/index.html",
+    "vi/demo-pass/publish-meta.json",
+    "vi/demo-pass/img/hero.png",
+    "wrangler.jsonc",
+    "worker/index.js",
+    ".assetsignore",
+    "verify-publish.mjs",
+  ]) {
+    assert.ok(files.includes(f), `missing from publish commit: ${f}`);
+  }
+  // internal sources never reach the public repo
+  assert.equal(files.includes("vi/demo-pass/copy.md"), false);
+  assert.equal(files.includes("vi/demo-pass/notes.md"), false);
+
+  const subject = spawnSync("git", ["log", "-1", "--format=%s", "main"], { cwd: bareRemote, encoding: "utf8" }).stdout.trim();
+  assert.equal(subject, "publish: vi/demo-pass");
+
+  // provenance carries the page's market (not blindly the primary market)
+  const metaRaw = spawnSync("git", ["show", "main:vi/demo-pass/publish-meta.json"], { cwd: bareRemote, encoding: "utf8" }).stdout;
+  assert.equal(JSON.parse(metaRaw).market, "VN");
 });

@@ -24,6 +24,7 @@ Path: `plans/active`
 Only current initiatives belong here. One directory per live initiative.
 
 - `260610-1124-kit-optimization-reliability-hygiene-bizloop/`
+- `260610-1208-publish-preflight-teammate/`
 
 ## Archive
 

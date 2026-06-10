@@ -12,8 +12,10 @@ git, Cloudflare, DNS hay dòng lệnh nào**. Bạn chỉ tả ý tưởng bằn
 1. **Cài kit + Claude Code** — dán lệnh bootstrap maintainer gửi vào Terminal (macOS/Linux), dạng:
    `curl -fsSL <link maintainer gửi> | bash`. Lệnh tự cài mọi thứ.
 2. **Đăng nhập Claude Code** — mở `claude` trong thư mục kit, đăng nhập bằng tài khoản (gói trả phí của công ty).
-3. **Cấp quyền đăng trang** — chạy `gh auth login` một lần (chọn GitHub → HTTPS → đăng nhập qua trình duyệt).
-   Đây là thứ cho phép máy bạn "đẩy" trang lên. *Nếu báo lỗi quyền: nhờ maintainer thêm bạn vào repo đăng trang.*
+3. **Cấp quyền đăng trang** (2 nửa, làm 1 lần):
+   - **Nhờ maintainer thêm bạn vào repo đăng trang** (gửi username GitHub của bạn — làm luôn, đừng đợi lỗi).
+   - Chạy `gh auth login` (lệnh `gh` bootstrap đã cài sẵn; chọn GitHub.com → HTTPS → đăng nhập qua trình duyệt).
+   Khi đăng, kit **tự kiểm tra quyền này trước** khi hỏi "đăng đi" — nếu thiếu, kit sẽ nói rõ cần nhờ maintainer.
 
 Xong. Từ giờ chỉ còn 3 bước cho mỗi trang.
 

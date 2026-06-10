@@ -100,6 +100,47 @@ else
   else warn "Claude Code isn't on PATH yet — install it from https://claude.com/claude-code, then re-run."; fi
 fi
 
+# --- 2b. gh + git (only needed for PUBLISHING pages — never blocks the install) --
+# Publishing pushes to a private GitHub repo: the teammate SOP's one-time step is `gh auth login`
+# (then the maintainer adds them to the publish repo). gh must therefore exist on a fresh machine.
+# Failure here is a WARN, not a die — building pages works without it.
+step "GitHub tool (gh — one-time publishing access, per the teammate SOP)"
+if have gh; then
+  ok "gh already installed ($(gh --version 2>/dev/null | head -1))"
+elif have brew && brew install gh >/dev/null 2>&1; then
+  ok "Installed gh via Homebrew ($(gh --version 2>/dev/null | head -1))"
+else
+  # resolve the latest release; fall back to a known-good pin if the API is unreachable
+  GH_VERSION="${GH_VERSION:-$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1)}"
+  [ -n "$GH_VERSION" ] || GH_VERSION="2.63.2"
+  case "$PLAT_OS" in darwin) gh_os="macOS" ;; *) gh_os="linux" ;; esac
+  case "$PLAT_ARCH" in arm64) gh_arch="arm64" ;; *) gh_arch="amd64" ;; esac
+  if [ "$gh_os" = "macOS" ]; then gh_asset="gh_${GH_VERSION}_${gh_os}_${gh_arch}.zip"; else gh_asset="gh_${GH_VERSION}_${gh_os}_${gh_arch}.tar.gz"; fi
+  gh_url="https://github.com/cli/cli/releases/download/v${GH_VERSION}/${gh_asset}"
+  say "  ${DIM}downloading ${gh_url}${RESET}"
+  tmp="$(mktemp -d)"
+  # bsdtar on macOS extracts .zip too, so one tar call covers both platforms
+  if curl -fsSL "$gh_url" -o "$tmp/$gh_asset" && tar -xf "$tmp/$gh_asset" -C "$tmp" 2>/dev/null; then
+    gdir="$(find "$tmp" -maxdepth 1 -type d -name 'gh_*' | head -1)"
+    if [ -n "$gdir" ] && [ -x "$gdir/bin/gh" ]; then
+      dest="$LOCAL_PREFIX/share/prepedu-kit/gh-${GH_VERSION}"
+      mkdir -p "$dest" "$LOCAL_PREFIX/bin"
+      cp -R "$gdir/." "$dest/"
+      ln -sf "$dest/bin/gh" "$LOCAL_PREFIX/bin/gh"
+      ensure_local_path
+    fi
+  fi
+  rm -rf "$tmp"
+  if have gh; then ok "Installed gh $(gh --version 2>/dev/null | head -1 | awk '{print $3}') to ~/.local (no admin needed)"
+  else warn "Could not install gh — pages still build fine; before publishing, install it from https://cli.github.com and run 'gh auth login'."; fi
+fi
+if ! have git; then
+  case "$PLAT_OS" in
+    darwin) warn "git not found — needed only when publishing. macOS will offer to install it the first time (or run: xcode-select --install)." ;;
+    *)      warn "git not found — needed only when publishing. Install it with your package manager (e.g. apt/dnf install git)." ;;
+  esac
+fi
+
 # --- 3. Fetch the kit (tarball — no git required) ------------------------------
 step "The kit itself"
 if [ -d "$INSTALL_DIR/.prepkit" ]; then
@@ -133,5 +174,6 @@ say "  ${BOLD}2. Start the kit${RESET}"
 say "       cd $INSTALL_DIR"
 say "       claude            ${DIM}# then type /mkt-setup${RESET}"
 say ""
-say "  ${DIM}No git? Fine — the kit works without it. Install git later only if you want one-command team updates.${RESET}"
+say "  ${DIM}Will you publish pages from this machine? One more one-time step (per the teammate SOP):${RESET}"
+say "  ${DIM}    gh auth login     # sign in to GitHub in your browser; then ask your maintainer to add you to the publish repo${RESET}"
 say ""
