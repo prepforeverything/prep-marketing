@@ -109,6 +109,7 @@ Selected packs: `marketing`, `customer-prepedu`
 - `mkt-email-sequence` → `.prepkit/packs/marketing/commands/mkt-email-sequence.md`
 - `mkt-report` → `.prepkit/packs/marketing/commands/mkt-report.md`
 - `mkt-measure` → `.prepkit/packs/marketing/commands/mkt-measure.md`
+- `mkt-approve-claims` → `.prepkit/packs/marketing/commands/mkt-approve-claims.md`
 - `mkt-generate-asset` → `.prepkit/packs/marketing/commands/mkt-generate-asset.md`
 - `mkt-creative-run` → `.prepkit/packs/marketing/commands/mkt-creative-run.md`
 - `mkt-eval-calibrate` → `.prepkit/packs/marketing/commands/mkt-eval-calibrate.md`

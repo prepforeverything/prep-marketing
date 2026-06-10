@@ -274,6 +274,10 @@
       "path": ".prepkit/packs/marketing/commands/mkt-measure.md"
     },
     {
+      "id": "mkt-approve-claims",
+      "path": ".prepkit/packs/marketing/commands/mkt-approve-claims.md"
+    },
+    {
       "id": "mkt-generate-asset",
       "path": ".prepkit/packs/marketing/commands/mkt-generate-asset.md"
     },

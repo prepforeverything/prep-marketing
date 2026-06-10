@@ -50,3 +50,12 @@ frontmatter is BUILD OUTPUT, not the lever. claims-judge keeps opus (inherited f
 not profile-pinned). Strategy-depth agents (diagnostician, strategist, gtm-manager, planner, researcher) stay opus.
 Alternatives: sed the .md frontmatter (tried first — silently reverted by the next build-pack run).
 Rationale: discovered by rebuild reverting the sed; profile is the source of truth. Claims floor unchanged.
+
+## 2026-06-10 — Prep BI is conditional, not default (user feedback, plan step 11)
+
+Decision: /mkt-report + /mkt-measure check which connectors the session actually has; a BI-warehouse
+MCP (e.g. Prep BI) is used ONLY IF connected — phrased "if connected → use", never "warehouse of record/first".
+Alternatives: Prep-BI-first as originally drafted.
+Rationale: direct user instruction ("Đừng đưa PrepBI như mặc định… nếu có kết nối tới PrepBI thì sẽ sử
+dụng"); also consistent with the kit's neutral, config-driven design — no company-specific connector may be
+assumed by a generic command.

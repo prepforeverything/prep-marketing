@@ -1,0 +1,115 @@
+{
+  "name": "Prep — Nurture sequence skeleton D+0/D+2/D+7 (kit template)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-manual",
+      "name": "Chạy tay khi test (đổi sang Schedule/CRM trigger khi chạy thật)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {},
+      "id": "noop-segment",
+      "name": "TODO: Lấy segment từ CRM/Lark (lead mới chưa mua, có consent — thay node này)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.holdout }}",
+              "operation": "equal",
+              "value2": "yes"
+            }
+          ]
+        }
+      },
+      "id": "if-holdout",
+      "name": "Holdout? (giữ ~10% KHÔNG gửi để đo baseline)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {},
+      "id": "noop-holdout",
+      "name": "Holdout — không gửi gì (so sánh chuyển đổi với nhóm được gửi)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [900, 160]
+    },
+    {
+      "parameters": {},
+      "id": "noop-step1",
+      "name": "TODO Bước 1 — D+0: Email/Zalo giá trị mở đầu (thay node này)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [900, 380]
+    },
+    {
+      "parameters": { "amount": 2, "unit": "days" },
+      "id": "wait-d2",
+      "name": "Chờ 2 ngày",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1120, 380]
+    },
+    {
+      "parameters": {},
+      "id": "noop-step2",
+      "name": "TODO Bước 2 — D+2: case study / social proof (CHỈ 1 CTA)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 380]
+    },
+    {
+      "parameters": { "amount": 5, "unit": "days" },
+      "id": "wait-d7",
+      "name": "Chờ 5 ngày",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1560, 380]
+    },
+    {
+      "parameters": {},
+      "id": "noop-step3",
+      "name": "TODO Bước 3 — D+7: ưu đãi/lịch tư vấn (dừng nếu đã mua; tôn trọng opt-out)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1780, 380]
+    }
+  ],
+  "connections": {
+    "Chạy tay khi test (đổi sang Schedule/CRM trigger khi chạy thật)": {
+      "main": [[{ "node": "TODO: Lấy segment từ CRM/Lark (lead mới chưa mua, có consent — thay node này)", "type": "main", "index": 0 }]]
+    },
+    "TODO: Lấy segment từ CRM/Lark (lead mới chưa mua, có consent — thay node này)": {
+      "main": [[{ "node": "Holdout? (giữ ~10% KHÔNG gửi để đo baseline)", "type": "main", "index": 0 }]]
+    },
+    "Holdout? (giữ ~10% KHÔNG gửi để đo baseline)": {
+      "main": [
+        [{ "node": "Holdout — không gửi gì (so sánh chuyển đổi với nhóm được gửi)", "type": "main", "index": 0 }],
+        [{ "node": "TODO Bước 1 — D+0: Email/Zalo giá trị mở đầu (thay node này)", "type": "main", "index": 0 }]
+      ]
+    },
+    "TODO Bước 1 — D+0: Email/Zalo giá trị mở đầu (thay node này)": {
+      "main": [[{ "node": "Chờ 2 ngày", "type": "main", "index": 0 }]]
+    },
+    "Chờ 2 ngày": {
+      "main": [[{ "node": "TODO Bước 2 — D+2: case study / social proof (CHỈ 1 CTA)", "type": "main", "index": 0 }]]
+    },
+    "TODO Bước 2 — D+2: case study / social proof (CHỈ 1 CTA)": {
+      "main": [[{ "node": "Chờ 5 ngày", "type": "main", "index": 0 }]]
+    },
+    "Chờ 5 ngày": {
+      "main": [[{ "node": "TODO Bước 3 — D+7: ưu đãi/lịch tư vấn (dừng nếu đã mua; tôn trọng opt-out)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}

@@ -94,6 +94,13 @@ npx wrangler deploy
 `analytics.cfWebAnalyticsToken` for cookieless Cloudflare Web Analytics. Per-lead UTM is already captured by the
 form; GTM/GA4 is the aggregate (sessions/pageviews/campaign) layer.
 
+**3. Receive + answer the lead in n8n (speed-to-lead).** Import the kit's ready-made flows from
+`.prepkit/packs/marketing/integrations/n8n/` (see that folder's README): `lead-intake-autoreply.json` receives the
+Worker's forward (verify `X-Webhook-Secret`, keep `utm_*` per lead), auto-replies within minutes, and upserts your
+CRM/Lark Base; `nurture-sequence-skeleton.json` is the D+0/D+2/D+7 nurture skeleton with a ~10% holdout. Point the
+`FORWARD_WEBHOOK_URL` Worker secret at the imported webhook's Production URL — applies immediately, no rebuild.
+All sending lives in n8n under human control; the kit never sends on its own.
+
 ## Daily flow (marketing — no setup)
 
 1. Build a page: `/mkt-build-landing-page`. Get all claims approved (`context/claims.md`).

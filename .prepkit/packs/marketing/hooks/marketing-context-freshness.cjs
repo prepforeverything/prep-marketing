@@ -58,6 +58,26 @@ try {
     }
   }
 
+  // Claims expiry watch — approved claims that are expired or expire within EXPIRY_WARN_DAYS.
+  // claims.json is the publish gate's registry (flat or per-locale schema); an expiry that lapses
+  // silently turns a live page's claim into a gate FAIL on its next publish. /mkt-approve-claims renews.
+  const EXPIRY_WARN_DAYS = 90;
+  try {
+    const horizon = new Date(today.getTime() + EXPIRY_WARN_DAYS * 86400000).toISOString().slice(0, 10);
+    const raw = JSON.parse(fs.readFileSync(path.join(ctx, 'claims.json'), 'utf8'));
+    const list = Array.isArray(raw) ? raw : (raw.claims || []);
+    for (const c of list) {
+      const entries = c.locales
+        ? Object.entries(c.locales).map(([mkt, loc]) => ({ mkt, ...loc }))
+        : [{ mkt: c.market || '', status: c.status, expiry: c.expiry }];
+      for (const e of entries) {
+        if (e.status !== 'approved' || !e.expiry) continue;
+        if (e.expiry <= todayStr) due.push(`claims.json ${c.claim_id}${e.mkt ? ` (${e.mkt})` : ''} — EXPIRED ${e.expiry}: renew via /mkt-approve-claims before any publish`);
+        else if (e.expiry <= horizon) due.push(`claims.json ${c.claim_id}${e.mkt ? ` (${e.mkt})` : ''} — expires ${e.expiry} (≤${EXPIRY_WARN_DAYS}d): renew via /mkt-approve-claims`);
+      }
+    }
+  } catch { /* no claims.json or unreadable — stay silent */ }
+
   if (!due.length) process.exit(0); // silent when nothing is due
   const msg = `🗓️ Context review due (${due.length}) — confirm these are still accurate, then bump \`updated:\` or set \`review_by:\`:\n- ` + due.join('\n- ');
   console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: msg } }));

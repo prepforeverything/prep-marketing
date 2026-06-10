@@ -1,0 +1,159 @@
+{
+  "name": "Prep — Lead intake + auto-reply (kit template)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "prep-lead",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-lead-intake",
+      "name": "Webhook (FORWARD_WEBHOOK_URL trỏ vào đây)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-webhook-secret'] }}",
+              "operation": "equal",
+              "value2": "THAY-BANG-FORWARD_SHARED_SECRET"
+            }
+          ]
+        }
+      },
+      "id": "if-auth",
+      "name": "Xác thực X-Webhook-Secret",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"error\",\"message\":\"unauthorized\"}",
+        "options": { "responseCode": 403 }
+      },
+      "id": "resp-403",
+      "name": "Từ chối (sai secret)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 460]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.event }}",
+              "operation": "equal",
+              "value2": "check_pay"
+            }
+          ]
+        }
+      },
+      "id": "if-event",
+      "name": "Là check_pay?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 180]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"pending\"}",
+        "options": {}
+      },
+      "id": "resp-pending",
+      "name": "TODO: tra cứu thanh toán (tạm trả pending)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 80]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "fullname", "value": "={{ $json.body.fullname }}" },
+            { "name": "email", "value": "={{ $json.body.email }}" },
+            { "name": "phone", "value": "={{ $json.body.phone }}" },
+            { "name": "event_id", "value": "={{ $json.body.event_id }}" },
+            { "name": "event_source_url", "value": "={{ $json.body.event_source_url }}" },
+            { "name": "utm_source", "value": "={{ $json.body.utm_source }}" },
+            { "name": "utm_medium", "value": "={{ $json.body.utm_medium }}" },
+            { "name": "utm_campaign", "value": "={{ $json.body.utm_campaign }}" },
+            { "name": "utm_content", "value": "={{ $json.body.utm_content }}" },
+            { "name": "utm_term", "value": "={{ $json.body.utm_term }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-normalize",
+      "name": "Chuẩn hoá lead (giữ UTM per-lead)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 280]
+    },
+    {
+      "parameters": {},
+      "id": "noop-autoreply",
+      "name": "TODO: Email/Zalo chào mừng NGAY (speed-to-lead — thay node này bằng node gửi thật)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1120, 280]
+    },
+    {
+      "parameters": {},
+      "id": "noop-crm",
+      "name": "TODO: Upsert CRM / Lark Base (dedup theo phone+event_id — thay node này)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"success\"}",
+        "options": {}
+      },
+      "id": "resp-success",
+      "name": "Trả success cho landing page",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 280]
+    }
+  ],
+  "connections": {
+    "Webhook (FORWARD_WEBHOOK_URL trỏ vào đây)": {
+      "main": [[{ "node": "Xác thực X-Webhook-Secret", "type": "main", "index": 0 }]]
+    },
+    "Xác thực X-Webhook-Secret": {
+      "main": [
+        [{ "node": "Là check_pay?", "type": "main", "index": 0 }],
+        [{ "node": "Từ chối (sai secret)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Là check_pay?": {
+      "main": [
+        [{ "node": "TODO: tra cứu thanh toán (tạm trả pending)", "type": "main", "index": 0 }],
+        [{ "node": "Chuẩn hoá lead (giữ UTM per-lead)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Chuẩn hoá lead (giữ UTM per-lead)": {
+      "main": [[{ "node": "TODO: Email/Zalo chào mừng NGAY (speed-to-lead — thay node này bằng node gửi thật)", "type": "main", "index": 0 }]]
+    },
+    "TODO: Email/Zalo chào mừng NGAY (speed-to-lead — thay node này bằng node gửi thật)": {
+      "main": [[{ "node": "TODO: Upsert CRM / Lark Base (dedup theo phone+event_id — thay node này)", "type": "main", "index": 0 }]]
+    },
+    "TODO: Upsert CRM / Lark Base (dedup theo phone+event_id — thay node này)": {
+      "main": [[{ "node": "Trả success cho landing page", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}
