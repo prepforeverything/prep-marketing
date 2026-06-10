@@ -23,21 +23,30 @@ Covered end-to-end by the new bare-remote test.
 ## Verification
 
 - validate-kit PASSED (1 advisory: 5 phases vs threshold 4)
-- claims gates 10/10 · pretool 9/9 · unit tests 40/40 (15 publish-engine, +5 new)
+- claims gates 10/10 · pretool 9/9 · unit tests 43 total (17 publish-engine: +7 over PR #4's 10)
 - New tests: preflight fail/fail, pass/fail (the teammate-machine case), pass/pass vs local bare
-  remote; `--market` verdict flip; full publish path commit-to-main (hermetic, no network)
+  remote; READ-ONLY collaborator detection (PATH-stubbed git+gh); `--market` verdict flip; full
+  publish path commit-to-main; repo-move (ensureOrigin) incl. commit-identity fallback — all
+  hermetic, no network
+- **Live verification on the maintainer machine**: real `--preflight` against
+  `prepforeverything/prepedu-landing` → `ok:true` (real gate, real HTTPS auth, real gh push check)
+- **Independent reviewer + tester agents** (2026-06-10): tester PASS (re-ran everything on
+  self-built fixtures, tree clean); reviewer's one major finding disproven by evidence (symlinked
+  generated commands — see decisions D10), real minors fixed (snippet flags, doc staleness,
+  identity-fallback coverage, gh-account comment)
 
 ## Delivery
 
-- Commit `7e432a9` on `fix/publish-preflight-teammate-access`
-- PR #5 (stacked on PR #4 — merge #4 first; GitHub retargets #5 to main)
-- CI: watching (background)
+- Commits `7e432a9` → `c8a5953` → `6195970` (gh push-permission) → `dc83a7c` (ensureOrigin) →
+  review-fix commit, on `fix/publish-preflight-teammate-access`
+- PR #5 (stacked on PR #4 — merge #4 first; GitHub retargets #5 to main); CI green per commit
 
 ## User-owned follow-ups
 
 - Merge PR #4, then PR #5.
-- Add each publishing teammate to `prepforeverything/prepedu-landing` (their GitHub username).
-- Teammate re-runs bootstrap (or installs gh) → `gh auth login` once.
+- Teammate access: 4 publishing accounts already on Write ✓; `tungnguyen-prepedu`,
+  `thangnghiem-rgb` intentionally stay Read (they don't publish — user decision 2026-06-10).
+- Teammate re-runs bootstrap (after merge, so the tarball has gh) → `gh auth login` once.
 - The Thai page itself: approve TH claims with evidence (claims approval flow) — until then it
   stays a DRAFT in the kit, correctly unpublishable. TH market expansion (config.markets) is a
   separate decision.

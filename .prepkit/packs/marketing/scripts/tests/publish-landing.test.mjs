@@ -307,7 +307,12 @@ test("publish repo moved (config remote changed) → stale cache re-pointed, pus
   cfg.publish.repo.remote = bareRemote2; // "the repo moved"
   fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
 
-  const r = runEngine(["--slug", "demo-pass", "--json"], liveRoot); // cache still points at bareRemote
+  // Suppress global/system git identity so this run ALSO exercises the commitIdFlags fallback
+  // (the fresh-teammate-machine case: credentials exist, `git config user.email` doesn't).
+  const r = runEngine(["--slug", "demo-pass", "--json"], liveRoot, {
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_SYSTEM: "/dev/null",
+  }); // cache still points at bareRemote
   assert.equal(r.status, 0, r.stdout + r.stderr);
 
   const tree = spawnSync("git", ["ls-tree", "-r", "--name-only", "main"], { cwd: bareRemote2, encoding: "utf8" });
@@ -317,4 +322,7 @@ test("publish repo moved (config remote changed) → stale cache re-pointed, pus
     { encoding: "utf8" }
   ).stdout.trim();
   assert.equal(origin, bareRemote2, "cache origin must follow the config remote");
+  // identity fallback kicked in (no global identity available to the engine's git children)
+  const author = spawnSync("git", ["log", "-1", "--format=%ae", "main"], { cwd: bareRemote2, encoding: "utf8" }).stdout.trim();
+  assert.equal(author, "publish@prepkit.local");
 });

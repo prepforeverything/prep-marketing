@@ -62,9 +62,9 @@ deterministic engine `.prepkit/packs/marketing/scripts/publish-landing.mjs`. All
    `<locale>/<slug>/` (short, kebab-case) — and agree it with the marketer; to publish under a different slug
    than the build folder, pass `--slug <approved> --page-dir assets/landing/<built>`.
 
-2. **Preflight — verify before promising.** Run:
+2. **Preflight — verify before promising.** Run (same `--locale/--market` flags you'll publish with):
    ```bash
-   node .prepkit/packs/marketing/scripts/publish-landing.mjs --slug <slug> --preflight --json
+   node .prepkit/packs/marketing/scripts/publish-landing.mjs --slug <slug> [--locale <seg> --market <MKT>] --preflight --json
    ```
    It reports both walls at once, with zero side effects: `gatePassed` (claims) and `remoteAccess` (can this
    machine reach the publish repo). Only continue to step 3 when `ok: true`.
@@ -78,9 +78,9 @@ deterministic engine `.prepkit/packs/marketing/scripts/publish-landing.mjs`. All
    (`https://<subdomain>/<locale>/<slug>/` from preflight's `liveUrl`), and get an explicit yes. Only now —
    after preflight passed — may you say publishing happens immediately on their yes.
 
-4. **Publish live.** Run the engine and read the JSON it returns:
+4. **Publish live.** Run the engine with the SAME flags preflight used and read the JSON it returns:
    ```bash
-   node .prepkit/packs/marketing/scripts/publish-landing.mjs --slug <slug> --json
+   node .prepkit/packs/marketing/scripts/publish-landing.mjs --slug <slug> [--locale <seg> --market <MKT>] --json
    ```
    The engine pulls the publish repo if this machine doesn't have it yet, creates the campaign folder
    (`<locale>/<slug>/`), and commits to the production branch — that commit is what triggers the deploy.

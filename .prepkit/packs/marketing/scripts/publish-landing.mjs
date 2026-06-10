@@ -83,6 +83,8 @@ function checkRemoteAccess(remote) {
   }
   const gh = remote.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
   if (gh) {
+    // Assumes gh is signed in as the same account git pushes with (true on teammate machines —
+    // gh IS the credential helper). A mismatched gh account could mis-report; accepted as exotic.
     try {
       const push = run("gh", ["api", `repos/${gh[1]}`, "--jq", ".permissions.push"], { timeout: 15000 }).trim();
       if (push === "false") {
