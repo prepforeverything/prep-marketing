@@ -1,0 +1,39 @@
+# validate-kit.yml — CI safety net for the marketing kit itself.
+# Every PR/push re-derives the kit from source (build-pack), then runs the same checks maintainers
+# run locally (CLAUDE.md "Validation"): structural validation, the claims-gate regression suite,
+# and the publish-engine + lead-Worker unit tests. Zero npm dependencies — plain Node + bash.
+name: validate-kit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-kit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build pack (resolve active manifest)
+        run: node .prepkit/scripts/build-pack.mjs --packs marketing,customer-prepedu
+
+      - name: Validate kit structure
+        run: node .prepkit/scripts/validate-kit.mjs
+
+      - name: Claims-gate regression suite
+        run: bash .prepkit/packs/marketing/gates/tests/run.sh
+
+      - name: Unit tests (publish engine + lead Worker template + core hooks)
+        run: node --test .prepkit/packs/marketing/scripts/tests/*.test.mjs .claude/hooks/tests/*.test.mjs
