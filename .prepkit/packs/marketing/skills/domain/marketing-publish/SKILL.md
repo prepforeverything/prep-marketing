@@ -117,8 +117,9 @@ deterministic engine `.prepkit/packs/marketing/scripts/publish-landing.mjs`. All
 ## Gotchas
 
 - **Teammate machines need one-time publish access**: the publish repo is private, so each teammate runs
-  `gh auth login` once (the bootstrap installs `gh`) **and** the maintainer adds them to the repo. Until then,
-  preflight reports `remoteAccess: false` — that's the expected signal, not a kit bug.
+  `gh auth login` once (the bootstrap installs `gh`) **and** the maintainer adds them to the repo **with the
+  "Write" role** — the default "Read" role can see the repo but cannot publish (preflight detects this via `gh`
+  and says so). Until access is set, preflight reports `remoteAccess: false` — the expected signal, not a kit bug.
 - **Non-default market pages need both flags** (`--locale th --market TH`): locale sets the URL path, market
   picks which claims registry entries the gate checks against. Forgetting `--market` gates a Thai page against
   VN claims.

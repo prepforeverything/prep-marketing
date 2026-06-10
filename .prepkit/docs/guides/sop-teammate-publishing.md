@@ -13,7 +13,8 @@ git, Cloudflare, DNS hay dòng lệnh nào**. Bạn chỉ tả ý tưởng bằn
    `curl -fsSL <link maintainer gửi> | bash`. Lệnh tự cài mọi thứ.
 2. **Đăng nhập Claude Code** — mở `claude` trong thư mục kit, đăng nhập bằng tài khoản (gói trả phí của công ty).
 3. **Cấp quyền đăng trang** (2 nửa, làm 1 lần):
-   - **Nhờ maintainer thêm bạn vào repo đăng trang** (gửi username GitHub của bạn — làm luôn, đừng đợi lỗi).
+   - **Nhờ maintainer thêm bạn vào repo đăng trang với quyền "Write"** (gửi username GitHub của bạn — làm
+     luôn, đừng đợi lỗi; quyền "Read" mặc định chỉ xem được, **không đăng được**).
    - Chạy `gh auth login` (lệnh `gh` bootstrap đã cài sẵn; chọn GitHub.com → HTTPS → đăng nhập qua trình duyệt).
    Khi đăng, kit **tự kiểm tra quyền này trước** khi hỏi "đăng đi" — nếu thiếu, kit sẽ nói rõ cần nhờ maintainer.
 

@@ -28,10 +28,10 @@ let emptyRoot; // fixture with no config at all
 let liveRoot; // fixture whose remote is a LOCAL bare repo — exercises the real publish path
 let bareRemote; // the local bare "publish repo" liveRoot pushes to
 
-function runEngine(args, kitRoot = root) {
+function runEngine(args, kitRoot = root, extraEnv = {}) {
   return spawnSync(process.execPath, [ENGINE, ...args], {
     encoding: "utf8",
-    env: { ...process.env, PREP_KIT_ROOT: kitRoot },
+    env: { ...process.env, PREP_KIT_ROOT: kitRoot, ...extraEnv },
   });
 }
 
@@ -222,6 +222,32 @@ test("preflight: gate PASS + reachable remote → exit 0 with target path + live
   assert.equal(out.liveUrl, "https://lp.test.example/vi/demo-pass/");
   // preflight is read-only: it must not have cloned anything
   assert.equal(fs.existsSync(path.join(liveRoot, ".prepkit/.publish-cache/landing")), false);
+});
+
+test("preflight: GitHub collaborator with READ-ONLY role → remoteAccess:false (push would fail)", () => {
+  // Stub git (ls-remote succeeds) + gh (reports push:false) on PATH — hermetic, no network.
+  // This is the real-world gap ls-remote alone cannot see: added to the repo, but with the
+  // default "Read" role — preflight must catch it BEFORE the marketer is promised anything.
+  const stubBin = fs.mkdtempSync(path.join(os.tmpdir(), "publish-engine-stub-"));
+  fs.writeFileSync(path.join(stubBin, "git"), "#!/bin/sh\nexit 0\n");
+  fs.writeFileSync(path.join(stubBin, "gh"), "#!/bin/sh\necho false\n");
+  fs.chmodSync(path.join(stubBin, "git"), 0o755);
+  fs.chmodSync(path.join(stubBin, "gh"), 0o755);
+  const ghRoot = makeKitRoot("publish-engine-gh-", "https://github.com/acme/lp-pages.git");
+  seedPage(ghRoot, "demo-pass", { copyFrom: "pass-clean.md" });
+  try {
+    const r = runEngine(["--slug", "demo-pass", "--preflight", "--json"], ghRoot, {
+      PATH: `${stubBin}:${process.env.PATH}`,
+    });
+    assert.equal(r.status, 1);
+    const out = JSON.parse(r.stdout);
+    assert.equal(out.gatePassed, true);
+    assert.equal(out.remoteAccess, false);
+    assert.match(out.remoteDetail, /READ-ONLY/);
+  } finally {
+    fs.rmSync(stubBin, { recursive: true, force: true });
+    fs.rmSync(ghRoot, { recursive: true, force: true });
+  }
 });
 
 // ---- --market passthrough -----------------------------------------------------

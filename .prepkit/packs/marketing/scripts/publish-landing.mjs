@@ -69,15 +69,28 @@ function run(cmd, cmdArgs, opts = {}) {
 }
 const git = (cwd, ...g) => run("git", ["-C", cwd, ...g]).trim();
 
-// Read-access probe for the publish repo — NO clone, no writes. Read access on a private repo is the
-// preflight proxy for "this account was added by the maintainer"; push failures still die loudly later.
+// Access probe for the publish repo — NO clone, no writes.
+// 1. `git ls-remote` proves the machine has credentials + at least READ access.
+// 2. For GitHub remotes, if `gh` is available, additionally verify PUSH permission — a collaborator
+//    added with the default "Read" role passes ls-remote but would die at the final push (real case:
+//    2 of 6 teammates, 2026-06-10). Fail-OPEN on any gh problem (missing, unauthed, API hiccup):
+//    only a definitive `push: false` blocks, mirroring the kit's gate safety model.
 function checkRemoteAccess(remote) {
   try {
     run("git", ["ls-remote", "--heads", remote], { timeout: 30000 });
-    return { ok: true };
   } catch (e) {
     return { ok: false, detail: `${e.stderr || e.message || e}`.trim().slice(0, 500) };
   }
+  const gh = remote.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
+  if (gh) {
+    try {
+      const push = run("gh", ["api", `repos/${gh[1]}`, "--jq", ".permissions.push"], { timeout: 15000 }).trim();
+      if (push === "false") {
+        return { ok: false, detail: `this account has READ-ONLY access to ${gh[1]} — it can see the repo but cannot publish. Ask the maintainer to change the role to "Write".` };
+      }
+    } catch { /* gh missing/unauthed ⇒ read access stays the best available signal; push still dies loudly */ }
+  }
+  return { ok: true };
 }
 
 // Fresh teammate machines often have gh credentials but no git identity — `git commit` would die with
