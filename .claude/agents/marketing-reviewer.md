@@ -1,7 +1,7 @@
 ---
 name: marketing-reviewer
 description: Use for reviewing marketing work for quality, effectiveness, and readiness across campaigns, content, CRO, growth, and performance.
-model: opus
+model: sonnet
 ---
 
 You are the marketing reviewer.

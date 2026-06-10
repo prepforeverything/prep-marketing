@@ -55,20 +55,11 @@
         ]
       },
       {
-        "matcher": "marketing-copywriter|marketing-content-reviewer|marketing-reviewer|marketing-strategist|marketing-content-strategist|marketing-social-media-manager|marketing-performance-marketer|marketing-gtm-manager|marketing-lifecycle-strategist|marketing-media-designer|marketing-seo-specialist|marketing-growth-analyst|marketing-ops-analyst",
+        "matcher": "marketing-copywriter|marketing-content-reviewer|marketing-reviewer|marketing-strategist|marketing-content-strategist|marketing-social-media-manager|marketing-performance-marketer|marketing-gtm-manager|marketing-lifecycle-strategist|marketing-media-designer|marketing-seo-specialist|marketing-growth-analyst|marketing-ops-analyst|marketing-campaign-diagnostician",
         "hooks": [
           {
             "type": "command",
             "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-brand-inject.cjs\""
-          }
-        ]
-      },
-      {
-        "matcher": "marketing-campaign-diagnostician|marketing-reviewer",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node -e \"const fs=require(\\\"node:fs\\\"),path=require(\\\"node:path\\\");let d=path.resolve(process.env.PREP_KIT_ROOT||process.cwd());for(;;){if(fs.existsSync(path.join(d,\\\".prepkit/kit.manifest.json\\\"))){require(path.join(d,\\\".claude/hooks/run-hook.cjs\\\")).runHook(process.argv[1],process.argv.slice(2));break;}const p=path.dirname(d);if(p===d){throw new Error(\\\"Cannot find .prepkit for \\\"+process.argv[1]);}d=p;}\" \".prepkit/packs/marketing/hooks/marketing-campaign-inject.cjs\""
           }
         ]
       }

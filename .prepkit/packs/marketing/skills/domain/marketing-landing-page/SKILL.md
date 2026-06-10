@@ -92,9 +92,10 @@ no CAPI), use `marketing-asset-generation/references/html-assembly.md` instead �
 4. **Free-text brief (one chat message):** webhook URL · Pixel IDs · VietQR fields (BANK/STK/ACCOUNT/AMOUNT/
    PREFIX + check-pay response shape) · business name, contact, logo mode (A/B/C) · optional event date for
    countdown. Mark anything "chưa có" as a placeholder TODO.
-5. **Read references + assets** for the chosen options (table below) + the chosen style's three files
-   (`system-design/<style>/design-system.md` + `starter-template.html` + `form-snippet.html`) +
-   `assets/icons/README.md`.
+5. **Read references + assets** for the chosen options (table below — respect its load discipline) + the
+   chosen style's three files (`system-design/<style>/design-system.md` + `starter-template.html` +
+   `form-snippet.html`) + `assets/icons/README.md`. **Open exactly ONE style folder** — pick from the
+   catalog one-liners in "Choosing a style", never by opening other styles "to compare".
 6. **Generate visuals + build the page.** Hand the hero/section brief to `marketing-media-designer` /
    `marketing-asset-generation` for text-free brand backgrounds; copy the chosen `starter-template.html` as
    the base; paste the design-system tokens; overlay Vietnamese copy as real HTML text; wire the form per the
@@ -141,6 +142,11 @@ If the user wants to clone an external site's look, capture its tokens and map t
 keep the invariant principles, icon system, and form contract intact.
 
 ## References index (read on condition)
+
+**Load discipline (context budget):** a full build can otherwise pull ~200KB into context. Load each file at
+the step that needs it, not all up front: build refs at steps 5–6; `policy-pages.md` only at step 7;
+`backend-security.md` only at the step-8 handoff; `sections-advanced.md` only if the page actually uses one of
+its sections; exactly one `form-*-capi.md` (per the chosen platform); never more than one style folder.
 
 | File | When |
 |---|---|

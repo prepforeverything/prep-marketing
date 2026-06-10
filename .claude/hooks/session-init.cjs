@@ -753,10 +753,26 @@ function main() {
         try { writeKitState(kitRoot, bannerKitState); } catch { /* best-effort */ }
         try { postBannerKitStateMtimeMs = fs.statSync(kitStatePath(kitRoot)).mtimeMs; } catch { /* best-effort */ }
       }
-      // L3 — session-state retention advisory. Read-only with respect to
-      // kit-state; the pruner script owns the lastSessionStatePrune write.
+      // L3 — session-state retention. When the 7-day debounce says a prune is
+      // due, RUN the pruner (startup only — cheap, and the pruner's own
+      // lastSessionStatePrune write keeps this rare) instead of only advising.
+      // Falls back to the advisory line if the pruner fails or mid-session.
       try {
-        applySessionStatePruneAdvisory({ emit, kitRoot, kitState: bannerKitState });
+        const pruneCheck = applySessionStatePruneAdvisory({ emit: () => {}, kitRoot, kitState: bannerKitState });
+        if (pruneCheck.advised) {
+          let pruned = false;
+          if (source === "startup") {
+            try {
+              execFileSync(process.execPath, [path.join(kitRoot, ".prepkit", "scripts", "prune-session-state.mjs")], {
+                stdio: "pipe",
+                timeout: 15000
+              });
+              emit("PrepKit: session-state retention pruned (auto).");
+              pruned = true;
+            } catch { /* fall through to the advisory */ }
+          }
+          if (!pruned) emit("PrepKit: session-state pruning suggested — run /prep-doctor");
+        }
       } catch { /* best-effort */ }
     } catch { /* best-effort — never block session start */ }
 

@@ -190,8 +190,8 @@
     "quality": {
       "planner": "opus",
       "researcher": "opus",
-      "marketing-reviewer": "opus",
-      "marketing-content-reviewer": "opus",
+      "marketing-reviewer": "sonnet",
+      "marketing-content-reviewer": "sonnet",
       "marketing-campaign-diagnostician": "opus",
       "marketing-strategist": "opus",
       "marketing-gtm-manager": "opus",
@@ -894,12 +894,8 @@
         "command": "node .claude/hooks/subagent-init.cjs"
       },
       {
-        "matcher": "marketing-copywriter|marketing-content-reviewer|marketing-reviewer|marketing-strategist|marketing-content-strategist|marketing-social-media-manager|marketing-performance-marketer|marketing-gtm-manager|marketing-lifecycle-strategist|marketing-media-designer|marketing-seo-specialist|marketing-growth-analyst|marketing-ops-analyst",
+        "matcher": "marketing-copywriter|marketing-content-reviewer|marketing-reviewer|marketing-strategist|marketing-content-strategist|marketing-social-media-manager|marketing-performance-marketer|marketing-gtm-manager|marketing-lifecycle-strategist|marketing-media-designer|marketing-seo-specialist|marketing-growth-analyst|marketing-ops-analyst|marketing-campaign-diagnostician",
         "command": "node .prepkit/packs/marketing/hooks/marketing-brand-inject.cjs"
-      },
-      {
-        "matcher": "marketing-campaign-diagnostician|marketing-reviewer",
-        "command": "node .prepkit/packs/marketing/hooks/marketing-campaign-inject.cjs"
       }
     ],
     "UserPromptSubmit": [

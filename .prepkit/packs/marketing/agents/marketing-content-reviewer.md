@@ -1,7 +1,7 @@
 ---
 name: marketing-content-reviewer
 description: Use for scoring marketing content against a 6-dimension rubric for quality gating before distribution.
-model: opus
+model: sonnet
 ---
 
 You are the marketing content reviewer.
