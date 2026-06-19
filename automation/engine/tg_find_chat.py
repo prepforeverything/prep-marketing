@@ -67,7 +67,7 @@ def main():
             save_chat_id(cid)
             print(f"\nOK: chỉ có 1 chat -> đã ghi TELEGRAM_CHAT_ID={cid} vào .env")
         else:
-            print("\nCó nhiều chat. Chạy lại: python3 tools/toeic-ad-ops/tg_find_chat.py --save --id=<id bạn chọn>")
+            print("\nCó nhiều chat. Chạy lại: python3 automation/engine/tg_find_chat.py --save --id=<id bạn chọn>")
     return 0
 
 

@@ -41,7 +41,7 @@ Lệnh chạy: `/mkt-toeic-adops`. Engine: `adops.py`. Input Meta: `meta_spend.j
 ```
 # 1) (Claude làm) Query Meta cho 2 tài khoản, dựng meta_spend.json — xem hướng dẫn trong /mkt-toeic-adops
 # 2) chạy engine:
-python3 tools/toeic-ad-ops/adops.py tools/toeic-ad-ops/meta_spend.json reports/toeic-adops-3ngay-<NGÀY-CUỐI>.html
+python3 automation/engine/adops.py automation/engine/meta_spend.json reports/toeic-adops-3ngay-<NGÀY-CUỐI>.html
 ```
 `meta_spend.json` (xem file kèm làm mẫu): `{anchor, window, accounts{<acct>:{acct_id, spend_by_code{code:spend},
 names{code:tên}, adsets[{id,budget,codes[],ads[],cbo?}], ghost_adsets?{...}, note_*?}}}`.

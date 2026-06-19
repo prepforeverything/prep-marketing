@@ -1,0 +1,26 @@
+{
+  "product": "toeic",
+  "display": "TOEIC",
+  "meta": {
+    "accounts": { "TOEIC 3": "829372215242475", "TOEIC 5": "555686623359807" },
+    "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"]
+  },
+  "kpi_sheet": {
+    "id": "188B1wIzKkzSXe_FFkRJ9vk9DLGdETXrGjOLrSCfQJ6s",
+    "gid": "1008046172",
+    "line": "TOEIC",
+    "channel": "Inbox"
+  },
+  "lead_sheet": {
+    "id": "161R5Jj5CMYzOnflwEl4mnIyDVbilAvk8NxkWduUnto8",
+    "phone_tab": "Phone",
+    "content_tab": "Content Ad",
+    "col_date": 0,
+    "col_code": 7,
+    "col_account": 8,
+    "col_ql": 12,
+    "min_cols": 13
+  },
+  "min_leads": 3,
+  "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_CHAT_ID" }
+}

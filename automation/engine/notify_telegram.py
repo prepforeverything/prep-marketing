@@ -16,7 +16,7 @@ from pathlib import Path
 
 def load_config():
     """Ưu tiên biến môi trường; nếu thiếu, nạp .env ở gốc repo (không ghi đè biến đã có)."""
-    root = Path(__file__).resolve().parents[2]  # tools/toeic-ad-ops/ -> repo root
+    root = Path(__file__).resolve().parents[2]  # automation/engine/ -> repo root
     envf = root / ".env"
     if envf.exists():
         for line in envf.read_text(encoding="utf-8", errors="replace").splitlines():

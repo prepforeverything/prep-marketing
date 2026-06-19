@@ -11,16 +11,35 @@ Join = content code (Meta ad-name prefix = sheet "Ma bai"). Recommend-only; neve
 Budget basis = average daily spend (spend_3d / DAYS); projected = avg x action multiplier.
 Usage: python3 adops.py [meta_spend.json] [out.html]
 """
-import csv, io, re, sys, json, urllib.request
+import csv, io, re, sys, json, urllib.request, urllib.parse
 from collections import defaultdict
 
-KPI_ID  = "188B1wIzKkzSXe_FFkRJ9vk9DLGdETXrGjOLrSCfQJ6s"
-KPI_GID = "1008046172"
-LEAD_ID = "161R5Jj5CMYzOnflwEl4mnIyDVbilAvk8NxkWduUnto8"
-MIN_LEADS = 3
+import prepcfg
 
-meta_path = sys.argv[1] if len(sys.argv) > 1 else "meta_spend.json"
-out_path  = sys.argv[2] if len(sys.argv) > 2 else "report.html"
+PCFG = prepcfg.load()
+KPI_ID = PCFG["kpi_sheet"]["id"]
+KPI_GID = PCFG["kpi_sheet"]["gid"]
+KPI_LINE = PCFG["kpi_sheet"]["line"]
+KPI_CHANNEL = PCFG["kpi_sheet"]["channel"]
+LEAD_ID = PCFG["lead_sheet"]["id"]
+PHONE_TAB = PCFG["lead_sheet"]["phone_tab"]
+CONTENT_TAB = PCFG["lead_sheet"]["content_tab"]
+LC = PCFG["lead_sheet"]                 # chỉ số cột tab lead
+ACCOUNTS = PCFG["meta"]["accounts"]     # tên tài khoản (khớp chuỗi con trong cột Account)
+MIN_LEADS = PCFG.get("min_leads", 3)
+
+# Tham số dòng lệnh (bỏ qua --product do prepcfg xử lý): [meta_spend.json] [out.html]
+_posargs, _skip = [], False
+for _a in sys.argv[1:]:
+    if _skip:
+        _skip = False; continue
+    if _a == "--product":
+        _skip = True; continue
+    if _a.startswith("--product="):
+        continue
+    _posargs.append(_a)
+meta_path = _posargs[0] if len(_posargs) > 0 else str(PCFG.meta_json)
+out_path  = _posargs[1] if len(_posargs) > 1 else "report.html"
 cfg = json.load(open(meta_path))
 WINDOW = cfg["window"]
 DAYS = len(WINDOW)
@@ -51,32 +70,34 @@ def vnd(n):
 thr = {"kpi": 900000, "tb": 1080000, "yeu": 1350000, "zero_inbox": 450000}
 kpi_rows = list(csv.reader(io.StringIO(fetch(f"https://docs.google.com/spreadsheets/d/{KPI_ID}/export?format=csv&gid={KPI_GID}"))))
 for r in kpi_rows:
-    if len(r) > 7 and r[1].strip() == "TOEIC" and r[2].strip() == "Inbox":
+    if len(r) > 7 and r[1].strip() == KPI_LINE and r[2].strip() == KPI_CHANNEL:
         thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
 # weekly/daily Inbox budget for the anchor's week (cols 2=W1,3=W2,4=W3,5=W4 by day-of-month)
 _d = int(cfg["anchor"][8:10]); WK = 2 if _d <= 7 else 3 if _d <= 14 else 4 if _d <= 21 else 5
 kpi_day = kpi_week = 0
 for i, r in enumerate(kpi_rows):
-    if len(r) > WK and r[0].strip() == "Inbox" and r[1].strip() == "Tuần":
+    if len(r) > WK and r[0].strip() == KPI_CHANNEL and r[1].strip() == "Tuần":
         kpi_week = bnum(r[WK])
         nr = kpi_rows[i + 1] if i + 1 < len(kpi_rows) else []
         kpi_day = bnum(nr[WK]) if len(nr) > WK else 0
         break
 
-# ---- leads (Phone) -----------------------------------------------------------
+# ---- leads (tab lead) --------------------------------------------------------
 leads = defaultdict(lambda: defaultdict(lambda: {"lead": 0, "ql": 0}))
-for r in list(csv.reader(io.StringIO(fetch(f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet=Phone"))))[1:]:
-    if len(r) < 13 or not inwin(r[0]) or not r[7].strip():
+_phone_url = f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(PHONE_TAB)}"
+for r in list(csv.reader(io.StringIO(fetch(_phone_url))))[1:]:
+    if len(r) < LC["min_cols"] or not inwin(r[LC["col_date"]]) or not r[LC["col_code"]].strip():
         continue
-    acct = "TOEIC 3" if "TOEIC 3" in r[8] else ("TOEIC 5" if "TOEIC 5" in r[8] else None)
+    acct = next((n for n in ACCOUNTS if n in r[LC["col_account"]]), None)
     if acct:
-        leads[acct][norm(r[7])]["lead"] += 1
-        if r[12].strip() == "1":
-            leads[acct][norm(r[7])]["ql"] += 1
+        leads[acct][norm(r[LC["col_code"]])]["lead"] += 1
+        if r[LC["col_ql"]].strip() == "1":
+            leads[acct][norm(r[LC["col_code"]])]["ql"] += 1
 
 # ---- month-to-date (Content Ad) ----------------------------------------------
 mtd = {}
-for r in csv.reader(io.StringIO(fetch(f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet=Content%20Ad"))):
+_content_url = f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(CONTENT_TAB)}"
+for r in csv.reader(io.StringIO(fetch(_content_url))):
     if len(r) > 9 and r[1].strip() and re.search(r"\d", r[1]):
         mtd[norm(r[1])] = {"name": r[3].strip(), "program": r[2].strip(),
                            "cpl_mtd": num(r[9]), "order_mtd": num(r[17]) if len(r) > 17 else 0}
