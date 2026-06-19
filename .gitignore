@@ -1,0 +1,9 @@
+# Secrets — KHÔNG commit (chứa API key, token Telegram, v.v.)
+.env
+
+# State/tạm của workflow ad-ops TOEIC hằng ngày (sinh ra lúc chạy)
+tools/toeic-ad-ops/.sent-*.flag
+tools/toeic-ad-ops/.summary.json
+
+# macOS
+.DS_Store
