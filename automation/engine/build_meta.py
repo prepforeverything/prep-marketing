@@ -11,10 +11,27 @@ Cách dùng:
   python3 build_meta.py [--product toeic] [out.json]   # mặc định ghi .work/meta_spend.json
   python3 build_meta.py --product toeic --check         # in tóm tắt, KHÔNG ghi
 """
-import sys, os, re, json, datetime, urllib.request, urllib.parse, urllib.error
+import sys, os, re, json, time, socket, datetime, urllib.request, urllib.parse, urllib.error
 from collections import defaultdict
 
 import prepcfg
+
+
+def http_get(url, timeout=60, retries=4):
+    """GET có retry + backoff cho lỗi mạng tạm thời (timeout/đứt kết nối khi máy mới thức).
+    KHÔNG retry HTTPError (vd token sai 4xx) — để lỗi thật nổi lên ngay."""
+    last = None
+    for attempt in range(retries):
+        try:
+            req = url if isinstance(url, urllib.request.Request) else urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            return urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "replace")
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
+            last = e
+            if attempt < retries - 1:
+                time.sleep(5 * (attempt + 1))  # 5s, 10s, 15s — đủ cho mạng kịp lên sau khi thức
+    raise last
 
 
 def norm(code):
@@ -38,8 +55,7 @@ class Graph:
     def _get(self, ver, path, params):
         p = dict(params); p["access_token"] = self.token
         url = f"https://graph.facebook.com/{ver}/{path}?" + urllib.parse.urlencode(p)
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        return json.loads(urllib.request.urlopen(req, timeout=90).read().decode("utf-8", "replace"))
+        return json.loads(http_get(url, timeout=90))
 
     def pick_version(self, probe_acct):
         last = None
@@ -57,8 +73,7 @@ class Graph:
         data = self._get(self.ver, path, dict(params))
         out.extend(data.get("data", []))
         while data.get("paging", {}).get("next"):
-            req = urllib.request.Request(data["paging"]["next"], headers={"User-Agent": "Mozilla/5.0"})
-            data = json.loads(urllib.request.urlopen(req, timeout=90).read().decode("utf-8", "replace"))
+            data = json.loads(http_get(data["paging"]["next"], timeout=90))
             out.extend(data.get("data", []))
         return out
 

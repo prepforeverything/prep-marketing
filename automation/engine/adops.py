@@ -11,7 +11,7 @@ Join = content code (Meta ad-name prefix = sheet "Ma bai"). Recommend-only; neve
 Budget basis = average daily spend (spend_3d / DAYS); projected = avg x action multiplier.
 Usage: python3 adops.py [meta_spend.json] [out.html]
 """
-import csv, io, re, sys, json, urllib.request, urllib.parse
+import csv, io, re, sys, json, time, socket, urllib.request, urllib.parse, urllib.error
 from collections import defaultdict
 
 import prepcfg
@@ -47,8 +47,16 @@ wset = {frozenset((int(d[5:7]), int(d[8:10]))) for d in WINDOW}
 wyear = int(WINDOW[0][:4])
 
 
-def fetch(u):
-    return urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=60).read().decode("utf-8", "replace")
+def fetch(u, retries=4):  # retry cho lỗi mạng tạm thời (máy mới thức)
+    last = None
+    for attempt in range(retries):
+        try:
+            return urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=60).read().decode("utf-8", "replace")
+        except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
+            last = e
+            if attempt < retries - 1:
+                time.sleep(5 * (attempt + 1))
+    raise last
 def nums(s):
     return [int(t.replace(".", "")) for t in re.findall(r"\d[\d.]*", s or "") if t.replace(".", "")]
 def num(s):

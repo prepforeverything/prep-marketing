@@ -1,0 +1,40 @@
+{
+  "name": "TOEIC ad-ops hằng ngày",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 10,14 * * *" }
+          ]
+        }
+      },
+      "id": "schedule-1014",
+      "name": "Lịch 10h & 14h (VN)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /opt/prep-marketing && python3 automation/engine/run_daily.py --product toeic"
+      },
+      "id": "run-adops-toeic",
+      "name": "Chạy ad-ops TOEIC",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "Lịch 10h & 14h (VN)": {
+      "main": [
+        [ { "node": "Chạy ad-ops TOEIC", "type": "main", "index": 0 } ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "active": false
+}

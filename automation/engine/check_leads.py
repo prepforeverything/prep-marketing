@@ -8,14 +8,23 @@ Cách dùng:
   python3 check_leads.py [--product toeic] [--date=YYYY-MM-DD] [--min=N]
 Exit: 0 nếu ĐÃ có, 1 nếu THIẾU, 2 nếu lỗi đọc dữ liệu.
 """
-import csv, io, re, sys, json, datetime, urllib.request, urllib.parse
+import csv, io, re, sys, json, time, socket, datetime, urllib.request, urllib.parse, urllib.error
 
 import prepcfg
 
 
-def fetch(u):
-    req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
-    return urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "replace")
+def fetch(u, retries=4):
+    """GET có retry cho lỗi mạng tạm thời (timeout/đứt kết nối khi máy mới thức)."""
+    last = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+            return urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "replace")
+        except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
+            last = e
+            if attempt < retries - 1:
+                time.sleep(5 * (attempt + 1))
+    raise last
 
 
 def parse_date(s):
