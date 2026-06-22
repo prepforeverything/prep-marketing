@@ -41,6 +41,7 @@ jobs:
         run: echo "RUN_DATE=$(date +%F)" >> "$GITHUB_ENV"
 
       - name: Giữ cờ đã-gửi giữa lần 10h và 14h cùng ngày
+        if: ${{ github.event.inputs.dry_run != 'true' }}   # dry-run KHÔNG đụng cache dedup (tránh tạo key rỗng)
         uses: actions/cache@v4
         with:
           path: automation/products/toeic/.work
