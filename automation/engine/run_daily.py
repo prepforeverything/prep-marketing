@@ -85,7 +85,8 @@ def run_report(cfg, target):
     if subprocess.run([PY, str(ENGINE / "adops.py"), str(meta_json), str(html)], env=env2).returncode != 0:
         return fail(cfg, "adops.py thất bại")
     chrome = os.environ.get("CHROME_BIN", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    r = subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
+    extra = os.environ.get("CHROME_EXTRA_ARGS", "").split()  # vd Linux/CI: "--no-sandbox --disable-dev-shm-usage"
+    r = subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", *extra,
                         f"--print-to-pdf={pdf}", f"file://{html}"],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if r.returncode != 0 or not pdf.exists():
