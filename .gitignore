@@ -1,0 +1,8 @@
+# Secrets — KHÔNG commit (chứa API key, token Telegram, v.v.)
+.env
+
+# State/tạm của engine ad-ops (sinh ra lúc chạy) — mỗi sản phẩm 1 thư mục .work/
+automation/products/*/.work/
+
+# macOS
+.DS_Store

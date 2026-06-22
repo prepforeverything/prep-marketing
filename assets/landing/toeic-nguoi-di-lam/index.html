@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Khóa TOEIC cho Người Đi Làm — Học phục vụ công việc | Prep</title>
+  <meta name="description" content="Khóa TOEIC cho người đi làm. Từ mất gốc đến 800+ TOEIC. Đăng ký 1 lần, sở hữu trọn đời. Sản phẩm ứng dụng AI được khuyến khích bởi Bộ Khoa học & Công nghệ.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===== NOTI VN TOKENS ===== */
+    :root{
+      --primary:#0061ff;
+      --secondary:#00c2ff;
+      --gradient:linear-gradient(135deg,#0061ff 0%,#00c2ff 100%);
+      --gradient-soft:linear-gradient(135deg,rgba(0,97,255,0.08) 0%,rgba(0,194,255,0.08) 100%);
+      --gradient-medium:linear-gradient(135deg,rgba(0,97,255,0.15) 0%,rgba(0,194,255,0.15) 100%);
+      --bg-primary:#ffffff;
+      --bg-secondary:#f8fafc;
+      --bg-tertiary:#f1f5f9;
+      --text-primary:#0f172a;
+      --text-secondary:#475569;
+      --text-muted:#64748b;
+      --glass-bg:rgba(255,255,255,0.7);
+      --glass-shadow:0 8px 32px rgba(0,97,255,0.08);
+      --glass-inset:inset 0 1px 0 rgba(255,255,255,0.6);
+      --blob-opacity:0.35;
+      --shadow-sm:0 2px 8px rgba(0,97,255,0.06);
+      --shadow-md:0 8px 24px rgba(0,97,255,0.1);
+      --shadow-lg:0 20px 60px rgba(0,97,255,0.12);
+      --shadow-xl:0 30px 80px rgba(0,97,255,0.15);
+      --radius-sm:8px;
+      --radius-md:12px;
+      --radius-lg:16px;
+      --radius-xl:20px;
+      --radius-2xl:24px;
+      --radius-pill:50px;
+      --transition-fast:.2s ease;
+      --transition-normal:.3s ease;
+      --transition-smooth:.4s cubic-bezier(.4,0,.2,1);
+      --transition-slow:.8s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="dark"]{
+      --bg-primary:#0a0f1c;
+      --bg-secondary:#111827;
+      --bg-tertiary:#1e293b;
+      --text-primary:#f1f5f9;
+      --text-secondary:#94a3b8;
+      --text-muted:#64748b;
+      --glass-bg:rgba(15,23,42,0.6);
+      --glass-shadow:0 8px 32px rgba(0,0,0,0.3);
+      --glass-inset:inset 0 1px 0 rgba(255,255,255,0.05);
+      --blob-opacity:0.2;
+    }
+
+    /* ===== RESET ===== */
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;overflow-x:hidden;transition:background .3s,color .3s}
+    ::-webkit-scrollbar{width:10px}
+    ::-webkit-scrollbar-track{background:var(--bg-secondary)}
+    ::-webkit-scrollbar-thumb{background:var(--gradient);border-radius:5px}
+    img{max-width:100%;display:block}
+    a{text-decoration:none;color:inherit}
+    button{font-family:inherit;cursor:pointer;border:none;background:none}
+
+    /* ===== UTILITIES ===== */
+    .gradient-text{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .reveal{opacity:0;transform:translateY(30px);transition:all var(--transition-slow)}
+    .reveal.active{opacity:1;transform:translateY(0)}
+    .section-tag{display:inline-block;background:var(--gradient-soft);color:var(--primary);padding:.5rem 1rem;border-radius:var(--radius-pill);font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem}
+    .section-header{text-align:center;max-width:780px;margin:0 auto 4rem}
+    .section-header h2{font-size:clamp(2rem,4vw,3rem);font-weight:700;letter-spacing:-.02em;color:var(--text-primary);margin-bottom:1rem;line-height:1.2}
+    .section-header p{color:var(--text-secondary);font-size:1.1rem;line-height:1.7}
+    .glass{background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border-radius:var(--radius-2xl);box-shadow:var(--glass-shadow),var(--glass-inset);transition:background .3s,box-shadow .3s}
+
+    /* ===== BG BLOBS ===== */
+    .bg-decoration{position:fixed;inset:0;pointer-events:none;z-index:-1;overflow:hidden}
+    .bg-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:var(--blob-opacity);animation:blobFloat 20s ease-in-out infinite}
+    .bg-blob-1{width:600px;height:600px;background:var(--primary);top:-200px;right:-200px}
+    .bg-blob-2{width:500px;height:500px;background:var(--secondary);bottom:-150px;left:-150px;animation-delay:-7s}
+    .bg-blob-3{width:400px;height:400px;background:var(--gradient);top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:-14s}
+    @keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(30px,-30px) scale(1.05)}50%{transform:translate(-20px,20px) scale(.95)}75%{transform:translate(-30px,-20px) scale(1.02)}}
+
+    /* ===== BUTTONS ===== */
+    .btn-primary{display:inline-flex;align-items:center;gap:.5rem;background:var(--gradient);color:#fff;padding:.95rem 1.85rem;border-radius:var(--radius-pill);font-weight:700;font-size:1rem;box-shadow:0 4px 16px rgba(0,97,255,.3);transition:all .3s;cursor:pointer;border:none;font-family:'Inter',sans-serif}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,97,255,.4)}
+    .btn-ghost{display:inline-flex;align-items:center;gap:.5rem;background:transparent;color:var(--text-primary);padding:.95rem 1.85rem;border-radius:var(--radius-pill);font-weight:600;font-size:1rem;transition:all .3s;cursor:pointer;border:1.5px solid var(--bg-tertiary)}
+    .btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+
+    /* ===== HEADER ===== */
+    header{position:fixed;top:0;left:0;width:100%;z-index:1000;padding:.85rem 0;transition:all var(--transition-smooth)}
+    header.scrolled{background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);box-shadow:0 4px 30px rgba(0,97,255,.1)}
+    .header-container{max-width:1400px;margin:0 auto;padding:0 2rem;display:flex;justify-content:space-between;align-items:center}
+    .logo{display:flex;align-items:center;gap:.6rem;font-weight:800;font-size:1.35rem;color:var(--text-primary)}
+    .logo-mark{width:36px;height:36px;border-radius:10px;background:var(--gradient);display:grid;place-items:center;color:#fff;font-weight:900;box-shadow:0 4px 12px rgba(0,97,255,.35)}
+    .nav-menu{display:flex;align-items:center;gap:.25rem;margin-right:.5rem}
+    .nav-link{padding:.55rem .95rem;border-radius:var(--radius-pill);color:var(--text-secondary);font-size:.95rem;font-weight:500;transition:all .25s;white-space:nowrap}
+    .nav-link:hover{color:var(--primary);background:var(--gradient-soft)}
+    .header-actions{display:flex;align-items:center;gap:.75rem}
+    .theme-toggle{width:40px;height:40px;border-radius:50%;background:var(--bg-tertiary);color:var(--text-primary);display:flex;align-items:center;justify-content:center;transition:all .3s}
+    .theme-toggle:hover{color:var(--primary)}
+    .sun-icon{display:none}
+    [data-theme="dark"] .sun-icon{display:block}
+    [data-theme="dark"] .moon-icon{display:none}
+    .menu-toggle{display:none;width:40px;height:40px;border-radius:50%;background:var(--bg-tertiary);color:var(--text-primary);align-items:center;justify-content:center;transition:all .3s}
+    .menu-toggle:hover{color:var(--primary)}
+    .mobile-nav{position:fixed;top:0;right:0;width:280px;max-width:85vw;height:100vh;background:var(--bg-primary);box-shadow:-10px 0 40px rgba(0,0,0,.15);z-index:1100;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;padding:5rem 1.5rem 2rem;gap:.5rem}
+    .mobile-nav.open{transform:translateX(0)}
+    .mobile-nav .nav-link{padding:1rem;border-radius:var(--radius-md);font-size:1.05rem;font-weight:600;color:var(--text-primary)}
+    .mobile-nav .btn-primary{margin-top:1rem;justify-content:center}
+    .mobile-nav-close{position:absolute;top:1rem;right:1rem;width:40px;height:40px;border-radius:50%;background:var(--bg-tertiary);color:var(--text-primary);display:flex;align-items:center;justify-content:center}
+    .mobile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);z-index:1050;opacity:0;pointer-events:none;transition:opacity .3s}
+    .mobile-overlay.open{opacity:1;pointer-events:auto}
+    @media(max-width:1024px){.nav-menu{display:none}.menu-toggle{display:flex}}
+    @media(max-width:768px){.btn-header-cta{display:none}}
+
+    /* ===== HERO ===== */
+    .hero{min-height:100vh;display:flex;align-items:center;padding:7rem 2rem 4rem;position:relative;overflow:hidden}
+    .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,97,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,97,255,.04) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse at center,black 30%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse at center,black 30%,transparent 75%);pointer-events:none;animation:gridPulse 8s ease-in-out infinite}
+    @keyframes gridPulse{0%,100%{opacity:.6}50%{opacity:1}}
+    .hero-container{max-width:1100px;margin:0 auto;text-align:center;position:relative;z-index:1}
+    .hero h1{font-size:clamp(2.4rem,5.2vw,4.5rem);font-weight:800;letter-spacing:-.03em;line-height:1.08;margin-bottom:1.5rem;color:var(--text-primary)}
+    .hero-desc{font-size:clamp(1.05rem,1.7vw,1.25rem);color:var(--text-secondary);max-width:720px;margin:0 auto 2rem;line-height:1.6}
+    .hero-desc strong{color:var(--text-primary);font-weight:700}
+    .hero-cta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:2.5rem}
+    .hero-trust{display:inline-flex;align-items:center;gap:14px;padding:14px 22px;border-radius:var(--radius-pill);background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);box-shadow:var(--glass-shadow),var(--glass-inset);max-width:560px;margin:0 auto}
+    .hero-trust .ht-ico{width:42px;height:42px;border-radius:12px;background:var(--gradient);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 6px 14px rgba(0,97,255,.25)}
+    .hero-trust .ht-text{font-size:.95rem;color:var(--text-secondary);font-weight:500;line-height:1.4;text-align:left}
+    .hero-trust .ht-text strong{color:var(--text-primary);font-weight:800;white-space:nowrap}
+
+    /* ===== SECTIONS ===== */
+    section{padding:6rem 2rem;position:relative}
+    .container{max-width:1200px;margin:0 auto}
+
+    /* ===== LỘ TRÌNH 5 BƯỚC ===== */
+    .roadmap-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1.5rem;position:relative;margin-bottom:3rem}
+    .roadmap-grid::before{content:"";position:absolute;top:36px;left:6%;right:6%;height:3px;background:var(--gradient);border-radius:2px;opacity:.4;z-index:0}
+    .step-card{background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border-radius:var(--radius-2xl);box-shadow:var(--glass-shadow);padding:1.5rem 1.25rem;position:relative;transition:all .3s;display:flex;flex-direction:column;align-items:center;text-align:center;z-index:1}
+    .step-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
+    .step-num{width:72px;height:72px;border-radius:50%;background:var(--gradient);color:#fff;font-size:2rem;font-weight:900;display:grid;place-items:center;margin-bottom:1.25rem;box-shadow:0 8px 24px rgba(0,97,255,.35);position:relative;z-index:1}
+    .step-card h4{font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:.75rem;min-height:50px;display:flex;align-items:center}
+    .step-card ul{list-style:none;text-align:left;width:100%}
+    .step-card li{font-size:.9rem;color:var(--text-secondary);padding-left:1rem;position:relative;margin-bottom:.4rem;line-height:1.5}
+    .step-card li::before{content:"";position:absolute;left:0;top:.55rem;width:5px;height:5px;border-radius:50%;background:var(--secondary)}
+
+    .roadmap-meta{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:2rem}
+    .meta-card{background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border-radius:var(--radius-2xl);box-shadow:var(--glass-shadow);padding:2rem}
+    .meta-card .meta-head{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem}
+    .meta-card .meta-ico{width:40px;height:40px;border-radius:var(--radius-md);background:var(--gradient);color:#fff;display:grid;place-items:center;flex-shrink:0}
+    .meta-card h3{font-size:1.15rem;font-weight:700;color:var(--text-primary);line-height:1.3}
+    .meta-card h3 .gradient-text{font-weight:900}
+    .meta-card p{font-size:.95rem;color:var(--text-secondary);margin-bottom:1.25rem;line-height:1.55}
+    .logo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+    .logo-box{background:var(--bg-secondary);border-radius:var(--radius-md);padding:1rem .5rem;text-align:center;display:flex;align-items:center;justify-content:center;min-height:60px;transition:all .15s}
+    .logo-box:hover{background:var(--bg-tertiary)}
+    .salary-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+    .salary-box{background:var(--bg-secondary);border-radius:var(--radius-md);padding:1rem .75rem;text-align:center}
+    .salary-box .industry{font-size:.85rem;color:var(--text-secondary);margin-bottom:.25rem;font-weight:500}
+    .salary-box .amount{font-size:1.25rem;font-weight:800;color:var(--primary);display:inline-flex;align-items:center;gap:6px;justify-content:center}
+
+    /* ===== AI SECTION ===== */
+    .ai-wrap{display:grid;grid-template-columns:1fr auto 1fr;gap:2rem;align-items:center;max-width:1100px;margin:0 auto}
+    .ai-col{display:flex;flex-direction:column;gap:2rem}
+    .ai-col.left{align-items:flex-end;text-align:right}
+    .ai-col.right{align-items:flex-start;text-align:left}
+    .ai-point{max-width:280px}
+    .ai-point h4{font-size:1.05rem;font-weight:800;color:var(--text-primary);margin-bottom:.4rem;display:inline-flex;align-items:center;gap:.65rem}
+    .ai-col.left .ai-point h4{justify-content:flex-end}
+    .ai-point .ai-ico{width:44px;height:44px;border-radius:var(--radius-md);background:var(--gradient);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 6px 14px rgba(0,97,255,.25)}
+    .ai-point p{font-size:.95rem;color:var(--text-secondary);line-height:1.55}
+
+    .phone-mockup{display:flex;justify-content:center}
+    .phone{width:280px;height:560px;background:linear-gradient(180deg,#1E1F3A,#0A0E27);border-radius:38px;padding:14px;box-shadow:0 30px 80px rgba(0,97,255,.25),inset 0 0 0 2px rgba(255,255,255,.08);position:relative}
+    .phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:80px;height:18px;background:#000;border-radius:0 0 14px 14px;z-index:2}
+    .phone-screen{width:100%;height:100%;background:linear-gradient(180deg,rgba(0,97,255,.15),rgba(0,194,255,.08));border-radius:26px;padding:44px 16px 16px;display:flex;flex-direction:column;align-items:center;color:#fff}
+    .phone-screen .ps-lbl{font-size:11px;color:rgba(255,255,255,.6);margin-bottom:6px}
+    .phone-screen .ps-big{font-size:48px;font-weight:900;background:var(--gradient);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+    .phone-screen .ps-sm{font-size:13px;color:rgba(255,255,255,.6);margin-top:2px;margin-bottom:18px}
+    .phone-screen .ps-bars{width:100%;display:flex;flex-direction:column;gap:8px}
+    .phone-screen .ps-row{display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.7);margin-bottom:2px;font-weight:500}
+    .phone-screen .ps-row .ps-val{color:#fff;font-weight:700}
+    .phone-screen .ps-bar{background:rgba(255,255,255,.1);height:6px;border-radius:3px;overflow:hidden}
+    .phone-screen .ps-bar i{display:block;height:100%;background:var(--gradient);border-radius:3px}
+
+    /* ===== CAM KẾT ===== */
+    .commit-card{display:grid;grid-template-columns:1.3fr 1fr;gap:0;background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border-radius:var(--radius-2xl);box-shadow:var(--glass-shadow),var(--glass-inset);overflow:hidden;align-items:stretch}
+    .commit-left{padding:3rem 2.5rem;display:flex;flex-direction:column;justify-content:center}
+    .commit-left h2{font-size:clamp(1.6rem,2.5vw,2.2rem);font-weight:800;line-height:1.18;margin-bottom:1rem;color:var(--text-primary)}
+    .commit-left h2 .gradient-text{font-weight:900;white-space:nowrap}
+    .commit-left .lead{font-size:1.05rem;color:var(--text-secondary);line-height:1.6}
+    .commit-left .lead strong{color:var(--text-primary);font-weight:800}
+    .commit-right{padding:2.5rem 2rem;background:linear-gradient(135deg,rgba(0,97,255,.05),rgba(0,194,255,.04));display:flex;flex-direction:column;justify-content:center;gap:1rem}
+    .commit-feature{display:flex;align-items:center;gap:1rem}
+    .commit-feature .cf-ico{width:48px;height:48px;border-radius:var(--radius-md);background:var(--gradient);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 6px 14px rgba(0,97,255,.25)}
+    .commit-feature .cf-text strong{display:block;font-size:1rem;font-weight:800;color:var(--text-primary);line-height:1.2}
+    .commit-feature .cf-text span{display:block;font-size:.88rem;color:var(--text-secondary);margin-top:2px;line-height:1.4}
+
+    /* ===== TESTIMONIALS ===== */
+    .testi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;max-width:1200px;margin:0 auto}
+    .testi-card{background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border-radius:var(--radius-2xl);box-shadow:var(--glass-shadow);overflow:hidden;transition:all .3s}
+    .testi-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+    .testi-head{display:flex;align-items:center;gap:.85rem;padding:1.5rem 1.5rem 1rem}
+    .testi-avatar{width:54px;height:54px;border-radius:50%;background:var(--gradient);color:#fff;display:grid;place-items:center;font-weight:800;font-size:1.15rem;flex-shrink:0;box-shadow:0 4px 12px rgba(0,97,255,.3)}
+    .testi-meta h4{font-size:1.05rem;font-weight:700;color:var(--text-primary);margin-bottom:2px}
+    .testi-meta .role{font-size:.85rem;color:var(--text-muted)}
+    .testi-score{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;background:linear-gradient(90deg,rgba(0,97,255,.06),rgba(0,194,255,.04))}
+    .testi-score .ts-lbl{font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+    .testi-score .ts-val{font-size:1.8rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+    .testi-progress{display:flex;justify-content:space-between;padding:1rem 1.5rem 0;font-size:.85rem;color:var(--text-muted)}
+    .testi-progress strong{color:var(--text-primary);font-weight:700}
+    .testi-fb{padding:.85rem 1.5rem 1.5rem;font-size:.95rem;color:var(--text-secondary);line-height:1.6;font-style:italic}
+
+    /* ===== FORM SECTION ===== */
+    .form-section{padding:6rem 2rem}
+    .form-wrapper{max-width:600px;margin:0 auto}
+    .form-container{background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border-radius:var(--radius-2xl);box-shadow:var(--glass-shadow),var(--glass-inset);padding:2.5rem;position:relative}
+    .form-ribbon{background:var(--gradient);color:#fff;padding:.85rem 1.25rem;border-radius:var(--radius-md);margin:-1.25rem -1.25rem 1.5rem;text-align:center;box-shadow:0 8px 24px rgba(0,97,255,.25)}
+    .form-ribbon .rb-line1{font-size:.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:.4rem;margin-bottom:2px}
+    .form-ribbon .rb-line2{font-size:.85rem;font-weight:700;letter-spacing:.02em}
+    .form-title{text-align:center;margin-bottom:1.5rem}
+    .form-title h3{font-size:1.5rem;font-weight:700;color:var(--text-primary);margin-bottom:.4rem}
+    .form-title p{color:var(--text-secondary);font-size:.95rem}
+    .form-group{margin-bottom:1rem}
+    .form-group label{display:block;font-size:.85rem;font-weight:600;color:var(--text-secondary);margin-bottom:.45rem}
+    .form-group input,.form-group select{width:100%;padding:.85rem 1rem;border:1.5px solid var(--bg-tertiary);border-radius:var(--radius-md);font-size:.95rem;font-family:'Inter',sans-serif;background:var(--bg-primary);color:var(--text-primary);transition:all .2s;font-weight:500}
+    .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,97,255,.12)}
+    .form-group input::placeholder{color:var(--text-muted);font-weight:400}
+    .form-submit{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;background:var(--gradient);color:#fff;padding:1rem 1.5rem;border-radius:var(--radius-pill);font-weight:800;font-size:1.05rem;box-shadow:0 8px 24px rgba(0,97,255,.3);transition:all .3s;margin-top:.5rem}
+    .form-submit:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,97,255,.4)}
+    .form-foot{font-size:.8rem;color:var(--text-muted);text-align:center;margin-top:1rem}
+
+    /* ===== FOOTER ===== */
+    footer{padding:3rem 2rem 2rem;text-align:center;background:var(--bg-secondary);position:relative;z-index:1}
+    footer .footer-logo{display:inline-flex;align-items:center;gap:.5rem;font-weight:800;font-size:1.25rem;color:var(--text-primary);margin-bottom:.75rem}
+    footer .footer-desc{color:var(--text-secondary);font-size:.95rem;margin-bottom:1.25rem}
+    .footer-links{display:flex;justify-content:center;flex-wrap:wrap;gap:1rem 1.5rem;margin-bottom:1.25rem}
+    .footer-links a{font-size:.9rem;color:var(--text-secondary);transition:color .2s}
+    .footer-links a:hover{color:var(--primary)}
+    .footer-copy{color:var(--text-muted);font-size:.85rem}
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:1024px){
+      .roadmap-grid{grid-template-columns:repeat(3,1fr)}
+      .roadmap-grid::before{display:none}
+      .ai-wrap{grid-template-columns:1fr;gap:2rem}
+      .ai-col.left,.ai-col.right{align-items:center;text-align:center}
+      .ai-col.left .ai-point h4{justify-content:center}
+      .ai-point{max-width:none}
+      .commit-card{grid-template-columns:1fr}
+    }
+    @media(max-width:768px){
+      section{padding:4rem 1.25rem}
+      .hero{padding:6rem 1.25rem 3rem}
+      .roadmap-grid{grid-template-columns:1fr;gap:1rem}
+      .step-card{padding:1.25rem;flex-direction:row;gap:1rem;text-align:left;align-items:flex-start}
+      .step-num{width:56px;height:56px;font-size:1.5rem;margin-bottom:0;flex-shrink:0}
+      .step-card h4{min-height:auto;font-size:1rem;margin-bottom:.5rem;text-align:left;align-items:flex-start}
+      .step-card ul{font-size:.85rem}
+      .roadmap-meta{grid-template-columns:1fr}
+      .meta-card{padding:1.5rem}
+      .salary-grid,.logo-grid{gap:.5rem}
+      .commit-left,.commit-right{padding:1.75rem 1.5rem}
+      .commit-left h2{font-size:1.45rem}
+      .phone{width:240px;height:480px;border-radius:32px;padding:10px}
+      .phone-screen .ps-big{font-size:40px}
+      .form-container{padding:1.75rem 1.5rem}
+      .form-ribbon{margin:-.75rem -.75rem 1.25rem;padding:.75rem 1rem}
+      .hero-trust{padding:12px 16px;flex-wrap:wrap;gap:10px}
+      .hero-trust .ht-ico{width:36px;height:36px}
+      .hero-trust .ht-text{font-size:.88rem}
+    }
+  </style>
+
+  <!-- Meta Pixel placeholder — thay YOUR_PIXEL_ID khi deploy -->
+  <script>
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    // fbq('init','YOUR_PIXEL_ID');fbq('track','PageView');
+  </script>
+</head>
+<body>
+
+  <!-- Background blobs -->
+  <div class="bg-decoration">
+    <div class="bg-blob bg-blob-1"></div>
+    <div class="bg-blob bg-blob-2"></div>
+    <div class="bg-blob bg-blob-3"></div>
+  </div>
+
+  <!-- ===== HEADER ===== -->
+  <header id="header">
+    <div class="header-container">
+      <a href="#" class="logo"><span class="logo-mark">P</span>Prep</a>
+      <nav class="nav-menu" aria-label="Menu chính">
+        <a href="#lotrinh" class="nav-link">Lộ trình</a>
+        <a href="#ai" class="nav-link">AI luyện thi</a>
+        <a href="#camket" class="nav-link">Cam kết</a>
+        <a href="#hvdc" class="nav-link">Học viên</a>
+      </nav>
+      <div class="header-actions">
+        <button class="theme-toggle" id="themeToggle" aria-label="Đổi chủ đề">
+          <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a href="#form" class="btn-primary btn-header-cta">Đăng ký ngay</a>
+        <button class="menu-toggle" id="menuToggle" aria-label="Mở menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <aside class="mobile-nav" id="mobileNav">
+    <button class="mobile-nav-close" id="mobileNavClose">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <a href="#lotrinh" class="nav-link">Lộ trình</a>
+    <a href="#ai" class="nav-link">AI luyện thi</a>
+    <a href="#camket" class="nav-link">Cam kết</a>
+    <a href="#hvdc" class="nav-link">Học viên</a>
+    <a href="#form" class="btn-primary">Đăng ký ngay</a>
+  </aside>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-container">
+      <span class="section-tag reveal">Khóa TOEIC chuyên biệt</span>
+      <h1 class="reveal">Khóa <span class="gradient-text">TOEIC</span> cho<br><span class="gradient-text">người đi làm</span></h1>
+      <p class="hero-desc reveal">Học phục vụ công việc <strong>từ mất gốc đến 800+ TOEIC</strong> — lộ trình cá nhân hoá, học 30 phút/ngày, linh hoạt 24/7.</p>
+      <div class="hero-cta reveal">
+        <a href="#form" class="btn-primary">Đăng ký tư vấn miễn phí
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+        <a href="#lotrinh" class="btn-ghost">Xem lộ trình</a>
+      </div>
+      <div class="hero-trust reveal">
+        <div class="ht-ico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        </div>
+        <div class="ht-text">Sản phẩm ứng dụng AI được khuyến khích bởi <strong>Bộ Khoa học & Công nghệ</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LỘ TRÌNH ===== -->
+  <section id="lotrinh">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Lộ trình 5 bước</span>
+        <h2>Thi đạt chứng chỉ, <span class="gradient-text">tự tin nghe — đọc</span> trong công việc</h2>
+        <p>Chỉ 30 phút/ngày · Linh hoạt lịch học — phù hợp với người đi làm bận rộn.</p>
+      </div>
+
+      <div class="roadmap-grid">
+        <div class="step-card reveal">
+          <div class="step-num">1</div>
+          <h4>Củng cố nền tảng</h4>
+          <ul>
+            <li>7 điểm ngữ pháp căn bản</li>
+            <li>315 từ vựng cuộc sống</li>
+          </ul>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-num">2</div>
+          <h4>Mở rộng kiến thức</h4>
+          <ul>
+            <li>9 điểm ngữ pháp trung cấp</li>
+            <li>240 từ vựng công sở cơ bản</li>
+          </ul>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-num">3</div>
+          <h4>Làm quen dạng bài</h4>
+          <ul>
+            <li>9 dạng Listening, 8 dạng Reading (gặp trong 5 năm gần đây)</li>
+          </ul>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-num">4</div>
+          <h4>Đào sâu kiến thức</h4>
+          <ul>
+            <li>360 từ vựng công sở chuyên sâu</li>
+            <li>Kỹ năng & mẹo làm bài nhanh</li>
+          </ul>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-num">5</div>
+          <h4>Thực chiến đề thi</h4>
+          <ul>
+            <li>Thi thử như thật</li>
+            <li>Chấm điểm chi tiết</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="roadmap-meta reveal">
+        <div class="meta-card">
+          <div class="meta-head">
+            <div class="meta-ico">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+            </div>
+            <h3>Hơn <span class="gradient-text">350+ doanh nghiệp lớn</span> yêu cầu TOEIC</h3>
+          </div>
+          <p>TOEIC là điều kiện đầu vào và xét lương tại các tập đoàn hàng đầu Việt Nam.</p>
+          <div class="logo-grid">
+            <div class="logo-box"><svg width="70" height="22" viewBox="0 0 100 30"><text x="50" y="22" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="20" font-style="italic" fill="#ED1C24" letter-spacing="-1">viettel</text></svg></div>
+            <div class="logo-box"><svg width="55" height="22" viewBox="0 0 100 30"><text x="50" y="22" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="22" fill="#006FBA" letter-spacing="1">CMC</text></svg></div>
+            <div class="logo-box"><svg width="55" height="24" viewBox="0 0 100 30"><text x="22" y="24" font-family="Arial,sans-serif" font-weight="900" font-size="24" fill="#1E5BB8">F</text><text x="42" y="24" font-family="Arial,sans-serif" font-weight="900" font-size="24" fill="#ED7E26">P</text><text x="62" y="24" font-family="Arial,sans-serif" font-weight="900" font-size="24" fill="#5BA943">T</text></svg></div>
+            <div class="logo-box"><svg width="100" height="20" viewBox="0 0 130 28"><circle cx="10" cy="14" r="8" fill="#E30613"/><text x="24" y="20" font-family="Arial,sans-serif" font-weight="900" font-size="16" fill="#E30613">Techcombank</text></svg></div>
+            <div class="logo-box"><svg width="100" height="20" viewBox="0 0 130 28"><rect x="2" y="6" width="16" height="16" rx="2" fill="#007F3E"/><text x="24" y="20" font-family="Arial,sans-serif" font-weight="900" font-size="16" fill="#007F3E">Vietcombank</text></svg></div>
+            <div class="logo-box"><svg width="90" height="20" viewBox="0 0 130 28"><text x="65" y="22" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="22" fill="#00563F" letter-spacing="-.5">VPBank</text></svg></div>
+          </div>
+        </div>
+
+        <div class="meta-card">
+          <div class="meta-head">
+            <div class="meta-ico">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <h3>Có TOEIC = lương cao hơn <span class="gradient-text">9 – 20 triệu</span></h3>
+          </div>
+          <p>Trong các ngành IT, Tài chính, Logistics, Xuất nhập khẩu…</p>
+          <div class="salary-grid">
+            <div class="salary-box"><div class="industry">IT</div><div class="amount"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>+12 triệu</div></div>
+            <div class="salary-box"><div class="industry">Tài chính</div><div class="amount"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>+15 triệu</div></div>
+            <div class="salary-box"><div class="industry">Logistics</div><div class="amount"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>+9 triệu</div></div>
+            <div class="salary-box"><div class="industry">Xuất nhập khẩu</div><div class="amount"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>+20 triệu</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== AI SECTION ===== -->
+  <section id="ai">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Phòng luyện cùng AI</span>
+        <h2>Thi online tại nhà với <span class="gradient-text">"Phòng luyện thi cùng AI"</span> — bất cứ lúc nào</h2>
+      </div>
+
+      <div class="ai-wrap">
+        <div class="ai-col left">
+          <div class="ai-point reveal">
+            <h4>CHÍNH XÁC <span class="ai-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span></h4>
+            <p>Trả điểm tức thì, sát điểm thật</p>
+          </div>
+          <div class="ai-point reveal">
+            <h4>CẢI THIỆN ĐIỂM SỐ <span class="ai-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span></h4>
+            <p>Sai ở đâu — sửa ngay ở đó</p>
+          </div>
+          <div class="ai-point reveal">
+            <h4>VỮNG TÂM LÝ <span class="ai-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></h4>
+            <p>Giao diện phòng thi thử như thi thật</p>
+          </div>
+        </div>
+
+        <div class="phone-mockup reveal">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="ps-lbl">Điểm Mock Test #047</div>
+              <div class="ps-big">785</div>
+              <div class="ps-sm">/ 990 TOEIC LR</div>
+              <div class="ps-bars">
+                <div class="ps-row"><span>Part 5 — Grammar</span><span class="ps-val">85%</span></div>
+                <div class="ps-bar"><i style="width:85%"></i></div>
+                <div class="ps-row" style="margin-top:6px"><span>Part 7 — Reading</span><span class="ps-val">72%</span></div>
+                <div class="ps-bar"><i style="width:72%"></i></div>
+                <div class="ps-row" style="margin-top:6px"><span>Part 3 — Listening</span><span class="ps-val">79%</span></div>
+                <div class="ps-bar"><i style="width:79%"></i></div>
+                <div class="ps-row" style="margin-top:6px"><span>Part 2 — Q&amp;A</span><span class="ps-val">88%</span></div>
+                <div class="ps-bar"><i style="width:88%"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-col right">
+          <div class="ai-point reveal">
+            <h4><span class="ai-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span> THÀNH THẠO</h4>
+            <p>Yếu Part nào — luyện Part đó</p>
+          </div>
+          <div class="ai-point reveal">
+            <h4><span class="ai-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span> 118 ĐỀ THI</h4>
+            <p>Chuẩn cấu trúc mới nhất</p>
+          </div>
+          <div class="ai-point reveal">
+            <h4><span class="ai-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> 24/7</h4>
+            <p>Thi thử Online bất cứ lúc nào ngay tại nhà</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CAM KẾT ===== -->
+  <section id="camket">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Cam kết đầu ra</span>
+      </div>
+      <div class="commit-card reveal">
+        <div class="commit-left">
+          <h2>Cam kết chắc chắn đạt<br><span class="gradient-text">800+ TOEIC</span> chỉ sau 1 lộ trình</h2>
+          <p class="lead"><strong>Tự tin nghe — đọc hiểu</strong> các <strong style="color:var(--primary)">văn bản, giấy tờ, hội họp</strong> nơi công sở.</p>
+        </div>
+        <div class="commit-right">
+          <div class="commit-feature">
+            <div class="cf-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
+            <div class="cf-text"><strong>Hoàn tiền 100%</strong><span>Nếu không đạt mục tiêu</span></div>
+          </div>
+          <div class="commit-feature">
+            <div class="cf-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></div>
+            <div class="cf-text"><strong>Tư vấn 1-1</strong><span>Giảng viên trực tiếp</span></div>
+          </div>
+          <div class="commit-feature">
+            <div class="cf-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="cf-text"><strong>Hỗ trợ 24/7</strong><span>Đội ngũ chuyên môn Prep</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HVĐC ===== -->
+  <section id="hvdc">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Học viên đã chinh phục</span>
+        <h2><span class="gradient-text">1000+ người đi làm</span> đạt 800+ TOEIC<br>sau 1 lộ trình học tại Prep</h2>
+      </div>
+
+      <div class="testi-grid">
+        <article class="testi-card reveal">
+          <div class="testi-head">
+            <div class="testi-avatar">MH</div>
+            <div class="testi-meta"><h4>Minh Hằng, 27</h4><div class="role">Marketing — FMCG</div></div>
+          </div>
+          <div class="testi-score"><div><div class="ts-lbl">TOEIC đạt được</div><div class="ts-val">850</div></div></div>
+          <div class="testi-progress"><span>Đầu vào: <strong>425</strong></span><span>Thời gian: <strong>4 tháng</strong></span></div>
+          <p class="testi-fb">"Mình đi làm 8 tiếng/ngày, chỉ học được tối. Lộ trình Prep hợp lý, App AI chấm điểm cho biết yếu Part nào. +425 điểm sau 4 tháng!"</p>
+        </article>
+        <article class="testi-card reveal">
+          <div class="testi-head">
+            <div class="testi-avatar">TA</div>
+            <div class="testi-meta"><h4>Tuấn Anh, 25</h4><div class="role">IT Support — FPT</div></div>
+          </div>
+          <div class="testi-score"><div><div class="ts-lbl">TOEIC đạt được</div><div class="ts-val">895</div></div></div>
+          <div class="testi-progress"><span>Đầu vào: <strong>510</strong></span><span>Thời gian: <strong>3 tháng</strong></span></div>
+          <p class="testi-fb">"App của Prep có AI chấm sát điểm thật. Mình biết yếu Part 3, 4 nên luyện riêng đến khi vững. 895 điểm vào lần thi thứ 2!"</p>
+        </article>
+        <article class="testi-card reveal">
+          <div class="testi-head">
+            <div class="testi-avatar">DM</div>
+            <div class="testi-meta"><h4>Đức Minh, 24</h4><div class="role">Logistics — Gemadept</div></div>
+          </div>
+          <div class="testi-score"><div><div class="ts-lbl">TOEIC đạt được</div><div class="ts-val">820</div></div></div>
+          <div class="testi-progress"><span>Đầu vào: <strong>385</strong></span><span>Thời gian: <strong>5 tháng</strong></span></div>
+          <p class="testi-fb">"Mình con nhỏ, chỉ học khuya. Prep có thể học bất cứ lúc nào trên app, mọi từ vựng đều flashcard hoá. Hài lòng tuyệt đối với 820!"</p>
+        </article>
+        <article class="testi-card reveal">
+          <div class="testi-head">
+            <div class="testi-avatar">NQ</div>
+            <div class="testi-meta"><h4>Ngọc Quỳnh, 29</h4><div class="role">Tài chính — Vietcombank</div></div>
+          </div>
+          <div class="testi-score"><div><div class="ts-lbl">TOEIC đạt được</div><div class="ts-val">875</div></div></div>
+          <div class="testi-progress"><span>Đầu vào: <strong>450</strong></span><span>Thời gian: <strong>4 tháng</strong></span></div>
+          <p class="testi-fb">"Cần TOEIC để xét lương. Prep tư vấn lộ trình theo deadline của mình. Sau 4 tháng đạt 875 — vượt yêu cầu 75 điểm. Cảm ơn Prep!"</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FORM SECTION ===== -->
+  <section class="form-section" id="form">
+    <div class="section-header reveal">
+      <span class="section-tag">Đăng ký</span>
+      <h2>Nhận <span class="gradient-text">tư vấn lộ trình</span> miễn phí</h2>
+      <p>Điền thông tin, Prep liên hệ trong 15 phút.</p>
+    </div>
+
+    <div class="form-wrapper reveal">
+      <div class="form-container">
+        <div class="form-ribbon">
+          <div class="rb-line1">🔥 DUY NHẤT THÁNG NÀY</div>
+          <div class="rb-line2">ĐĂNG KÝ 1 LẦN, SỞ HỮU TRỌN ĐỜI</div>
+        </div>
+        <div class="form-title">
+          <h3>Thông tin đăng ký</h3>
+          <p>Vui lòng điền đầy đủ thông tin bên dưới.</p>
+        </div>
+        <form novalidate>
+          <div class="form-group">
+            <label for="fullname">Họ và tên *</label>
+            <input type="text" id="fullname" placeholder="Nguyễn Văn A" required>
+          </div>
+          <div class="form-group">
+            <label for="phone">Số điện thoại *</label>
+            <input type="tel" id="phone" placeholder="0912 345 678" required>
+          </div>
+          <div class="form-group">
+            <label for="year">Năm sinh</label>
+            <input type="number" id="year" placeholder="1998" min="1960" max="2010">
+          </div>
+          <div class="form-group">
+            <label for="goal">Mục tiêu TOEIC *</label>
+            <select id="goal" required>
+              <option value="">— Chọn mục tiêu —</option>
+              <option>600+ TOEIC</option>
+              <option>700+ TOEIC</option>
+              <option>800+ TOEIC</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="slot">Hẹn giờ tư vấn</label>
+            <select id="slot">
+              <option>Sáng (8h - 12h)</option>
+              <option>Chiều (13h - 17h)</option>
+              <option>Tối (18h - 21h)</option>
+            </select>
+          </div>
+          <button type="submit" class="form-submit">ĐĂNG KÝ NGAY
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+          <p class="form-foot">Thông tin được bảo mật theo chính sách Prep</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer>
+    <div class="footer-logo"><span class="logo-mark">P</span>Prep</div>
+    <p class="footer-desc">Học tiếng Anh hiệu quả cho người đi làm</p>
+    <div class="footer-links">
+      <a href="#">Chính sách bảo mật</a>
+      <a href="#">Điều khoản dịch vụ</a>
+      <a href="#">Hotline: 1900 0000</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 Prep Education. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // Theme toggle
+    function initTheme(){var s=localStorage.getItem('theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',s||(d?'dark':'light'));}
+    initTheme();
+    document.getElementById('themeToggle').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');var n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('theme',n);});
+
+    // Header scroll
+    var header=document.getElementById('header');
+    window.addEventListener('scroll',function(){header.classList.toggle('scrolled',window.scrollY>50);});
+
+    // Reveal animations
+    var ro=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('active');});},{threshold:.1,rootMargin:'0px 0px -80px 0px'});
+    document.querySelectorAll('.reveal').forEach(function(el){ro.observe(el);});
+
+    // Mobile menu
+    var menuToggle=document.getElementById('menuToggle');
+    var mobileNav=document.getElementById('mobileNav');
+    var mobileOverlay=document.getElementById('mobileOverlay');
+    var mobileNavClose=document.getElementById('mobileNavClose');
+    function openMenu(){mobileNav.classList.add('open');mobileOverlay.classList.add('open');document.body.style.overflow='hidden';}
+    function closeMenu(){mobileNav.classList.remove('open');mobileOverlay.classList.remove('open');document.body.style.overflow='';}
+    menuToggle.addEventListener('click',openMenu);
+    mobileNavClose.addEventListener('click',closeMenu);
+    mobileOverlay.addEventListener('click',closeMenu);
+    mobileNav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',closeMenu);});
+  </script>
+
+</body>
+</html>

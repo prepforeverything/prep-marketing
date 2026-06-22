@@ -288,6 +288,10 @@
     {
       "id": "mkt-eval-calibrate",
       "path": ".prepkit/packs/marketing/commands/mkt-eval-calibrate.md"
+    },
+    {
+      "id": "mkt-toeic-adops",
+      "path": ".prepkit/packs/marketing/commands/mkt-toeic-adops.md"
     }
   ],
   "workflows": [
