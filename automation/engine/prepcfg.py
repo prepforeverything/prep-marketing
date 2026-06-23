@@ -43,8 +43,10 @@ class Config:
         if not self.path.exists():
             raise SystemExit(f"Không thấy config sản phẩm: {self.path}")
         self.d = json.loads(self.path.read_text(encoding="utf-8"))
-        self.work = self.path.parent / ".work"
+        self.work = self.path.parent / ".work"     # tạm (gitignored): meta_spend.json, summary
         self.work.mkdir(exist_ok=True)
+        self.state = self.path.parent / "state"    # BỀN VỮNG (commit vào git): cờ "đã gửi"
+        self.state.mkdir(exist_ok=True)
         self.reports = REPO_ROOT / "reports"
 
     def __getitem__(self, k):
@@ -66,7 +68,7 @@ class Config:
         return self.work / ".summary.json"
 
     def flag(self, target):
-        return self.work / f".sent-{target}.flag"
+        return self.state / f"sent-{target}.flag"
 
     def report_html(self, date):
         return self.reports / f"{self.product}-adops-3ngay-{date}.html"

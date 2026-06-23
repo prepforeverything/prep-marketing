@@ -1,0 +1,2 @@
+# Thư mục cờ "đã gửi báo cáo" (sent-<ngày>.flag) — commit vào git để chống gửi trùng bền vững.
+# Mỗi lần chạy đọc cờ mới nhất từ main; có cờ của ngày mục tiêu → SKIP (không gửi lại).
