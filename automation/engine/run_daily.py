@@ -82,6 +82,8 @@ def run_report(cfg, target):
     if subprocess.run([PY, str(ENGINE / "build_meta.py")], env=env).returncode != 0:
         return fail(cfg, "build_meta.py (Meta Graph API) thất bại sau nhiều lần thử lại — kiểm tra mạng/Graph API hoặc META_ACCESS_TOKEN")
     env2 = {**env, "ADOPS_SUMMARY_JSON": str(cfg.summary_json)}
+    if not DRY:  # lưu baseline (đề xuất + ngân sách/ad sáng) để đối soát cuối ngày
+        env2["ADOPS_BASELINE_JSON"] = str(cfg.state / f"baseline-{target.isoformat()}.json")
     if subprocess.run([PY, str(ENGINE / "adops.py"), str(meta_json), str(html)], env=env2).returncode != 0:
         return fail(cfg, "adops.py thất bại")
     chrome = os.environ.get("CHROME_BIN", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
