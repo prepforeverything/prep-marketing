@@ -25,8 +25,10 @@ def http_get(url, timeout=60, retries=4):
         try:
             req = url if isinstance(url, urllib.request.Request) else urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             return urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "replace")
-        except urllib.error.HTTPError:
-            raise
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504) and attempt < retries - 1:
+                last = e; time.sleep(5 * (attempt + 1)); continue  # rate-limit / lỗi server tạm → thử lại
+            raise  # 400/401/403/404 = lỗi thật → nổi lên ngay
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
             last = e
             if attempt < retries - 1:
@@ -57,11 +59,11 @@ class Graph:
         url = f"https://graph.facebook.com/{ver}/{path}?" + urllib.parse.urlencode(p)
         return json.loads(http_get(url, timeout=90))
 
-    def pick_version(self, probe_acct):
+    def pick_version(self, probe_acct, preset="last_3d"):
         last = None
         for v in self.versions:
             try:
-                self._get(v, f"act_{probe_acct}/insights", {"date_preset": "last_3d", "fields": "spend"})
+                self._get(v, f"act_{probe_acct}/insights", {"date_preset": preset, "fields": "spend"})
                 self.ver = v
                 return v
             except urllib.error.HTTPError as e:
@@ -85,27 +87,87 @@ def vnd_budget(s):
     return int(d) if d else None
 
 
-def build_account(g, acct_id):
+def live_rate_to_vnd(cur):
+    """Tỷ giá 1 <cur> = ? VND lấy live từ API công khai (open.er-api.com, free, không cần key).
+    None nếu lỗi (gọi sẽ fallback về config). Read-only."""
+    if cur == "VND":
+        return 1.0
+    try:
+        data = json.loads(http_get(f"https://open.er-api.com/v6/latest/{urllib.parse.quote(cur)}", timeout=20))
+        v = data.get("rates", {}).get("VND")
+        return float(v) if v else None
+    except Exception:  # noqa: BLE001 — tỷ giá không lấy được thì fallback, không làm hỏng cả run
+        return None
+
+
+def fetch_spend(g, acct_id, preset, join="code", objectives=None, name_include=None, with_meta=False):
+    """Spend theo khoá cho MỘT cửa sổ (date_preset), ad-level, KHÔNG lọc trạng thái.
+    join='code' → khoá = mã content (tiền tố tên ad, kiểu TOEIC). join='ad_id' → khoá = ad_id (kiểu IELTS Thái).
+    Lọc kênh (chọn 1): objectives = danh sách objective cho phép; name_include = chuỗi phải có trong TÊN campaign.
+    with_meta=True → kèm adset_name/campaign_name (để gộp theo Nhóm QC). Trả: (spend_by_code, names, window, ad_meta)."""
+    extra = (["objective"] if objectives else []) + (["campaign_name"] if (name_include or with_meta) else []) + (["adset_name"] if with_meta else [])
+    fields = "ad_id,ad_name,spend" + (("," + ",".join(sorted(set(extra)))) if extra else "")
     ads_ins = g.page(f"act_{acct_id}/insights",
-                     {"level": "ad", "date_preset": "last_3d", "fields": "ad_id,ad_name,spend", "limit": "500"})
+                     {"level": "ad", "date_preset": preset, "fields": fields, "limit": "500"})
     spend_by_code = defaultdict(int)
     names = {}
+    ad_meta = {}
     window = None
+    nlow = name_include.lower() if name_include else None
     for r in ads_ins:
-        code, name = parse_name(r.get("ad_name"))
-        if not code:
+        if objectives and r.get("objective") not in objectives:
             continue
-        spend_by_code[code] += int(round(float(r.get("spend", 0) or 0)))
-        if name and code not in names:
-            names[code] = name
+        if nlow and nlow not in (r.get("campaign_name") or "").lower():
+            continue
+        if join == "ad_id":
+            key = norm(r.get("ad_id") or ""); name = (r.get("ad_name") or "").strip()
+        else:
+            key, name = parse_name(r.get("ad_name"))
+        if not key:
+            continue
+        spend_by_code[key] += int(round(float(r.get("spend", 0) or 0)))
+        if name and key not in names:
+            names[key] = name
+        if with_meta and key not in ad_meta:
+            ad_meta[key] = {"adset": (r.get("adset_name") or "").strip(), "camp": (r.get("campaign_name") or "").strip()}
         if not window and r.get("date_start"):
             window = (r["date_start"], r["date_stop"])
+    return spend_by_code, names, window, ad_meta
+
+
+def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rate=1, cbo_budget=False, join="code", objectives=None, name_include=None, short_preset=None, with_meta=False):
+    """rate = tỷ giá quy về VND (1 nếu tài khoản đã VND; vd 799 cho THB). Áp cho spend + mọi ngân sách.
+    cbo_budget = có lấy ngân sách cấp campaign cho ad set CBO không (chỉ bật cho sản phẩm khai report.cbo_campaign_budget).
+    join = 'code' (mã content, TOEIC) | 'ad_id' (ad_id, IELTS Thái) — khoá gộp spend + map ad↔adset.
+    objectives / name_include = lọc kênh (vd Inbox: name_include='Inbox' → bỏ camp 'Conversion').
+    short_preset = cửa sổ ngắn (vd last_1d) → spend_by_code_1d. with_meta=True → kèm ad_meta (adset/camp) để gộp Nhóm QC."""
+    def conv(d):
+        return {k: int(round(v * rate)) for k, v in d.items()} if rate != 1 else dict(d)
+    spend_by_code, names, window, ad_meta = fetch_spend(g, acct_id, primary_preset, join, objectives, name_include, with_meta)
+    spend_by_code = defaultdict(int, conv(spend_by_code))
+
+    # Cửa sổ xác nhận (vd 7 ngày) — chỉ khi sản phẩm bật report.confirm_days.
+    spend_by_code_7d = window_7d = None
+    if confirm_preset:
+        sbc7, names7, window_7d, _ = fetch_spend(g, acct_id, confirm_preset, join, objectives, name_include)
+        spend_by_code_7d = dict(sorted(conv(sbc7).items(), key=lambda kv: -kv[1]))
+        for c, n in names7.items():
+            names.setdefault(c, n)
+
+    # Cửa sổ ngắn (vd 1 ngày) — cho báo cáo 1/3/7 ngày.
+    spend_by_code_1d = None
+    if short_preset:
+        sbc1, _, _, _ = fetch_spend(g, acct_id, short_preset, join, objectives, name_include)
+        spend_by_code_1d = dict(conv(sbc1))
 
     adsets = g.page(f"act_{acct_id}/adsets",
                     {"fields": "id,name,daily_budget,effective_status,campaign_id",
                      "filtering": json.dumps([{"field": "effective_status", "operator": "IN", "value": ["ACTIVE"]}]),
                      "limit": "500"})
     budget_of = {a["id"]: vnd_budget(a.get("daily_budget")) for a in adsets}
+    if rate != 1:
+        budget_of = {k: (int(round(v * rate)) if v is not None else None) for k, v in budget_of.items()}
+    campaign_of = {a["id"]: a.get("campaign_id") for a in adsets}
     active_adset_ids = set(budget_of)
 
     ads_active = g.page(f"act_{acct_id}/ads",
@@ -115,7 +177,10 @@ def build_account(g, acct_id):
     adset_rows = {}
     ghost_ids = set()
     for ad in ads_active:
-        code, name = parse_name(ad.get("name"))
+        if join == "ad_id":
+            code = norm(ad.get("id") or ""); name = (ad.get("name") or "").strip()
+        else:
+            code, name = parse_name(ad.get("name"))
         if name and code and code not in names:
             names[code] = name
         aset = ad.get("adset_id")
@@ -127,6 +192,16 @@ def build_account(g, acct_id):
         else:
             ghost_ids.add(aset)
 
+    # Ngân sách cấp campaign cho ad set CBO (daily_budget rỗng = ngân sách đặt ở campaign).
+    cbo_campaign_ids = {campaign_of.get(aid) for aid, row in adset_rows.items()
+                        if row["budget"] is None and campaign_of.get(aid)} if cbo_budget else set()
+    camp_budget = {}
+    if cbo_campaign_ids:
+        camps = g.page(f"act_{acct_id}/campaigns", {"fields": "id,daily_budget", "limit": "500"})
+        camp_budget = {c["id"]: vnd_budget(c.get("daily_budget")) for c in camps if c.get("daily_budget")}
+        if rate != 1:
+            camp_budget = {k: int(round(v * rate)) for k, v in camp_budget.items()}
+
     out_adsets = []
     for aid, row in adset_rows.items():
         codes = [c for c in row["codes"] if c in spend_by_code]
@@ -135,6 +210,10 @@ def build_account(g, acct_id):
         entry = {"id": aid, "budget": row["budget"] or 0, "codes": sorted(codes), "ads": row["ads"]}
         if row["budget"] is None:
             entry["cbo"] = True
+            cid = campaign_of.get(aid)
+            if cid and camp_budget.get(cid):
+                entry["campaign_id"] = cid
+                entry["campaign_budget"] = camp_budget[cid]
         out_adsets.append(entry)
     out_adsets.sort(key=lambda e: -(e["budget"] or 0))
 
@@ -144,56 +223,156 @@ def build_account(g, acct_id):
     acc = {"acct_id": acct_id,
            "spend_by_code": dict(sorted(spend_by_code.items(), key=lambda kv: -kv[1])),
            "names": names, "adsets": out_adsets}
+    if spend_by_code_7d is not None:
+        acc["spend_by_code_7d"] = spend_by_code_7d
+    if spend_by_code_1d is not None:
+        acc["spend_by_code_1d"] = spend_by_code_1d
+    if ad_meta:
+        acc["ad_meta"] = ad_meta
     if ghost_ids:
         acc["ghost_adsets"] = {"note": "Ad set bật nhưng creative đã tắt (0 chi trong cửa sổ) — mục rà soát.",
                                "ids": sorted(ghost_ids)}
     if no_adset:
         acc["note"] = "Mã có chi 3 ngày nhưng creative đã tắt → không còn ad set đang chạy để thao tác: " + ", ".join(no_adset) + "."
-    return acc, window
+    return acc, window, window_7d
 
 
 def main():
     cfg = prepcfg.load()
-    args = [a for a in sys.argv[1:] if not a.startswith("--product")]
+    # bỏ qua --product VÀ giá trị của nó (dạng "--product x" cách nhau) — kẻo nuốt nhầm thành out_path
+    args, _skip = [], False
+    for a in sys.argv[1:]:
+        if _skip:
+            _skip = False; continue
+        if a == "--product":
+            _skip = True; continue
+        if a.startswith("--product="):
+            continue
+        args.append(a)
     check = "--check" in args
     args = [a for a in args if a != "--check"]
     out_path = args[0] if args else str(cfg.meta_json)
 
-    token = os.environ.get("META_ACCESS_TOKEN", "").strip()
-    if not token:
+    default_token = os.environ.get("META_ACCESS_TOKEN", "").strip()
+    if not default_token:
         print("LỖI: thiếu META_ACCESS_TOKEN trong .env.", file=sys.stderr)
         return 2
     accounts = cfg["meta"]["accounts"]
     versions = cfg["meta"].get("api_versions", ["v23.0", "v22.0", "v21.0", "v20.0"])
+    account_tokens = cfg["meta"].get("account_tokens", {})  # {tên TK: tên biến env chứa token riêng (BM khác)}
+    rep = cfg.get("report", {}) or {}
+    primary_preset = f"last_{rep.get('primary_days', 3)}d"
+    confirm_preset = f"last_{rep['confirm_days']}d" if rep.get("confirm_days") else None
+    _sd = rep.get("short_days")  # Meta KHÔNG có 'last_1d' → 1 ngày dùng 'yesterday'
+    short_preset = ("yesterday" if _sd == 1 else f"last_{_sd}d") if _sd else None
+    cbo_budget = bool(rep.get("cbo_campaign_budget"))     # lấy ngân sách CBO cấp campaign (opt-in/sản phẩm)
+    join = (cfg.get("lead_sheet") or {}).get("join", "code")  # 'code' (TOEIC) | 'ad_id' (IELTS Thái)
+    objectives = cfg["meta"].get("objectives")            # vd ["OUTCOME_ENGAGEMENT","OUTCOME_LEADS"] (lọc theo objective)
+    name_include = cfg["meta"].get("campaign_name_include")  # vd "Inbox" → chỉ camp có 'Inbox' trong tên (rule team Thái)
+    rates_cfg = cfg["meta"].get("currency_to_vnd", {})    # có = sản phẩm đa tiền tệ → mới dò currency + quy đổi
 
-    g = Graph(token, versions)
-    ver = g.pick_version(next(iter(accounts.values())))
+    rate_cache = {}
+    def resolve_rate(cur, name, acct):
+        """Ưu tiên tỷ giá LIVE; fallback config nếu API lỗi; lỗi rõ nếu không có cả hai."""
+        if cur == "VND":
+            return 1, "VND"
+        if cur in rate_cache:
+            return rate_cache[cur]
+        if rates_cfg.get(cur):                 # tỷ giá TEAM khai (vd THB=850) — ưu tiên để khớp sheet team
+            res = (rates_cfg[cur], "config (tỷ giá team)")
+        elif live_rate_to_vnd(cur):            # không khai → lấy live
+            res = (live_rate_to_vnd(cur), "live")
+        else:
+            raise SystemExit(f"Tài khoản {name} ({acct}) bill {cur} nhưng KHÔNG lấy được tỷ giá live và "
+                             f"thiếu meta.currency_to_vnd[{cur}] dự phòng.")
+        rate_cache[cur] = res
+        return res
+
+    def token_for(name):
+        return os.environ.get(account_tokens[name], "").strip() if name in account_tokens else default_token
+
+    # Chọn version 1 lần bằng token của tài khoản ĐẦU (token nào cũng dùng chung version đó).
+    first_name, first_acct = next(iter(accounts.items()))
+    g = Graph(token_for(first_name) or default_token, versions)
+    ver = g.pick_version(first_acct, primary_preset)
+    graphs = {g.token: g}
+
+    def graph_for(tok):
+        if tok not in graphs:
+            gg = Graph(tok, versions); gg.ver = ver; graphs[tok] = gg
+        return graphs[tok]
+
     out_accounts = {}
-    window = None
+    errors = {}
+    window = window_7d = None
     for name, acct in accounts.items():
-        acc, win = build_account(g, acct)
+        tok = token_for(name)
+        if not tok:
+            errors[name] = f"thiếu token env {account_tokens.get(name)}"
+            print(f"  {name} ({acct}): ⚠️ thiếu token (biến env {account_tokens.get(name)} chưa đặt trong .env). BỎ QUA.")
+            continue
+        ga = graph_for(tok)
+        cur = "VND"
+        if rates_cfg:  # chỉ dò tiền tệ cho sản phẩm đa tiền tệ — TOEIC (VND thuần) không phát sinh call này
+            try:
+                cur = (ga._get(ver, f"act_{acct}", {"fields": "currency"}) or {}).get("currency", "VND")
+            except urllib.error.HTTPError as e:
+                errors[name] = f"HTTP {e.code}"
+                print(f"  {name} ({acct}): ⚠️ KHÔNG truy cập được (HTTP {e.code}) — token thiếu ads_read cho BM của tài khoản này. BỎ QUA.")
+                continue
+        rate, rate_src = resolve_rate(cur, name, acct)
+        try:
+            acc, win, win7 = build_account(ga, acct, primary_preset, confirm_preset, rate, cbo_budget, join, objectives, name_include, short_preset, with_meta=(join == "ad_id"))
+            if name_include:  # đối chiếu tổng campaign có tên chứa name_include
+                chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "campaign_name,spend"})
+                acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if name_include.lower() in (c.get("campaign_name") or "").lower()) * rate))
+            elif objectives:  # đối chiếu theo tổng campaign đã lọc objective
+                chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "objective,spend"})
+                acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if c.get("objective") in objectives) * rate))
+            else:
+                chk = ga.page(f"act_{acct}/insights", {"date_preset": primary_preset, "fields": "spend"})
+                acct_tot = int(round(float(chk[0]["spend"]) * rate)) if chk else 0
+        except urllib.error.HTTPError as e:
+            errors[name] = f"HTTP {e.code}"
+            print(f"  {name} ({acct}): ⚠️ KHÔNG kéo được dữ liệu (HTTP {e.code}). BỎ QUA.")
+            continue
+        if rate != 1:
+            acc["currency"] = cur
+            acc["rate_to_vnd"] = round(rate, 2)
+            acc["rate_source"] = rate_src
         window = window or win
+        window_7d = window_7d or win7
         out_accounts[name] = acc
         tot = sum(acc["spend_by_code"].values())
-        chk = g.page(f"act_{acct}/insights", {"date_preset": "last_3d", "fields": "spend"})
-        acct_tot = int(round(float(chk[0]["spend"]))) if chk else 0
         flag = "" if acct_tot == 0 or abs(tot - acct_tot) / acct_tot <= 0.01 else "  ⚠️ LỆCH >1%"
-        print(f"  {name}: Σ spend_by_code={tot:,} vs account={acct_tot:,}{flag} · {len(acc['spend_by_code'])} mã · {len(acc['adsets'])} ad set ACTIVE")
+        cur_lbl = f" · {cur}→VND ×{rate:.2f} ({rate_src})" if rate != 1 else ""
+        print(f"  {name}: Σ spend_by_code={tot:,} vs account={acct_tot:,}{flag} · {len(acc['spend_by_code'])} mã · {len(acc['adsets'])} ad set ACTIVE{cur_lbl}")
 
-    win_dates = []
-    if window:
-        d0 = datetime.date.fromisoformat(window[0]); d1 = datetime.date.fromisoformat(window[1])
-        win_dates = [(d0 + datetime.timedelta(days=i)).isoformat() for i in range((d1 - d0).days + 1)]
+    if not out_accounts:
+        raise SystemExit("Không truy cập được tài khoản nào — kiểm tra quyền token (ads_read) cho các BM.")
+
+    def expand(win):
+        if not win:
+            return []
+        d0 = datetime.date.fromisoformat(win[0]); d1 = datetime.date.fromisoformat(win[1])
+        return [(d0 + datetime.timedelta(days=i)).isoformat() for i in range((d1 - d0).days + 1)]
+    win_dates = expand(window)
+    win7_dates = expand(window_7d)
     anchor = (datetime.date.fromisoformat(win_dates[-1]) + datetime.timedelta(days=1)).isoformat() if win_dates else None
     doc = {"anchor": anchor, "window": win_dates,
            "note": f"Dựng tự động bằng build_meta.py (Graph API {ver}, ad-level KHÔNG lọc trạng thái).",
            "accounts": out_accounts}
+    if win7_dates:
+        doc["window_7d"] = win7_dates
+    if errors:
+        doc["account_errors"] = errors
+        print(f"\n⚠️ {len(errors)} tài khoản KHÔNG truy cập được: " + ", ".join(f"{k} ({v})" for k, v in errors.items()) + " — cấp ads_read cho token rồi chạy lại.")
 
     if check:
-        print(f"\n[--check] cửa sổ {win_dates} — KHÔNG ghi file.")
+        print(f"\n[--check] cửa sổ {win_dates}" + (f" · xác nhận {win7_dates}" if win7_dates else "") + " — KHÔNG ghi file.")
     else:
         open(out_path, "w", encoding="utf-8").write(json.dumps(doc, ensure_ascii=False, indent=2))
-        print(f"\n✓ Đã ghi {out_path} — cửa sổ {win_dates[0]}→{win_dates[-1]}")
+        print(f"\n✓ Đã ghi {out_path} — cửa sổ {win_dates[0]}→{win_dates[-1]}" + (f" (+xác nhận {win7_dates[0]}→{win7_dates[-1]})" if win7_dates else ""))
     return 0
 
 

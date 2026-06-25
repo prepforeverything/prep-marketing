@@ -15,6 +15,7 @@ import csv, io, re, sys, json, time, socket, urllib.request, urllib.parse, urlli
 from collections import defaultdict
 
 import prepcfg
+import adops_rules as R
 
 PCFG = prepcfg.load()
 KPI_ID = PCFG["kpi_sheet"]["id"]
@@ -23,10 +24,13 @@ KPI_LINE = PCFG["kpi_sheet"]["line"]
 KPI_CHANNEL = PCFG["kpi_sheet"]["channel"]
 LEAD_ID = PCFG["lead_sheet"]["id"]
 PHONE_TAB = PCFG["lead_sheet"]["phone_tab"]
-CONTENT_TAB = PCFG["lead_sheet"]["content_tab"]
+CONTENT_TAB = PCFG["lead_sheet"].get("content_tab")   # tuỳ chọn — không có thì bỏ phần MTD
 LC = PCFG["lead_sheet"]                 # chỉ số cột tab lead
+JOIN = LC.get("join", "code")          # 'code' (TOEIC) | 'ad_id' (IELTS Thái: nối lead↔spend theo ad_id)
 ACCOUNTS = PCFG["meta"]["accounts"]     # tên tài khoản (khớp chuỗi con trong cột Account)
 MIN_LEADS = PCFG.get("min_leads", 3)
+RULES = PCFG.get("rules", {}) or {}     # luật tùy chọn theo sản phẩm (0-lead 2 ngưỡng, CR…)
+THR_INLINE = PCFG["kpi_sheet"].get("thresholds")  # nhúng ngưỡng vùng (sản phẩm không có bảng PHẦN 2 chuẩn)
 
 # Tham số dòng lệnh (bỏ qua --product do prepcfg xử lý): [meta_spend.json] [out.html]
 _posargs, _skip = [], False
@@ -45,6 +49,13 @@ WINDOW = cfg["window"]
 DAYS = len(WINDOW)
 wset = {frozenset((int(d[5:7]), int(d[8:10]))) for d in WINDOW}
 wyear = int(WINDOW[0][:4])
+
+# Cửa sổ xác nhận (vd 7 ngày) — chỉ bật khi meta_spend.json có window_7d + spend_by_code_7d.
+WINDOW7 = cfg.get("window_7d") or []
+HAS7 = bool(WINDOW7) and any("spend_by_code_7d" in cfg["accounts"][a] for a in cfg["accounts"])
+if HAS7:
+    wset7 = {frozenset((int(d[5:7]), int(d[8:10]))) for d in WINDOW7}
+    wyear7 = int(WINDOW7[0][:4])
 
 
 def fetch(u, retries=4):  # retry cho lỗi mạng tạm thời (máy mới thức)
@@ -65,21 +76,40 @@ def bnum(s):  # budget cells use comma thousands ("114,040,403 ₫"); strip all 
     d = re.sub(r"[^\d]", "", s or ""); return int(d) if d else 0
 def norm(code):
     d = re.sub(r"\D", "", code or ""); return d.lstrip("0") or d
+def _datetok(s):
+    # lấy token cuối (bỏ tiền tố giờ "HH:MM " nếu là timestamp); rỗng → ""
+    s = (s or "").strip()
+    return s.split()[-1] if s else ""
 def inwin(s):
-    p = [int(x) for x in re.split(r"[-/]", (s or "").strip()) if x.isdigit()]
+    p = [int(x) for x in re.split(r"[-/]", _datetok(s)) if x.isdigit()]
     if len(p) != 3: return False
     y = next((x for x in p if x >= 2000), None)
     return y == wyear and frozenset(x for x in p if x < 2000) in wset
+def inwin7(s):
+    if not HAS7: return False
+    p = [int(x) for x in re.split(r"[-/]", _datetok(s)) if x.isdigit()]
+    if len(p) != 3: return False
+    y = next((x for x in p if x >= 2000), None)
+    return y == wyear7 and frozenset(x for x in p if x < 2000) in wset7
 def vnd(n):
     return f"{round(n):,}".replace(",", ".") if n else "0"
 
 
-# ---- thresholds + Inbox budget plan (Sheet 1) --------------------------------
+# ---- thresholds + Inbox budget plan (KPI sheet) ------------------------------
 thr = {"kpi": 900000, "tb": 1080000, "yeu": 1350000, "zero_inbox": 450000}
-kpi_rows = list(csv.reader(io.StringIO(fetch(f"https://docs.google.com/spreadsheets/d/{KPI_ID}/export?format=csv&gid={KPI_GID}"))))
-for r in kpi_rows:
-    if len(r) > 7 and r[1].strip() == KPI_LINE and r[2].strip() == KPI_CHANNEL:
-        thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
+def _fetch_kpi():  # export?format=csv cần "publish to web"; gviz chỉ cần "anyone with link" → fallback
+    base = f"https://docs.google.com/spreadsheets/d/{KPI_ID}"
+    try:
+        return list(csv.reader(io.StringIO(fetch(f"{base}/export?format=csv&gid={KPI_GID}"))))
+    except urllib.error.HTTPError:
+        return list(csv.reader(io.StringIO(fetch(f"{base}/gviz/tq?tqx=out:csv&gid={KPI_GID}"))))
+kpi_rows = _fetch_kpi()
+if THR_INLINE:                                  # ngưỡng nhúng config (sheet không có bảng PHẦN 2 chuẩn)
+    thr = {**thr, **THR_INLINE}
+else:
+    for r in kpi_rows:
+        if len(r) > 7 and r[1].strip() == KPI_LINE and r[2].strip() == KPI_CHANNEL:
+            thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
 # weekly/daily Inbox budget for the anchor's week (cols 2=W1,3=W2,4=W3,5=W4 by day-of-month)
 _d = int(cfg["anchor"][8:10]); WK = 2 if _d <= 7 else 3 if _d <= 14 else 4 if _d <= 21 else 5
 kpi_day = kpi_week = 0
@@ -90,73 +120,101 @@ for i, r in enumerate(kpi_rows):
         kpi_day = bnum(nr[WK]) if len(nr) > WK else 0
         break
 
-# ---- leads (tab lead) --------------------------------------------------------
-leads = defaultdict(lambda: defaultdict(lambda: {"lead": 0, "ql": 0}))
+# ---- leads (tab lead) — đếm cửa sổ 3 ngày, và 7 ngày nếu sản phẩm bật ----------
+leads = defaultdict(lambda: defaultdict(lambda: {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0}))
 _phone_url = f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(PHONE_TAB)}"
-for r in list(csv.reader(io.StringIO(fetch(_phone_url))))[1:]:
-    if len(r) < LC["min_cols"] or not inwin(r[LC["col_date"]]) or not r[LC["col_code"]].strip():
-        continue
-    acct = next((n for n in ACCOUNTS if n in r[LC["col_account"]]), None)
-    if acct:
-        leads[acct][norm(r[LC["col_code"]])]["lead"] += 1
-        if r[LC["col_ql"]].strip() == "1":
-            leads[acct][norm(r[LC["col_code"]])]["ql"] += 1
+_lead_rows = list(csv.reader(io.StringIO(fetch(_phone_url))))[1:]
+if JOIN == "ad_id":
+    # khoá = ad_id; gán tài khoản theo ad_id thuộc spend của TK nào (đúng cả khi nhiều TK chung page)
+    _acct_of = {}
+    for _a in cfg["accounts"]:
+        for _k in cfg["accounts"][_a].get("spend_by_code", {}):
+            _acct_of.setdefault(norm(_k), _a)
+        for _k in cfg["accounts"][_a].get("spend_by_code_7d", {}):
+            _acct_of.setdefault(norm(_k), _a)
+    _ca, _cd = LC["col_adid"], LC["col_date"]
+    _cq = LC.get("col_ql_status"); _qset = tuple(LC.get("ql_statuses", []))
+    for r in _lead_rows:
+        if len(r) <= _ca or not r[_ca].strip():
+            continue
+        key = norm(r[_ca])
+        acct = _acct_of.get(key)
+        if not acct:
+            continue
+        _date = r[_cd] if len(r) > _cd else ""
+        in3, in7 = inwin(_date), inwin7(_date)
+        if not (in3 or in7):
+            continue
+        isql = bool(_qset) and _cq is not None and len(r) > _cq and r[_cq].strip().startswith(_qset)
+        if in3:
+            leads[acct][key]["lead"] += 1
+            if isql: leads[acct][key]["ql"] += 1
+        if in7:
+            leads[acct][key]["lead7"] += 1
+            if isql: leads[acct][key]["ql7"] += 1
+else:
+    for r in _lead_rows:
+        if len(r) < LC["min_cols"] or not r[LC["col_code"]].strip():
+            continue
+        in3, in7 = inwin(r[LC["col_date"]]), inwin7(r[LC["col_date"]])
+        if not (in3 or in7):
+            continue
+        acct = next((n for n in ACCOUNTS if n in r[LC["col_account"]]), None)
+        if not acct:
+            continue
+        code = norm(r[LC["col_code"]])
+        isql = r[LC["col_ql"]].strip() == "1"
+        if in3:
+            leads[acct][code]["lead"] += 1
+            if isql: leads[acct][code]["ql"] += 1
+        if in7:
+            leads[acct][code]["lead7"] += 1
+            if isql: leads[acct][code]["ql7"] += 1
 
-# ---- month-to-date (Content Ad) ----------------------------------------------
+# ---- month-to-date (Content Ad) — tuỳ chọn -----------------------------------
 mtd = {}
-_content_url = f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(CONTENT_TAB)}"
-for r in csv.reader(io.StringIO(fetch(_content_url))):
-    if len(r) > 9 and r[1].strip() and re.search(r"\d", r[1]):
-        mtd[norm(r[1])] = {"name": r[3].strip(), "program": r[2].strip(),
-                           "cpl_mtd": num(r[9]), "order_mtd": num(r[17]) if len(r) > 17 else 0}
+if CONTENT_TAB:
+    _content_url = f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(CONTENT_TAB)}"
+    try:
+        for r in csv.reader(io.StringIO(fetch(_content_url))):
+            if len(r) > 9 and r[1].strip() and re.search(r"\d", r[1]):
+                mtd[norm(r[1])] = {"name": r[3].strip(), "program": r[2].strip(),
+                                   "cpl_mtd": num(r[9]), "order_mtd": num(r[17]) if len(r) > 17 else 0}
+    except Exception:  # noqa: BLE001 — tab MTD thiếu/đổi tên → bỏ qua, không làm hỏng báo cáo
+        mtd = {}
 
 
+# Luật ở adops_rules.py (thuần, test riêng). Wrapper bind ngưỡng/luật của sản phẩm này.
 def classify(spend, lead):
-    if spend == 0:
-        return ("ĐÃ TẮT" if lead > 0 else "—"), None
-    if lead == 0:
-        return "CHƯA CÓ LEAD", None
-    cpl = spend / lead
-    if cpl < thr["kpi"]:  return "TỐT", cpl
-    if cpl < thr["tb"]:   return "TRUNG BÌNH", cpl
-    if cpl < thr["yeu"]:  return "YẾU", cpl
-    return "RẤT TỆ", cpl
+    return R.classify(spend, lead, thr)
 
 
-def recommend(zone, lead, spend, cpl_mtd):
-    good_mtd = 0 < cpl_mtd < thr["kpi"]
-    if spend == 0 and lead > 0:    return "Bài đã tắt · có lead trễ — không cần thao tác"
-    if lead == 0 and spend > 0:
-        if good_mtd:                       return "CẢNH BÁO · 0 lead 3 ngày (lũy kế tốt) — review"
-        if spend >= thr["zero_inbox"]:     return "XEM XÉT TẮT · 0 lead, chi cao"
-        return "Theo dõi · 0 lead, chi thấp"
-    if zone == "TỐT":        return "SCALE +20%" if lead >= MIN_LEADS else "GIỮ · theo dõi (ít lead)"
-    if zone == "TRUNG BÌNH": return "GIỮ"
-    if zone == "YẾU":        return "GIẢM 20% · cảnh báo"
-    if zone == "RẤT TỆ":     return "CẢNH BÁO (3 ngày tệ, lũy kế tốt)" if good_mtd else "TẮT"
-    return "—"
+def recommend(zone, lead, spend, cpl_mtd, z7="", cpl=0, ql=0):
+    return R.recommend(zone, lead, spend, cpl_mtd, thr, RULES, MIN_LEADS, z7=z7, cpl=cpl, ql=ql)
 
 
-def mult(rec):
-    if rec.startswith("SCALE"): return 1.20
-    if rec.startswith("GIẢM"):  return 0.80
-    if rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"): return 0.0
-    return 1.0
+mult = R.mult
 
 
 def build(acct):
-    spend_by = cfg["accounts"][acct]["spend_by_code"]
-    names = {norm(k): v for k, v in cfg["accounts"][acct].get("names", {}).items()}
+    info = cfg["accounts"][acct]
+    spend_by = info["spend_by_code"]
+    spend_by7 = info.get("spend_by_code_7d", {})
+    names = {norm(k): v for k, v in info.get("names", {}).items()}
     rows = []
-    for nc in {norm(c) for c in spend_by} | set(leads[acct]):
+    for nc in {norm(c) for c in spend_by} | set(leads[acct]) | {norm(c) for c in spend_by7}:
         spend = next((v for c, v in spend_by.items() if norm(c) == nc), 0)
-        ld = leads[acct].get(nc, {"lead": 0, "ql": 0})
+        spend7 = next((v for c, v in spend_by7.items() if norm(c) == nc), 0)
+        ld = leads[acct].get(nc, {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0})
         m = mtd.get(nc, {})
         zone, cpl = classify(spend, ld["lead"])
-        rec = recommend(zone, ld["lead"], spend, m.get("cpl_mtd", 0))
+        zone7, cpl7 = classify(spend7, ld["lead7"]) if HAS7 else ("", None)
+        rec = recommend(zone, ld["lead"], spend, m.get("cpl_mtd", 0),
+                        z7=(zone7 if HAS7 else ""), cpl=cpl or 0, ql=ld["ql"])
         avg = round(spend / DAYS)
         rows.append({"code": nc, "name": m.get("name") or names.get(nc, ""), "program": m.get("program", ""),
                      "spend": spend, "lead": ld["lead"], "ql": ld["ql"], "cpl": cpl, "zone": zone,
+                     "spend7": spend7, "lead7": ld["lead7"], "cpl7": cpl7, "zone7": zone7,
                      "cpl_mtd": m.get("cpl_mtd", 0), "order_mtd": m.get("order_mtd", 0), "rec": rec,
                      "avg_day": avg, "proj_day": round(avg * mult(rec))})
     rows.sort(key=lambda r: -r["spend"])
@@ -170,10 +228,17 @@ ZORD = {"TỐT": 0, "TRUNG BÌNH": 1, "YẾU": 2, "RẤT TỆ": 3, "CHƯA CÓ LE
 for acct, rows in data.items():
     ts, tl = sum(r["spend"] for r in rows), sum(r["lead"] for r in rows)
     print(f"\n===== {acct} · {WINDOW[0]}→{WINDOW[-1]} · spend {ts:,} · lead {tl} · CPL {round(ts/tl):,} =====" if tl else f"\n===== {acct} =====")
-    print(f"{'Mã':>7} {'Spend 3d':>12} {'Lead':>4} {'CPL 3d':>10} {'Vùng':<11} {'TB/ngày':>10} {'→Dựkiến':>10}  Đề xuất · Tên")
+    if HAS7:
+        print(f"{'Mã':>7} {'Spend 3d':>12} {'Lead':>4} {'CPL 3d':>10} {'CPL 7d':>10} {'Vùng 3d/7d':<18} {'TB/ngày':>10} {'→Dựkiến':>10}  Đề xuất · Tên")
+    else:
+        print(f"{'Mã':>7} {'Spend 3d':>12} {'Lead':>4} {'CPL 3d':>10} {'Vùng':<11} {'TB/ngày':>10} {'→Dựkiến':>10}  Đề xuất · Tên")
     for r in sorted(rows, key=lambda r: (ZORD.get(r["zone"], 9), -r["spend"])):
         cpl = f"{round(r['cpl']):,}" if r["cpl"] else ("0 lead" if r["spend"] else "—")
-        print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {r['zone']:<11} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {r['name'][:22]}")
+        if HAS7:
+            cpl7 = f"{round(r['cpl7']):,}" if r["cpl7"] else ("0 lead" if r["spend7"] else "—")
+            print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {cpl7:>10} {(r['zone']+'/'+r['zone7']):<18} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {r['name'][:22]}")
+        else:
+            print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {r['zone']:<11} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {r['name'][:22]}")
 
 cur_all = sum(r["avg_day"] for rs in data.values() for r in rs)
 proj_all = sum(r["proj_day"] for rs in data.values() for r in rs)
@@ -192,7 +257,7 @@ if _summary_path:
     def _bucket(rec):
         if rec.startswith("SCALE"): return "scale"
         if rec.startswith("GIẢM"): return "giam"
-        if rec.startswith("XEM XÉT TẮT"): return "xemxet"
+        if rec.startswith("XEM XÉT TẮT") or rec.startswith("ĐỌC INBOX"): return "xemxet"
         if rec.startswith("TẮT"): return "tat"
         return None
     _summary = {"window": [WINDOW[0], WINDOW[-1]],
@@ -209,6 +274,29 @@ if _summary_path:
                 _b[k].append(r["code"])
         _summary["accounts"][_acct] = {"spend": _ts, "lead": _tl, "cpl": round(_ts / _tl) if _tl else 0, "buckets": _b}
     json.dump(_summary, open(_summary_path, "w", encoding="utf-8"), ensure_ascii=False)
+
+# ---- baseline cho đối soát cuối ngày (opt-in qua env ADOPS_BASELINE_JSON) ----------------------
+# Lưu: mỗi mã (có chi) → đề xuất + HƯỚNG + ngân sách/ad set + số ad ACTIVE lúc SÁNG. Cuối ngày so lại.
+_baseline_path = __import__("os").environ.get("ADOPS_BASELINE_JSON")
+if _baseline_path:
+    def _dir(rec):
+        if rec.startswith("SCALE"): return "up"
+        if rec.startswith("GIẢM"): return "down"
+        if rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"): return "off"
+        return "hold"
+    _bl = {"window": [WINDOW[0], WINDOW[-1]], "anchor": cfg.get("anchor"), "accounts": {}}
+    for _acct, _rows in data.items():
+        _bud = defaultdict(int); _adc = defaultdict(int)
+        for _s in cfg["accounts"][_acct].get("adsets", []):
+            for _c in _s.get("codes", []):
+                _bud[norm(_c)] += _s.get("budget") or 0
+                _adc[norm(_c)] += len(_s.get("ads", []))
+        _bl["accounts"][_acct] = [
+            {"code": r["code"], "name": r["name"], "rec": r["rec"], "dir": _dir(r["rec"]),
+             "budget": _bud.get(r["code"], 0), "ads": _adc.get(r["code"], 0)}
+            for r in _rows if r["spend"] > 0
+        ]
+    json.dump(_bl, open(_baseline_path, "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---- fit-to-KPI plan: reallocate within the daily ceiling --------------------
 all_rows = [(a, r) for a, rs in data.items() for r in rs]
@@ -256,15 +344,23 @@ def section(acct, rows):
         pct = min(100, round(r["cpl"] / thr["kpi"] * 100)) if r["cpl"] else (100 if r["spend"] else 0)
         fill = "#22c55e" if pct < 80 else "#84cc16" if pct < 100 else "#f59e0b" if pct < 150 else "#ef4444"
         cpl = f'<b>{vnd(r["cpl"])}</b> <span class="pct">{pct}% KPI</span><div class="cpl-bar"><div class="cpl-fill" style="width:{pct}%;background:{fill}"></div></div>' if r["cpl"] else ('<span style="color:#b91c1c">0 lead</span>' if r["spend"] else "—")
+        c7 = ""
+        if HAS7:
+            p7 = min(100, round(r["cpl7"] / thr["kpi"] * 100)) if r["cpl7"] else (100 if r["spend7"] else 0)
+            f7 = "#22c55e" if p7 < 80 else "#84cc16" if p7 < 100 else "#f59e0b" if p7 < 150 else "#ef4444"
+            cpl7cell = (f'<b>{vnd(r["cpl7"])}</b> <span class="pct">{p7}% · {r["zone7"]}</span><div class="cpl-bar"><div class="cpl-fill" style="width:{p7}%;background:{f7}"></div></div>'
+                        if r["cpl7"] else ('<span style="color:#b91c1c">0 lead</span>' if r["spend7"] else "—"))
+            c7 = f'<td class="cpl-wrap">{cpl7cell}</td>'
         pj, av = r["proj_day"], r["avg_day"]
         pjc = "0" if (pj == 0 and av > 0) else vnd(pj)
         pcls = "delta-up" if pj > av else ("delta-bad" if pj < av else "")
         arrow = "↑ " if pj > av else ("↓ " if pj < av else "")
         body += (f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}{(" · " + r["program"]) if r["program"] else ""}</div></td>'
-                 f'<td class="num">{vnd(r["spend"])}</td><td class="num">{r["lead"]}</td><td class="cpl-wrap">{cpl}</td>'
+                 f'<td class="num">{vnd(r["spend"])}</td><td class="num">{r["lead"]}</td><td class="cpl-wrap">{cpl}</td>{c7}'
                  f'<td><span class="badge {ZB.get(r["zone"],"z-off")}">{r["zone"]}</span></td>'
                  f'<td><span class="badge {actb(r["rec"])}">{r["rec"]}</span></td>'
                  f'<td class="num">{vnd(av)}</td><td class="num {pcls}">{arrow}{pjc}</td></tr>')
+    h7 = '<th>CPL 7 ngày</th>' if HAS7 else ''
     return f'''<h2><span class="bar"></span>Prep {acct}</h2>
     <div class="cards">
       <div class="card"><div class="lbl">Spend 3 ngày</div><div class="val">{vnd(ts)} <small>₫</small></div></div>
@@ -272,7 +368,7 @@ def section(acct, rows):
       <div class="card"><div class="lbl">CPL bình quân 3 ngày</div><div class="val {'delta-up' if acpl<thr['kpi'] else 'delta-bad'}">{vnd(acpl)} <small>₫</small></div></div>
       <div class="card"><div class="lbl">Số bài</div><div class="val">{len(rows)}</div></div>
     </div>
-    <div class="scroll"><table><thead><tr><th>Content</th><th class="num">Spend 3d</th><th class="num">Lead</th><th>CPL 3 ngày</th><th>Vùng</th><th>Đề xuất</th><th class="num">TB chi/ngày</th><th class="num">→ Dự kiến/ngày</th></tr></thead><tbody>{body}</tbody></table></div>'''
+    <div class="scroll"><table><thead><tr><th>Content</th><th class="num">Spend 3d</th><th class="num">Lead</th><th>CPL 3 ngày</th>{h7}<th>Vùng</th><th>Đề xuất</th><th class="num">TB chi/ngày</th><th class="num">→ Dự kiến/ngày</th></tr></thead><tbody>{body}</tbody></table></div>'''
 
 sections = "\n".join(section(a, r) for a, r in data.items())
 
@@ -334,7 +430,12 @@ def adset_section(acct):
             others = [x for x in s["codes"] if norm(x) != r["code"]]
             shared = f' <span class="pct">⚠ dùng chung: {", ".join(others)}</span>' if others else ""
             cbo = " · CBO" if s.get("cbo") else ""
-            bud = f'<b>{vnd(s["budget"])}₫</b>/ngày' if s.get("budget") else '<b>—</b>'
+            if s.get("cbo") and s.get("campaign_budget"):
+                bud = f'<b>{vnd(s["campaign_budget"])}₫</b>/ngày <span class="pct">(camp CBO)</span>'
+            elif s.get("budget"):
+                bud = f'<b>{vnd(s["budget"])}₫</b>/ngày'
+            else:
+                bud = '<b>—</b>'
             items += f'<div style="margin:2px 0"><code>{s["id"]}</code> — {bud}{cbo}{shared}<br><span class="code">ad: {", ".join(s["ads"]) or "—"}</span></div>'
         rh += f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}</div></td><td><span class="badge {actb(r["rec"])}">{r["rec"].split(" · ")[0].split(" (")[0]}</span></td><td>{items}</td></tr>'
     g = info.get("ghost_adsets")
@@ -344,8 +445,25 @@ def adset_section(acct):
     return f'<h3 class="h3">Prep {acct}</h3><div class="scroll"><table><thead><tr><th>Content</th><th>Đề xuất</th><th>Ad set (ngân sách/ngày) · Ad ID</th></tr></thead><tbody>{rh}</tbody></table></div>{gn}{n60}{nt}'
 addetail = '<h2><span class="bar"></span>Chi tiết Ad set / Ad ID để thao tác</h2>' + "".join(adset_section(a) for a in cfg["accounts"])
 
+# ---- nhãn header/footer suy từ config (TOEIC giữ nguyên; sản phẩm khác hiển thị đúng tên/ngưỡng) ----
+DISPLAY = PCFG.display
+ACCT_JOIN = " + ".join(ACCOUNTS.keys())
+def kfmt(n):
+    return f"{n // 1000}k" if n < 1_000_000 else f"{n / 1e6:.2f}tr".replace(".", ",")
+THR_CHIP = f"TỐT&lt;{kfmt(thr['kpi'])} · TB&lt;{kfmt(thr['tb'])} · YẾU&lt;{kfmt(thr['yeu'])} · RẤT TỆ≥{kfmt(thr['yeu'])}"
+FOOTER_ACCTS = "Prep " + " + ".join(f"{n} ({i})" for n, i in ACCOUNTS.items())
+chip7 = f'<span class="chip">📈 Xác nhận 7 ngày: <b>{WINDOW7[0]} → {WINDOW7[-1]}</b></span>' if HAS7 else ""
+title_sfx = " + xác nhận 7 ngày" if HAS7 else ""
+note7 = ('<li><b>CPL 7 ngày + ma trận 3d×7d</b>: nghiêng số 3 ngày, dùng 7 ngày để xác nhận — '
+         '3d tốt &amp; 7d tốt → scale; 3d tốt &amp; 7d chưa xác nhận → giữ/scale nhẹ; '
+         '3d tụt nhưng 7d còn tốt → giảm nhẹ, chưa tắt; cả 3d &amp; 7d tệ → tắt.</li>') if HAS7 else ""
+_conv = [(a, cfg["accounts"][a].get("currency"), cfg["accounts"][a].get("rate_to_vnd"), cfg["accounts"][a].get("rate_source", ""))
+         for a in cfg["accounts"] if cfg["accounts"][a].get("rate_to_vnd")]
+conv_note = ("<li><b>Quy đổi tiền tệ → VND:</b> " + "; ".join(f"{a} (gốc {c}) ×{r} [{s}]" for a, c, r, s in _conv) +
+             ". Spend &amp; ngân sách đã quy về VND để gộp &amp; so KPI — tỷ giá lấy <b>live</b> mỗi lần chạy, fallback config khi API lỗi.</li>") if _conv else ""
+
 html = f'''<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TOEIC Ads — Báo cáo 3 ngày {WINDOW[0]}→{WINDOW[-1]}</title>
+<title>{DISPLAY} Ads — Báo cáo 3 ngày {WINDOW[0]}→{WINDOW[-1]}</title>
 <style>
 :root{{--teal:#0d9488;--teal-d:#0f766e;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc}}
 *{{box-sizing:border-box}} body{{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5}}
@@ -373,11 +491,11 @@ footer{{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-s
 @media(max-width:720px){{.cards{{grid-template-columns:repeat(2,1fr)}}}}
 @media print{{header{{-webkit-print-color-adjust:exact;print-color-adjust:exact}} table,.card,.note{{break-inside:avoid}}}}
 </style></head><body>
-<header><div class="wrap"><h1>Báo cáo Ads TOEIC — phân loại CPL 3 ngày + ngân sách</h1>
-<div class="sub">TOEIC 3 + TOEIC 5 · phân loại CPL 3 ngày, đề xuất scale/giữ/giảm/tắt &amp; ngân sách ngày dự kiến vs KPI · <b>Chỉ đề xuất — nhân viên tự thao tác trên Meta</b></div>
-<div class="meta"><span class="chip">📅 Cửa sổ: <b>{WINDOW[0]} → {WINDOW[-1]}</b></span><span class="chip">🎯 Inbox</span>
-<span class="chip">📊 Spend: Meta · Lead: tab Phone · Ngưỡng+KPI: Sheet 1</span>
-<span class="chip">Ngưỡng: TỐT&lt;900k · TB&lt;1,08tr · YẾU&lt;1,35tr · RẤT TỆ≥1,35tr</span></div></div></header>
+<header><div class="wrap"><h1>Báo cáo Ads {DISPLAY} — phân loại CPL 3 ngày{title_sfx} + ngân sách</h1>
+<div class="sub">{ACCT_JOIN} · phân loại CPL 3 ngày, đề xuất scale/giữ/giảm/tắt &amp; ngân sách ngày dự kiến vs KPI · <b>Chỉ đề xuất — nhân viên tự thao tác trên Meta</b></div>
+<div class="meta"><span class="chip">📅 Cửa sổ: <b>{WINDOW[0]} → {WINDOW[-1]}</b></span><span class="chip">🎯 Inbox</span>{chip7}
+<span class="chip">📊 Spend: Meta · Lead: tab {PHONE_TAB} · Ngưỡng+KPI: Sheet 1</span>
+<span class="chip">Ngưỡng: {THR_CHIP}</span></div></div></header>
 <div class="wrap">
 {sections}
 {budget}
@@ -389,9 +507,9 @@ footer{{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-s
 <li><b>TB chi/ngày</b> = spend 3 ngày ÷ 3 (run-rate thực tế). <b>→ Dự kiến/ngày</b> = run-rate × mức đề xuất (SCALE ×1.2 · GIẢM ×0.8 · TẮT/XEM XÉT TẮT ×0 · còn lại giữ nguyên).</li>
 <li><b>KPI ngân sách</b> đọc từ Sheet 1 (kênh FB Inbox, tuần hiện tại). KPI này gộp toàn bộ tài khoản Inbox của TOEIC — TOEIC 3+5 là phần lớn nhưng có thể chưa phải toàn bộ.</li>
 <li><b>SCALE/GIẢM</b> là hướng — áp vào ngân sách ad set của bài. Bài đã thắng scale tự do; trần 1,8tr/3 ngày chỉ là rào cho content mới test.</li>
-<li>Bài "0 lead" để <b>CẢNH BÁO/XEM XÉT</b> cho người review (chưa có số inbox/mess fresh để tự tắt). CPL MTD lấy từ sheet Content Ad (gộp 2 TK, có thể trễ).</li>
+<li>Bài "0 lead" để <b>CẢNH BÁO/XEM XÉT</b> cho người review (chưa có số inbox/mess fresh để tự tắt). CPL MTD lấy từ sheet Content Ad (gộp 2 TK, có thể trễ).</li>{note7}{conv_note}
 </ul></div>
-<footer>Prep TOEIC 3 (829372215242475) + TOEIC 5 (555686623359807) · Engine tự động (Meta MCP + Google Sheets) · VND · Cửa sổ {WINDOW[0]}→{WINDOW[-1]}.</footer>
+<footer>{FOOTER_ACCTS} · Engine tự động (Meta MCP + Google Sheets) · VND · Cửa sổ {WINDOW[0]}→{WINDOW[-1]}.</footer>
 </div></body></html>'''
 
 open(out_path, "w").write(html)
