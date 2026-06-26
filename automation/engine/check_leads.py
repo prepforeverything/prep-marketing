@@ -49,8 +49,12 @@ def status(cfg, target, minrows=1):
     url = (f"https://docs.google.com/spreadsheets/d/{ls['id']}/gviz/tq?tqx=out:csv"
            f"&sheet={urllib.parse.quote(ls['phone_tab'])}")
     rows = list(csv.reader(io.StringIO(fetch(url))))
-    cd, cc, ca = ls["col_date"], ls["col_code"], ls["col_account"]
-    mincols = ls.get("min_cols", max(cd, cc, ca) + 1)
+    cd = ls["col_date"]
+    if ls.get("join", "code") == "ad_id":     # IELTS Thái: dòng dùng được = có ad_id (không cần cột account)
+        keycols = [ls["col_adid"]]
+    else:                                       # TOEIC: cần mã + account
+        keycols = [ls["col_code"], ls["col_account"]]
+    mincols = ls.get("min_cols", max([cd] + keycols) + 1)
     n_all = n_usable = 0
     latest = None
     for r in rows[1:]:
@@ -63,7 +67,7 @@ def status(cfg, target, minrows=1):
             latest = dt
         if dt == target:
             n_all += 1
-            if len(r) >= mincols and r[cc].strip() and r[ca].strip():
+            if len(r) >= mincols and all(len(r) > c and r[c].strip() for c in keycols):
                 n_usable += 1
     return {"present": n_usable >= minrows, "target": target.isoformat(),
             "rows": n_all, "usable": n_usable,

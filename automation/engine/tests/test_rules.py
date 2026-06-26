@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""Test luật ad-ops thuần (adops_rules) — KHÔNG cần mạng/Meta/Sheets.
+
+Chạy: python3 automation/engine/tests/test_rules.py   (in 'OK ...' nếu pass, raise nếu fail)
+Bao phủ: classify, recommend (legacy 1 ngưỡng = TOEIC), 2 ngưỡng 0-lead, luật CR, ma trận 3d×7d, mult.
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # engine/
+import adops_rules as R
+
+# Ngưỡng mẫu
+TOEIC = {"kpi": 900_000, "tb": 1_080_000, "yeu": 1_350_000, "zero_inbox": 450_000}
+THAI = {"kpi": 1_000_000, "tb": 1_250_000, "yeu": 1_500_000, "zero_inbox": 450_000}
+THAI_RULES = {"zero_lead_kill": 200_000, "zero_lead_read": 500_000, "cr_keep_pct": 1.35, "cr_keep_min": 0.20}
+
+n = 0
+def eq(got, want, msg):
+    global n; n += 1
+    assert got == want, f"FAIL [{msg}]: got {got!r} ≠ want {want!r}"
+
+
+# ---- classify (ngưỡng vùng) ----
+eq(R.classify(900_000, 1, THAI)[0], "TỐT", "thai cpl 900k < 1tr")
+eq(R.classify(1_200_000, 1, THAI)[0], "TRUNG BÌNH", "thai cpl 1.2tr")
+eq(R.classify(1_400_000, 1, THAI)[0], "YẾU", "thai cpl 1.4tr")
+eq(R.classify(1_600_000, 1, THAI)[0], "RẤT TỆ", "thai cpl 1.6tr")
+eq(R.classify(0, 2, THAI)[0], "ĐÃ TẮT", "spend 0 + lead → đã tắt")
+eq(R.classify(0, 0, THAI)[0], "—", "spend 0 + 0 lead")
+eq(R.classify(500, 0, THAI)[0], "CHƯA CÓ LEAD", "spend>0 lead 0")
+
+# ---- recommend LEGACY (rules={}, không 7d) — phải y hệt bản TOEIC gốc ----
+def rec_legacy(zone, lead, spend, cpl_mtd=0, cpl=0, ql=0):
+    return R.recommend(zone, lead, spend, cpl_mtd, TOEIC, {}, 3, cpl=cpl, ql=ql)
+eq(rec_legacy("TỐT", 5, 3_000_000), "SCALE +20%", "legacy TỐT ≥3 lead")
+eq(rec_legacy("TỐT", 1, 700_000), "GIỮ · theo dõi (ít lead)", "legacy TỐT <3 lead")
+eq(rec_legacy("TRUNG BÌNH", 4, 4_000_000), "GIỮ", "legacy TB")
+eq(rec_legacy("YẾU", 4, 5_000_000), "GIẢM 20% · cảnh báo", "legacy YẾU")
+eq(rec_legacy("RẤT TỆ", 2, 4_000_000), "TẮT", "legacy RẤT TỆ no mtd")
+eq(rec_legacy("RẤT TỆ", 2, 4_000_000, cpl_mtd=800_000), "CẢNH BÁO (3 ngày tệ, lũy kế tốt)", "legacy RẤT TỆ good mtd")
+eq(rec_legacy("CHƯA CÓ LEAD", 0, 500_000), "XEM XÉT TẮT · 0 lead, chi cao", "legacy 0 lead chi cao")
+eq(rec_legacy("CHƯA CÓ LEAD", 0, 100_000), "Theo dõi · 0 lead, chi thấp", "legacy 0 lead chi thấp")
+eq(rec_legacy("CHƯA CÓ LEAD", 0, 500_000, cpl_mtd=800_000), "CẢNH BÁO · 0 lead 3 ngày (lũy kế tốt) — review", "legacy 0 lead good mtd")
+eq(R.recommend("ĐÃ TẮT", 3, 0, 0, TOEIC, {}, 3), "Bài đã tắt · có lead trễ — không cần thao tác", "legacy đã tắt có lead")
+
+# ---- 2 ngưỡng 0-lead (SOP Thái 3.3) ----
+def rec_thai(zone, lead, spend, cpl_mtd=0, cpl=0, ql=0, z7=""):
+    return R.recommend(zone, lead, spend, cpl_mtd, THAI, THAI_RULES, 3, z7=z7, cpl=cpl, ql=ql)
+assert rec_thai("CHƯA CÓ LEAD", 0, 600_000).startswith("ĐỌC INBOX"), "thai 0 lead ≥500k → đọc inbox"
+assert rec_thai("CHƯA CÓ LEAD", 0, 300_000).startswith("XEM XÉT TẮT"), "thai 0 lead 200-500k → xem xét tắt"
+eq(rec_thai("CHƯA CÓ LEAD", 0, 100_000), "Theo dõi · 0 lead, chi thấp", "thai 0 lead <200k")
+assert rec_thai("CHƯA CÓ LEAD", 0, 600_000, cpl_mtd=800_000).startswith("CẢNH BÁO"), "thai 0 lead good mtd → cảnh báo (ưu tiên)"
+
+# ---- luật CR đặc biệt (mục 5) ----
+eq(rec_thai("TRUNG BÌNH", 10, 12_000_000, cpl=1_200_000, ql=3), "GIỮ · CR cao (30%) dù CPL>KPI", "CR 30% giữ")
+eq(R.cr_keep(1_200_000, 10, 3, THAI, THAI_RULES), True, "cpl 1.2tr + CR30% → keep")
+eq(R.cr_keep(1_400_000, 10, 5, THAI, THAI_RULES), False, "cpl 1.4tr ≥135%×kpi → ngoài dải CR")
+eq(R.cr_keep(1_200_000, 10, 1, THAI, THAI_RULES), False, "CR10% < 20% → không keep")
+eq(R.cr_keep(900_000, 10, 5, THAI, THAI_RULES), False, "cpl<kpi (đã tốt) → CR rule không áp")
+eq(R.cr_keep(1_200_000, 10, 3, TOEIC, {}), False, "rules trống → CR rule tắt (TOEIC)")
+
+# ---- ma trận 3d×7d (SOP 3.2) ----
+eq(rec_thai("TỐT", 5, 3_000_000, cpl=600_000, z7="TỐT"), "SCALE +20%", "matrix Tốt/Tốt ≥3 → scale")
+eq(rec_thai("TỐT", 1, 600_000, cpl=600_000, z7="TỐT"), "GIỮ · theo dõi (ít lead)", "matrix Tốt/Tốt <3 lead")
+eq(rec_thai("TỐT", 5, 3_000_000, cpl=600_000, z7="YẾU"), "GIỮ · 3d tốt, 7d chưa xác nhận — scale nhẹ", "matrix Tốt/Chưa")
+eq(rec_thai("YẾU", 5, 7_000_000, cpl=1_400_000, z7="TỐT"), "GIẢM 20% · 3d tụt, 7d còn tốt (theo dõi sát, chưa tắt)", "matrix Xấu/Tốt")
+eq(rec_thai("YẾU", 5, 7_000_000, cpl=1_400_000, z7="YẾU"), "GIẢM 20% · 3d & 7d yếu", "matrix Xấu/Xấu (yếu)")
+eq(rec_thai("RẤT TỆ", 5, 9_000_000, cpl=1_800_000, z7="RẤT TỆ"), "TẮT", "matrix RẤT TỆ/RẤT TỆ → tắt")
+eq(rec_thai("RẤT TỆ", 5, 9_000_000, cpl=1_800_000, z7="RẤT TỆ", cpl_mtd=800_000), "CẢNH BÁO (3d & 7d tệ, lũy kế tốt)", "matrix tệ nhưng mtd tốt")
+eq(rec_thai("TRUNG BÌNH", 5, 6_000_000, cpl=1_200_000, z7="RẤT TỆ", ql=0), "GIỮ", "matrix TB → giữ")
+
+# ---- mult ----
+eq(R.mult("SCALE +20%"), 1.20, "mult scale")
+eq(R.mult("GIẢM 20% · cảnh báo"), 0.80, "mult giảm")
+eq(R.mult("TẮT"), 0.0, "mult tắt")
+eq(R.mult("XEM XÉT TẮT · 0 lead — mở Pancake (0 inbox→tắt)"), 0.0, "mult xem xét tắt")
+eq(R.mult("ĐỌC INBOX · 0 lead, chi cao"), 1.0, "mult đọc inbox = giữ")
+eq(R.mult("GIỮ"), 1.0, "mult giữ")
+
+print(f"OK — {n} assertions passed")
