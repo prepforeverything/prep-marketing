@@ -110,6 +110,13 @@ thành công = HTTP **204** (output rỗng, không lỗi).
 **9.6 Instance chập chờn** — credential list xoay mãi → bấm thẳng "Create credential" / reload; nếu ì là phía
 server team.
 
+**9.7 "Execute workflow" (test tay) KHÔNG bật lịch** — *Triệu chứng:* workflow chạy được khi bấm tay nhưng
+KHÔNG tự nổ theo giờ (chỉ thấy event `workflow_dispatch` lúc test, không có run tự động đúng giờ; việc bị
+"trễ" vì rơi sang trigger dự phòng). *Nguyên nhân:* mới test chứ **chưa Publish/Active** → Schedule Trigger
+không được "arm". *Fix:* **Publish** (hoặc gạt Active=ON) workflow. *Phòng:* sau khi dựng, đối chiếu danh
+sách Workflows — workflow chạy theo lịch phải có nhãn **Active** (xanh); test tay chỉ để thử, không thay
+Publish. (Đã xảy ra với workflow EOD 27–28/6: chưa publish → đối soát chỉ đến qua cron GitHub trễ.)
+
 ## 10. Git workflow
 - Push **403**: tài khoản chưa có quyền ghi repo org → xin quyền / dùng tài khoản có quyền.
 - **Đổi nhánh làm file biến mất khỏi đĩa:** sau khi commit file vào nhánh A, `checkout` sang nhánh B (không có
