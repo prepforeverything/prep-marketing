@@ -43,6 +43,8 @@ eq(rec_legacy("CHƯA CÓ LEAD", 0, 500_000), "XEM XÉT TẮT · 0 lead, chi cao"
 eq(rec_legacy("CHƯA CÓ LEAD", 0, 100_000), "Theo dõi · 0 lead, chi thấp", "legacy 0 lead chi thấp")
 eq(rec_legacy("CHƯA CÓ LEAD", 0, 500_000, cpl_mtd=800_000), "CẢNH BÁO · 0 lead 3 ngày (lũy kế tốt) — review", "legacy 0 lead good mtd")
 eq(R.recommend("ĐÃ TẮT", 3, 0, 0, TOEIC, {}, 3), "Bài đã tắt · có lead trễ — không cần thao tác", "legacy đã tắt có lead")
+eq(R.recommend("—", 0, 0, 0, TOEIC, {}, 3), "—", "không hoạt động 3d (không 7d) → —")
+eq(R.recommend("—", 0, 0, 0, TOEIC, {}, 3, z7="ĐÃ TẮT"), "—", "không hoạt động 3d nhưng 7d còn dữ liệu → vẫn — (không matrix)")
 
 # ---- 2 ngưỡng 0-lead (SOP Thái 3.3) ----
 def rec_thai(zone, lead, spend, cpl_mtd=0, cpl=0, ql=0, z7=""):
@@ -69,6 +71,28 @@ eq(rec_thai("YẾU", 5, 7_000_000, cpl=1_400_000, z7="YẾU"), "GIẢM 20% · 3d
 eq(rec_thai("RẤT TỆ", 5, 9_000_000, cpl=1_800_000, z7="RẤT TỆ"), "TẮT", "matrix RẤT TỆ/RẤT TỆ → tắt")
 eq(rec_thai("RẤT TỆ", 5, 9_000_000, cpl=1_800_000, z7="RẤT TỆ", cpl_mtd=800_000), "CẢNH BÁO (3d & 7d tệ, lũy kế tốt)", "matrix tệ nhưng mtd tốt")
 eq(rec_thai("TRUNG BÌNH", 5, 6_000_000, cpl=1_200_000, z7="RẤT TỆ", ql=0), "GIỮ", "matrix TB → giữ")
+
+# ---- luật theo pha (SOP: Phiên 1 / Phiên 2 / Mốc 2) ----
+def rec_phase(zone, lead, spend, age, cpl_mtd=0, cpl=0, ql=0, z7=""):
+    return R.recommend(zone, lead, spend, cpl_mtd, TOEIC, {}, 3, z7=z7, cpl=cpl, ql=ql, age=age)
+# Phiên 1 (age ≤ 3) — cổng: chỉ Tốt/TB qua
+eq(rec_phase("YẾU", 4, 5_000_000, age=2), "TẮT · Phiên 1 (cổng) — yếu", "Phiên 1 Yếu → TẮT cổng")
+eq(rec_phase("RẤT TỆ", 2, 4_000_000, age=1), "TẮT · Phiên 1 (cổng) — rất tệ", "Phiên 1 Rất tệ → TẮT cổng")
+eq(rec_phase("TỐT", 5, 3_000_000, age=2), "GIỮ · Phiên 1 — vào Phiên 2", "Phiên 1 Tốt → giữ (chưa scale)")
+eq(rec_phase("TRUNG BÌNH", 4, 4_000_000, age=3), "GIỮ · Phiên 1 — vào Phiên 2", "Phiên 1 TB → giữ")
+# Phiên 2 (4 ≤ age ≤ 6) — kiểm chứng: Yếu giảm, Rất tệ tắt, chưa scale
+eq(rec_phase("YẾU", 4, 5_000_000, age=5), "GIẢM 20% · Phiên 2", "Phiên 2 Yếu → GIẢM 20% (KHÔNG tắt)")
+eq(rec_phase("RẤT TỆ", 2, 4_000_000, age=6), "TẮT · Phiên 2 — rất tệ", "Phiên 2 Rất tệ → TẮT")
+eq(rec_phase("TỐT", 5, 3_000_000, age=5), "GIỮ · Phiên 2", "Phiên 2 Tốt → giữ (scale để dành Mốc 2)")
+# Mốc 2 + trưởng thành (age ≥ 7) — scale/tắt theo R7
+eq(rec_phase("TỐT", 5, 3_000_000, age=10, z7="TỐT"), "SCALE +20%", "Mốc 2 Tốt/Tốt → SCALE (matrix)")
+eq(rec_phase("TỐT", 5, 3_000_000, age=10), "SCALE +20%", "Trưởng thành Tốt (không 7d) → SCALE")
+eq(rec_phase("YẾU", 5, 7_000_000, age=10), "GIẢM 20% · cảnh báo", "Trưởng thành Yếu (không 7d) → GIẢM (không tắt cổng)")
+# 0-lead/spend ưu tiên trước pha (age không vượt qua nhánh 0-lead)
+eq(rec_phase("CHƯA CÓ LEAD", 0, 500_000, age=2), "XEM XÉT TẮT · 0 lead, chi cao", "Phiên 1 nhưng 0 lead chi cao → nhánh 0-lead")
+# phase_of helper
+eq(R.phase_of(None), "", "phase_of None"); eq(R.phase_of(2), "Phiên 1", "phase_of 2")
+eq(R.phase_of(5), "Phiên 2", "phase_of 5"); eq(R.phase_of(7), "Mốc 2+", "phase_of 7"); eq(R.phase_of(20), "Mốc 2+", "phase_of 20")
 
 # ---- mult ----
 eq(R.mult("SCALE +20%"), 1.20, "mult scale")

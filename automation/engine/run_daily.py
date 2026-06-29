@@ -4,7 +4,8 @@
 Cấu hình theo sản phẩm. Dùng cho cron / n8n (Execute Command). daily_gate quyết định, rồi:
   ALERT_*/ERROR -> gửi Telegram (field message)
   SKIP          -> thoát
-  REPORT        -> build_meta -> adops -> PDF (Chrome) -> Telegram (PDF) -> mark-sent
+  REPORT        -> build_meta -> adops -> Telegram (HTML, hoặc PDF nếu report.telegram_doc="pdf")
+                   + tin "Ad ID theo đề xuất" (copy nhanh) -> mark-sent
 
 Env: META_ACCESS_TOKEN, + token/chat Telegram (tên env khai trong config.telegram). Tuỳ chọn: CHROME_BIN, PDF_DIR.
 
@@ -53,7 +54,7 @@ def dmy(iso):
     return f"{d.day}/{d.month}"
 
 
-def build_caption(cfg, summary):
+def build_caption(cfg, summary, doc_fmt="pdf"):
     w = summary["window"]
     L = [f"📊 <b>{cfg.display} ad-ops — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]})</b>", ""]
     for acct, a in summary["accounts"].items():
@@ -66,8 +67,36 @@ def build_caption(cfg, summary):
     bud = summary["budget"]
     if bud.get("kpi_day"):
         L.append(f"\n💰 Dự kiến ~{vnd(bud['proj_day'])}/ngày vs KPI {vnd(bud['kpi_day'])} → <b>{bud['kpi_status']} ({bud['kpi_pct']:+}%)</b>")
-    L.append("⚠️ Chỉ đề xuất — NV tự thao tác trên Meta. Chi tiết Ad set/Ad ID trong PDF.")
+    if doc_fmt == "html":
+        L.append("📂 Mở file HTML bằng trình duyệt để xem đủ bảng — CUỘN NGANG được (khác PDF). Ad ID để thao tác ở tin dưới ⬇️")
+    else:
+        L.append("⚠️ Chỉ đề xuất — NV tự thao tác trên Meta. Ad ID để thao tác ở tin dưới ⬇️")
     return "\n".join(L)
+
+
+def build_adid_message(cfg, summary):
+    """Danh sách Ad ID theo từng đề xuất — để NV copy thao tác trực tiếp. Rỗng nếu không có mục nào.
+    Ad ID bọc trong <code> để Telegram cho tap-copy. Gửi như MỘT message (giới hạn 4096, dài hơn caption)."""
+    order = [("scale", "🟢 SCALE +20%"), ("giam", "🟠 GIẢM 20% (YẾU)"),
+             ("tat", "🔴 TẮT (RẤT TỆ)"), ("xemxet", "🟠 XEM XÉT TẮT (0 lead, chi cao)")]
+    by_bucket = {k: [] for k, _ in order}
+    for acct, a in summary["accounts"].items():
+        for it in a.get("items", []):
+            by_bucket.setdefault(it["bucket"], []).append((acct, it))
+    L = [f"🎯 <b>{cfg.display} — Ad ID theo đề xuất (copy nhanh)</b>"]
+    any_item = False
+    for k, label in order:
+        items = by_bucket.get(k) or []
+        if not items:
+            continue
+        any_item = True
+        L.append(f"\n<b>{label}</b>")
+        for acct, it in items:
+            L.append(f"• [{acct}] {it['code']} {(it.get('name') or '')[:24]}".rstrip())
+            ads = " ".join(it.get("ads", []))
+            L.append(f"<code>{ads}</code>" if ads else "<i>(ad đã tắt — không còn ad đang chạy)</i>")
+    L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách ad set chứa ad ID. TẮT: tắt ad ID. Chỉ đề xuất — NV tự thao tác trên Meta.")
+    return "\n".join(L) if any_item else ""
 
 
 def run_report(cfg, target):
@@ -76,8 +105,7 @@ def run_report(cfg, target):
     meta_json = cfg.meta_json
     html = cfg.report_html(today)
     html.parent.mkdir(parents=True, exist_ok=True)
-    pdf_dir = Path(os.environ.get("PDF_DIR", cfg.reports)); pdf_dir.mkdir(parents=True, exist_ok=True)
-    pdf = pdf_dir / f"{cfg.product}-adops-3ngay-{today}.pdf"
+    doc_fmt = (cfg.get("report") or {}).get("telegram_doc", "pdf")  # "html" gửi HTML (cuộn ngang được) | "pdf"
 
     if subprocess.run([PY, str(ENGINE / "build_meta.py")], env=env).returncode != 0:
         return fail(cfg, "build_meta.py (Meta Graph API) thất bại sau nhiều lần thử lại — kiểm tra mạng/Graph API hoặc META_ACCESS_TOKEN")
@@ -86,26 +114,40 @@ def run_report(cfg, target):
         env2["ADOPS_BASELINE_JSON"] = str(cfg.state / f"baseline-{target.isoformat()}.json")
     if subprocess.run([PY, str(ENGINE / "adops.py"), str(meta_json), str(html)], env=env2).returncode != 0:
         return fail(cfg, "adops.py thất bại")
-    chrome = os.environ.get("CHROME_BIN", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    extra = os.environ.get("CHROME_EXTRA_ARGS", "").split()  # vd Linux/CI: "--no-sandbox --disable-dev-shm-usage"
-    r = subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", *extra,
-                        f"--print-to-pdf={pdf}", f"file://{html}"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if r.returncode != 0 or not pdf.exists():
-        return fail(cfg, f"xuất PDF thất bại (CHROME_BIN={chrome})")
+
+    # File gửi Telegram: HTML (mặc bảng rộng cuộn ngang được) hoặc PDF (xuất qua Chrome).
+    if doc_fmt == "html":
+        send_path = html                                          # gửi thẳng HTML — KHÔNG cần Chrome
+    else:
+        pdf_dir = Path(os.environ.get("PDF_DIR", cfg.reports)); pdf_dir.mkdir(parents=True, exist_ok=True)
+        send_path = pdf_dir / f"{cfg.product}-adops-3ngay-{today}.pdf"
+        chrome = os.environ.get("CHROME_BIN", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+        extra = os.environ.get("CHROME_EXTRA_ARGS", "").split()  # vd Linux/CI: "--no-sandbox --disable-dev-shm-usage"
+        r = subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", *extra,
+                            f"--print-to-pdf={send_path}", f"file://{html}"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if r.returncode != 0 or not send_path.exists():
+            return fail(cfg, f"xuất PDF thất bại (CHROME_BIN={chrome})")
     try:
-        caption = build_caption(cfg, json.load(open(cfg.summary_json, encoding="utf-8")))
+        summary = json.load(open(cfg.summary_json, encoding="utf-8"))
+        caption = build_caption(cfg, summary, doc_fmt)
+        adid_msg = build_adid_message(cfg, summary)
     except Exception as e:  # noqa: BLE001
         caption = f"📊 {cfg.display} ad-ops 3 ngày (cửa sổ kết thúc {target}). (Không dựng được tóm tắt: {e})"
+        adid_msg = ""
 
     if DRY:
-        print("\n[--dry-run] KHÔNG gửi Telegram, KHÔNG mark-sent. PDF:", pdf)
-        print("---- caption sẽ gửi ----\n" + caption)
+        print(f"\n[--dry-run] KHÔNG gửi Telegram, KHÔNG mark-sent. Sẽ gửi ({doc_fmt}):", send_path)
+        print("---- caption ----\n" + caption)
+        if adid_msg:
+            print("\n---- tin Ad ID ----\n" + adid_msg)
         return 0
-    if not tg(cfg, "document", str(pdf), caption):
-        return fail(cfg, "gửi PDF qua Telegram thất bại")
+    if not tg(cfg, "document", str(send_path), caption):
+        return fail(cfg, f"gửi {doc_fmt.upper()} qua Telegram thất bại")
+    if adid_msg and not tg(cfg, "message", adid_msg):
+        print("⚠️ gửi tin Ad ID thất bại (báo cáo đã gửi).", file=sys.stderr)  # không chặn mark-sent
     cfg.flag(target.isoformat()).touch()
-    print("✓ Đã gửi báo cáo + mark-sent cho", target)
+    print(f"✓ Đã gửi báo cáo ({doc_fmt}) + Ad ID + mark-sent cho", target)
     return 0
 
 

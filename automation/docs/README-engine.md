@@ -56,7 +56,43 @@ names{code:tên}, adsets[{id,budget,codes[],ads[],cbo?}], ghost_adsets?{...}, no
 `reports/toeic-adops-3ngay-<ngày>.html` (1 file độc lập): phân loại 2 tài khoản → tác động ngân sách vs KPI →
 phương án giữ KPI → chi tiết Ad set/Ad ID. Có thể copy ra Downloads + xuất PDF để gửi nhân viên.
 
+## Đa sản phẩm + cửa sổ 7 ngày + luật tùy chọn
+
+Engine config-driven: thêm sản phẩm = thêm `automation/products/<sp>/config.json` (KHÔNG sửa code). Ngoài TOEIC,
+đã scaffold **IELTS Thái** (`products/ielts-thai/` — xem `SETUP.md`). Các trường mở rộng (tùy chọn, vắng = giữ
+hành vi TOEIC gốc):
+
+- `report.confirm_days: 7` → `build_meta.py` kéo thêm cửa sổ `last_7d` (`spend_by_code_7d`, `window_7d`); `adops.py`
+  chấm CPL cả 3 ngày & 7 ngày rồi áp **ma trận 3d×7d** (nghiêng 3 ngày, 7 ngày để xác nhận). Luật ở `adops_rules.matrix_rec`.
+  **TOEIC đã bật từ 2026-06** (`report: {"primary_days":3,"confirm_days":7}`) — báo cáo có thêm cột "CPL 7 ngày" + Mốc 2 (R7).
+- `report.age_lookback_days: 30` → `build_meta.py` dò **ngày đầu tiên có spend** mỗi mã (insights `time_increment=1`) →
+  suy `age_by_code` (ngày tuổi = số ngày đã bắt đầu tiêu tiền) vào `meta_spend.json`. `adops.py` truyền tuổi vào
+  `recommend(age=…)` để áp **luật theo pha (SOP)**: Phiên 1 (≤3 ngày) — cổng, Yếu/Rất tệ → TẮT; Phiên 2 (4–6) —
+  Yếu → GIẢM 20%, Rất tệ → TẮT (chưa scale); Mốc 2+ (≥7) — xét R7 qua `matrix_rec` (nơi scale). Luật ở
+  `adops_rules.phase_of` + `_phase_rec`. **Vắng `age_lookback_days` ⇒ `age=None` ⇒ giữ hành vi cũ** (IELTS Thái không đổi).
+  Mã cũ hơn cửa sổ dò → tuổi bị chặn = độ dài cửa sổ (vẫn rơi vào Mốc 2+). **TOEIC đã bật** (`age_lookback_days: 30`).
+  *(Cửa sổ dò 30 ngày cũng dùng để lấp TÊN cho content đã tắt gần đây — content >30 ngày không còn trong Meta sẽ hiện `(?)`.)*
+- `report.telegram_doc: "html"` → `run_daily.py` gửi **file HTML** lên Telegram (bảng rộng cuộn ngang được, KHÔNG cần Chrome).
+  Vắng (mặc định `"pdf"`) → xuất PDF qua Chrome rồi gửi như cũ. **TOEIC dùng `"html"`** (nhân viên cần cuộn ngang bảng).
+  Sau file, gửi thêm **một tin "Ad ID theo đề xuất"** — ad ID nhóm theo SCALE/GIẢM/TẮT/XEM XÉT, bọc `<code>` để tap-copy
+  (NV thao tác trực tiếp). Phần "Chi tiết Ad set / Ad ID" trong HTML cũng liệt kê đủ ad set/ad ID đang chạy + đề xuất đầy đủ,
+  kèm content đã tắt-giữa-kỳ (ghi "không còn ad đang chạy").
+- `rules.zero_lead_kill` / `rules.zero_lead_read` → **2 ngưỡng 0-lead** (chi > kill → XEM XÉT TẮT; chi ≥ read → ĐỌC INBOX
+  rồi quyết). Vắng `rules` ⇒ về 1 ngưỡng `zero_inbox` như TOEIC.
+- `rules.cr_keep_pct` / `rules.cr_keep_min` → **luật CR đặc biệt**: KPI ≤ CPL < pct×KPI nhưng CR (QL/lead) ≥ min → GIỮ.
+
+Luật phân loại/đề xuất tách ra `automation/engine/adops_rules.py` (thuần, không I/O). Test offline:
+`python3 automation/engine/tests/test_rules.py`. CBO: `build_meta.py` lấy `daily_budget` cấp campaign cho ad set CBO
+(field `campaign_budget`), `adops.py` hiển thị trong "Chi tiết Ad set / Ad ID".
+
+- **Đa tiền tệ (tỷ giá live):** `build_meta.py` đọc tiền của từng tài khoản từ Graph API; tài khoản ngoại tệ được
+  quy về VND bằng tỷ giá **lấy live** mỗi lần chạy (open.er-api.com, free), fallback `meta.currency_to_vnd` (vd
+  `{"THB":799}`) khi API lỗi. Áp cho cả spend lẫn ngân sách. Báo cáo ghi rõ tài khoản nào quy đổi + tỷ giá + nguồn (live/config).
+- **Token theo từng tài khoản (đa BM):** `meta.account_tokens` `{tên TK: tên biến env}` cho TK ở BM khác token mặc
+  định (vd IEThai 01 ở BM Prep Edu Thailand → `META_TOKEN_THAILAND`). Vắng = dùng `META_ACCESS_TOKEN`.
+- **Bền với nhiều BM:** tài khoản token thiếu/không có quyền (HTTP 403) bị **bỏ qua kèm cảnh báo** (ghi `account_errors`),
+  không làm hỏng cả lần chạy; chỉ lỗi khi KHÔNG truy cập được tài khoản nào.
+
 ## TODO (hardening sau)
-- `build_meta.py`: tự dựng `meta_spend.json` từ JSON Meta thô (parse tên ad, gộp, phát hiện CBO/shared/ghost)
-  để bỏ bước Claude tổng hợp tay. Cần xử lý CBO (ngân sách cấp campaign, không nhân đôi theo ad set).
-- Feed Mess/inbox tươi để bật luật "0 inbox → tắt".
+- Feed Mess/inbox tươi để bật luật "0 inbox → tắt" tự động (hiện ĐỌC INBOX/XEM XÉT TẮT là cờ cho người mở Pancake).
+- Lead→tài khoản khi nhiều TK chung 1 page (IELTS Thái 1 + IEThai 01): xác định join lead theo mã ad, không theo cột nguồn.

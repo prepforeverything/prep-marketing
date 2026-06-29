@@ -189,8 +189,8 @@ def classify(spend, lead):
     return R.classify(spend, lead, thr)
 
 
-def recommend(zone, lead, spend, cpl_mtd, z7="", cpl=0, ql=0):
-    return R.recommend(zone, lead, spend, cpl_mtd, thr, RULES, MIN_LEADS, z7=z7, cpl=cpl, ql=ql)
+def recommend(zone, lead, spend, cpl_mtd, z7="", cpl=0, ql=0, age=None):
+    return R.recommend(zone, lead, spend, cpl_mtd, thr, RULES, MIN_LEADS, z7=z7, cpl=cpl, ql=ql, age=age)
 
 
 mult = R.mult
@@ -200,6 +200,7 @@ def build(acct):
     info = cfg["accounts"][acct]
     spend_by = info["spend_by_code"]
     spend_by7 = info.get("spend_by_code_7d", {})
+    age_by = {norm(k): v for k, v in info.get("age_by_code", {}).items()}  # ngày tuổi (vắng ⇒ luật cũ)
     names = {norm(k): v for k, v in info.get("names", {}).items()}
     rows = []
     for nc in {norm(c) for c in spend_by} | set(leads[acct]) | {norm(c) for c in spend_by7}:
@@ -207,14 +208,16 @@ def build(acct):
         spend7 = next((v for c, v in spend_by7.items() if norm(c) == nc), 0)
         ld = leads[acct].get(nc, {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0})
         m = mtd.get(nc, {})
+        age = age_by.get(nc)
         zone, cpl = classify(spend, ld["lead"])
         zone7, cpl7 = classify(spend7, ld["lead7"]) if HAS7 else ("", None)
         rec = recommend(zone, ld["lead"], spend, m.get("cpl_mtd", 0),
-                        z7=(zone7 if HAS7 else ""), cpl=cpl or 0, ql=ld["ql"])
+                        z7=(zone7 if HAS7 else ""), cpl=cpl or 0, ql=ld["ql"], age=age)
         avg = round(spend / DAYS)
         rows.append({"code": nc, "name": m.get("name") or names.get(nc, ""), "program": m.get("program", ""),
                      "spend": spend, "lead": ld["lead"], "ql": ld["ql"], "cpl": cpl, "zone": zone,
                      "spend7": spend7, "lead7": ld["lead7"], "cpl7": cpl7, "zone7": zone7,
+                     "age": age, "phase": R.phase_of(age),
                      "cpl_mtd": m.get("cpl_mtd", 0), "order_mtd": m.get("order_mtd", 0), "rec": rec,
                      "avg_day": avg, "proj_day": round(avg * mult(rec))})
     rows.sort(key=lambda r: -r["spend"])
@@ -234,11 +237,12 @@ for acct, rows in data.items():
         print(f"{'Mã':>7} {'Spend 3d':>12} {'Lead':>4} {'CPL 3d':>10} {'Vùng':<11} {'TB/ngày':>10} {'→Dựkiến':>10}  Đề xuất · Tên")
     for r in sorted(rows, key=lambda r: (ZORD.get(r["zone"], 9), -r["spend"])):
         cpl = f"{round(r['cpl']):,}" if r["cpl"] else ("0 lead" if r["spend"] else "—")
+        pa = f"[{r['phase']} {r['age']}d] " if r.get("age") is not None else ""
         if HAS7:
             cpl7 = f"{round(r['cpl7']):,}" if r["cpl7"] else ("0 lead" if r["spend7"] else "—")
-            print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {cpl7:>10} {(r['zone']+'/'+r['zone7']):<18} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {r['name'][:22]}")
+            print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {cpl7:>10} {(r['zone']+'/'+r['zone7']):<18} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {pa}{r['name'][:22]}")
         else:
-            print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {r['zone']:<11} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {r['name'][:22]}")
+            print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {r['zone']:<11} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {pa}{r['name'][:22]}")
 
 cur_all = sum(r["avg_day"] for rs in data.values() for r in rs)
 proj_all = sum(r["proj_day"] for rs in data.values() for r in rs)
@@ -267,12 +271,20 @@ if _summary_path:
                 "accounts": {}}
     for _acct, _rows in data.items():
         _ts = sum(r["spend"] for r in _rows); _tl = sum(r["lead"] for r in _rows)
+        _ads_by_code = defaultdict(list)                       # mã → ad ID đang chạy (để NV copy thao tác)
+        for _s in cfg["accounts"][_acct].get("adsets", []):
+            for _c in _s.get("codes", []):
+                _ads_by_code[norm(_c)].extend(_s.get("ads", []))
         _b = {"scale": [], "giam": [], "tat": [], "xemxet": []}
+        _items = []
         for r in _rows:
             k = _bucket(r["rec"])
             if k and r["spend"] > 0:
                 _b[k].append(r["code"])
-        _summary["accounts"][_acct] = {"spend": _ts, "lead": _tl, "cpl": round(_ts / _tl) if _tl else 0, "buckets": _b}
+                _items.append({"code": r["code"], "name": r["name"], "rec": r["rec"], "bucket": k,
+                               "ads": _ads_by_code.get(r["code"], [])})
+        _summary["accounts"][_acct] = {"spend": _ts, "lead": _tl, "cpl": round(_ts / _tl) if _tl else 0,
+                                       "buckets": _b, "items": _items}
     json.dump(_summary, open(_summary_path, "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---- baseline cho đối soát cuối ngày (opt-in qua env ADOPS_BASELINE_JSON) ----------------------
@@ -355,8 +367,10 @@ def section(acct, rows):
         pjc = "0" if (pj == 0 and av > 0) else vnd(pj)
         pcls = "delta-up" if pj > av else ("delta-bad" if pj < av else "")
         arrow = "↑ " if pj > av else ("↓ " if pj < av else "")
+        age_cell = (f'<b>{r["age"]}d</b><div class="pct">{r["phase"]}</div>' if r.get("age") is not None else '<span class="pct">—</span>')
         body += (f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}{(" · " + r["program"]) if r["program"] else ""}</div></td>'
                  f'<td class="num">{vnd(r["spend"])}</td><td class="num">{r["lead"]}</td><td class="cpl-wrap">{cpl}</td>{c7}'
+                 f'<td>{age_cell}</td>'
                  f'<td><span class="badge {ZB.get(r["zone"],"z-off")}">{r["zone"]}</span></td>'
                  f'<td><span class="badge {actb(r["rec"])}">{r["rec"]}</span></td>'
                  f'<td class="num">{vnd(av)}</td><td class="num {pcls}">{arrow}{pjc}</td></tr>')
@@ -368,7 +382,7 @@ def section(acct, rows):
       <div class="card"><div class="lbl">CPL bình quân 3 ngày</div><div class="val {'delta-up' if acpl<thr['kpi'] else 'delta-bad'}">{vnd(acpl)} <small>₫</small></div></div>
       <div class="card"><div class="lbl">Số bài</div><div class="val">{len(rows)}</div></div>
     </div>
-    <div class="scroll"><table><thead><tr><th>Content</th><th class="num">Spend 3d</th><th class="num">Lead</th><th>CPL 3 ngày</th>{h7}<th>Vùng</th><th>Đề xuất</th><th class="num">TB chi/ngày</th><th class="num">→ Dự kiến/ngày</th></tr></thead><tbody>{body}</tbody></table></div>'''
+    <div class="scroll"><table><thead><tr><th>Content</th><th class="num">Spend 3d</th><th class="num">Lead</th><th>CPL 3 ngày</th>{h7}<th>Ngày tuổi</th><th>Vùng</th><th>Đề xuất</th><th class="num">TB chi/ngày</th><th class="num">→ Dự kiến/ngày</th></tr></thead><tbody>{body}</tbody></table></div>'''
 
 sections = "\n".join(section(a, r) for a, r in data.items())
 
@@ -424,20 +438,25 @@ def adset_section(acct):
     rh = ""
     for r in sorted(data[acct], key=lambda r: (ZORD.get(r["zone"], 9), -r["spend"])):
         sets = by_code.get(r["code"], [])
-        if not sets: continue
-        items = ""
-        for s in sets:
-            others = [x for x in s["codes"] if norm(x) != r["code"]]
-            shared = f' <span class="pct">⚠ dùng chung: {", ".join(others)}</span>' if others else ""
-            cbo = " · CBO" if s.get("cbo") else ""
-            if s.get("cbo") and s.get("campaign_budget"):
-                bud = f'<b>{vnd(s["campaign_budget"])}₫</b>/ngày <span class="pct">(camp CBO)</span>'
-            elif s.get("budget"):
-                bud = f'<b>{vnd(s["budget"])}₫</b>/ngày'
-            else:
-                bud = '<b>—</b>'
-            items += f'<div style="margin:2px 0"><code>{s["id"]}</code> — {bud}{cbo}{shared}<br><span class="code">ad: {", ".join(s["ads"]) or "—"}</span></div>'
-        rh += f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}</div></td><td><span class="badge {actb(r["rec"])}">{r["rec"].split(" · ")[0].split(" (")[0]}</span></td><td>{items}</td></tr>'
+        if not sets and r["spend"] == 0:
+            continue                                       # content chết hẳn (0 chi, không ad set) → bỏ
+        if sets:
+            items = ""
+            for s in sets:
+                others = [x for x in s["codes"] if norm(x) != r["code"]]
+                shared = f' <span class="pct">⚠ dùng chung: {", ".join(others)}</span>' if others else ""
+                cbo = " · CBO" if s.get("cbo") else ""
+                if s.get("cbo") and s.get("campaign_budget"):
+                    bud = f'<b>{vnd(s["campaign_budget"])}₫</b>/ngày <span class="pct">(camp CBO)</span>'
+                elif s.get("budget"):
+                    bud = f'<b>{vnd(s["budget"])}₫</b>/ngày'
+                else:
+                    bud = '<b>—</b>'
+                items += f'<div style="margin:2px 0"><code>{s["id"]}</code> — {bud}{cbo}{shared}<br><span class="code">ad: {", ".join(s["ads"]) or "—"}</span></div>'
+        else:
+            items = '<span class="pct">⚠ Không còn ad set đang chạy (ad đã tắt giữa kỳ) — chỉ còn dữ liệu chi/lead trong cửa sổ.</span>'
+        age_sfx = f' · {r["phase"]} {r["age"]}d' if r.get("age") is not None else ""
+        rh += f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}{age_sfx}</div></td><td><span class="badge {actb(r["rec"])}">{r["rec"]}</span></td><td>{items}</td></tr>'
     g = info.get("ghost_adsets")
     gn = f'<div class="note warn">⚠️ {g["note"]}<br>Ad set: {", ".join(g["ids"])}.</div>' if g else ""
     n60 = f'<div class="note">{info["note_60226"]}</div>' if info.get("note_60226") else ""

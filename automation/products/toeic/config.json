@@ -22,5 +22,6 @@
     "min_cols": 13
   },
   "min_leads": 3,
+  "report": { "primary_days": 3, "confirm_days": 7, "age_lookback_days": 30, "telegram_doc": "html" },
   "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_CHAT_ID" }
 }

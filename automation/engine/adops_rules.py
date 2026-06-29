@@ -53,12 +53,56 @@ def matrix_rec(z3, lead3, z7, good_mtd, min_leads):
     return "GIẢM 20% · 3d & 7d yếu"
 
 
-def recommend(zone, lead, spend, cpl_mtd, thr, rules, min_leads, *, z7="", cpl=0, ql=0):
-    """Đề xuất hành động cho một mã content. z7 != "" ⇒ dùng ma trận 3d×7d.
-    Tiền tố giữ chuẩn (SCALE/GIẢM/TẮT/XEM XÉT TẮT/GIỮ/CẢNH BÁO/ĐỌC INBOX) để mult()+bucket caption khớp."""
+def phase_of(age):
+    """Pha vòng đời theo ngày tuổi (số ngày đã BẮT ĐẦU TIÊU TIỀN). None ⇒ không biết tuổi."""
+    if age is None:
+        return ""
+    if age <= 3:
+        return "Phiên 1"
+    if age <= 6:
+        return "Phiên 2"
+    return "Mốc 2+"                                  # age ≥ 7: Mốc 2 + content trưởng thành
+
+
+def _phase_rec(zone, lead, z7, good_mtd, min_leads, age):
+    """Đề xuất THEO PHA (SOP): Phiên 1 = cổng (Yếu/Rất tệ → TẮT, chưa scale);
+    Phiên 2 = kiểm chứng (Yếu → giảm 20%, Rất tệ → tắt, chưa scale); Mốc 2+ = xét R7 (scale ở đây).
+    Chỉ gọi sau khi các nhánh spend==0 / 0-lead / CR đã xử lý ⇒ ở đây spend>0 và lead>0."""
+    if age <= 3:                                     # Phiên 1 — cổng kiểm tra (chỉ Tốt/TB qua)
+        if zone == "RẤT TỆ":
+            return "TẮT · Phiên 1 (cổng) — rất tệ"
+        if zone == "YẾU":
+            return "TẮT · Phiên 1 (cổng) — yếu"
+        return "GIỮ · Phiên 1 — vào Phiên 2"         # Tốt/TB: giữ ngân sách, chưa scale
+    if age <= 6:                                     # Phiên 2 — kiểm chứng (scale để dành Mốc 2)
+        if zone == "RẤT TỆ":
+            return "TẮT · Phiên 2 — rất tệ"
+        if zone == "YẾU":
+            return "GIẢM 20% · Phiên 2"
+        return "GIỮ · Phiên 2"                       # Tốt/TB: giữ
+    # age ≥ 7 — Mốc 2 + trưởng thành: đây là nơi scale/tắt theo R7
+    if z7:
+        return matrix_rec(zone, lead, z7, good_mtd, min_leads)
+    if zone == "TỐT":
+        return "SCALE +20%" if lead >= min_leads else "GIỮ · theo dõi (ít lead)"
+    if zone == "TRUNG BÌNH":
+        return "GIỮ"
+    if zone == "YẾU":
+        return "GIẢM 20% · cảnh báo"
+    if zone == "RẤT TỆ":
+        return "CẢNH BÁO (3 ngày tệ, lũy kế tốt)" if good_mtd else "TẮT"
+    return "—"
+
+
+def recommend(zone, lead, spend, cpl_mtd, thr, rules, min_leads, *, z7="", cpl=0, ql=0, age=None):
+    """Đề xuất hành động cho một mã content. age != None ⇒ áp luật THEO PHA (Phiên 1/2/Mốc 2);
+    age = None ⇒ hành vi cũ (z7 ⇒ ma trận 3d×7d). Tiền tố giữ chuẩn
+    (SCALE/GIẢM/TẮT/XEM XÉT TẮT/GIỮ/CẢNH BÁO/ĐỌC INBOX) để mult()+bucket caption khớp."""
     good_mtd = 0 < cpl_mtd < thr["kpi"]
     if spend == 0 and lead > 0:
         return "Bài đã tắt · có lead trễ — không cần thao tác"
+    if spend == 0 and lead == 0:        # không hoạt động 3 ngày → không đề xuất (kể cả khi 7d còn dữ liệu)
+        return "—"
     if lead == 0 and spend > 0:
         if good_mtd:
             return "CẢNH BÁO · 0 lead 3 ngày (lũy kế tốt) — review"
@@ -74,6 +118,8 @@ def recommend(zone, lead, spend, cpl_mtd, thr, rules, min_leads, *, z7="", cpl=0
         return "Theo dõi · 0 lead, chi thấp"
     if cr_keep(cpl, lead, ql, thr, rules):
         return f"GIỮ · CR cao ({round(ql / lead * 100)}%) dù CPL>KPI"
+    if age is not None:                              # luật theo pha (SOP) — chỉ khi biết ngày tuổi
+        return _phase_rec(zone, lead, z7, good_mtd, min_leads, age)
     if z7:
         return matrix_rec(zone, lead, z7, good_mtd, min_leads)
     if zone == "TỐT":
