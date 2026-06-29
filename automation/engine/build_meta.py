@@ -135,7 +135,38 @@ def fetch_spend(g, acct_id, preset, join="code", objectives=None, name_include=N
     return spend_by_code, names, window, ad_meta
 
 
-def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rate=1, cbo_budget=False, join="code", objectives=None, name_include=None, short_preset=None, with_meta=False):
+def fetch_first_spend(g, acct_id, preset, join="code", objectives=None, name_include=None):
+    """Ngày đầu tiên có spend (>0) mỗi khoá trong cửa sổ `preset` (dùng time_increment=1 → chia theo ngày).
+    Trả {khoá: 'YYYY-MM-DD'} để suy ngày tuổi = số ngày đã BẮT ĐẦU TIÊU TIỀN (không tính ngày setup chưa chi).
+    Khoá cũ hơn cửa sổ ⇒ ngày sớm nhất trong cửa sổ (age bị chặn dưới = độ dài cửa sổ — vẫn rơi vào 'trưởng thành')."""
+    extra = (["objective"] if objectives else []) + (["campaign_name"] if name_include else [])
+    fields = "ad_id,ad_name,spend" + (("," + ",".join(sorted(set(extra)))) if extra else "")
+    rows = g.page(f"act_{acct_id}/insights",
+                  {"level": "ad", "date_preset": preset, "time_increment": "1", "fields": fields, "limit": "500"})
+    nlow = name_include.lower() if name_include else None
+    first, names = {}, {}
+    for r in rows:
+        if objectives and r.get("objective") not in objectives:
+            continue
+        if nlow and nlow not in (r.get("campaign_name") or "").lower():
+            continue
+        if float(r.get("spend", 0) or 0) <= 0:
+            continue
+        if join == "ad_id":
+            key, nm = norm(r.get("ad_id") or ""), (r.get("ad_name") or "").strip()
+        else:
+            key, nm = parse_name(r.get("ad_name"))
+        d = r.get("date_start")
+        if not key or not d:
+            continue
+        if key not in first or d < first[key]:
+            first[key] = d
+        if nm and key not in names:                 # tên từ cửa sổ dò → lấp (?) cho content đã tắt trong 30 ngày
+            names[key] = nm
+    return first, names
+
+
+def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rate=1, cbo_budget=False, join="code", objectives=None, name_include=None, short_preset=None, with_meta=False, age_preset=None):
     """rate = tỷ giá quy về VND (1 nếu tài khoản đã VND; vd 799 cho THB). Áp cho spend + mọi ngân sách.
     cbo_budget = có lấy ngân sách cấp campaign cho ad set CBO không (chỉ bật cho sản phẩm khai report.cbo_campaign_budget).
     join = 'code' (mã content, TOEIC) | 'ad_id' (ad_id, IELTS Thái) — khoá gộp spend + map ad↔adset.
@@ -159,6 +190,13 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
     if short_preset:
         sbc1, _, _, _ = fetch_spend(g, acct_id, short_preset, join, objectives, name_include)
         spend_by_code_1d = dict(conv(sbc1))
+
+    # Ngày đầu tiên có spend (suy ngày tuổi) — chỉ khi sản phẩm bật report.age_lookback_days.
+    first_spend_by_code = None
+    if age_preset:
+        first_spend_by_code, names_age = fetch_first_spend(g, acct_id, age_preset, join, objectives, name_include)
+        for _c, _n in names_age.items():
+            names.setdefault(_c, _n)                # tên từ cửa sổ dò 30 ngày lấp (?) cho content đã tắt
 
     adsets = g.page(f"act_{acct_id}/adsets",
                     {"fields": "id,name,daily_budget,effective_status,campaign_id",
@@ -227,6 +265,8 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
         acc["spend_by_code_7d"] = spend_by_code_7d
     if spend_by_code_1d is not None:
         acc["spend_by_code_1d"] = spend_by_code_1d
+    if first_spend_by_code:
+        acc["first_spend_by_code"] = first_spend_by_code        # main() suy age_by_code sau khi biết anchor
     if ad_meta:
         acc["ad_meta"] = ad_meta
     if ghost_ids:
@@ -265,6 +305,8 @@ def main():
     confirm_preset = f"last_{rep['confirm_days']}d" if rep.get("confirm_days") else None
     _sd = rep.get("short_days")  # Meta KHÔNG có 'last_1d' → 1 ngày dùng 'yesterday'
     short_preset = ("yesterday" if _sd == 1 else f"last_{_sd}d") if _sd else None
+    _ald = rep.get("age_lookback_days")  # bật ngày tuổi (first-spend day) — cửa sổ dò first-spend
+    age_preset = f"last_{_ald}d" if _ald else None
     cbo_budget = bool(rep.get("cbo_campaign_budget"))     # lấy ngân sách CBO cấp campaign (opt-in/sản phẩm)
     join = (cfg.get("lead_sheet") or {}).get("join", "code")  # 'code' (TOEIC) | 'ad_id' (IELTS Thái)
     objectives = cfg["meta"].get("objectives")            # vd ["OUTCOME_ENGAGEMENT","OUTCOME_LEADS"] (lọc theo objective)
@@ -322,7 +364,7 @@ def main():
                 continue
         rate, rate_src = resolve_rate(cur, name, acct)
         try:
-            acc, win, win7 = build_account(ga, acct, primary_preset, confirm_preset, rate, cbo_budget, join, objectives, name_include, short_preset, with_meta=(join == "ad_id"))
+            acc, win, win7 = build_account(ga, acct, primary_preset, confirm_preset, rate, cbo_budget, join, objectives, name_include, short_preset, with_meta=(join == "ad_id"), age_preset=age_preset)
             if name_include:  # đối chiếu tổng campaign có tên chứa name_include
                 chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "campaign_name,spend"})
                 acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if name_include.lower() in (c.get("campaign_name") or "").lower()) * rate))
@@ -359,6 +401,12 @@ def main():
     win_dates = expand(window)
     win7_dates = expand(window_7d)
     anchor = (datetime.date.fromisoformat(win_dates[-1]) + datetime.timedelta(days=1)).isoformat() if win_dates else None
+    if anchor:  # suy ngày tuổi = (anchor − ngày đầu tiêu tiền); thay first_spend_by_code bằng age_by_code gọn hơn
+        _anchor_d = datetime.date.fromisoformat(anchor)
+        for _a in out_accounts.values():
+            _fs = _a.pop("first_spend_by_code", None)
+            if _fs:
+                _a["age_by_code"] = {k: (_anchor_d - datetime.date.fromisoformat(v)).days for k, v in _fs.items()}
     doc = {"anchor": anchor, "window": win_dates,
            "note": f"Dựng tự động bằng build_meta.py (Graph API {ver}, ad-level KHÔNG lọc trạng thái).",
            "accounts": out_accounts}
