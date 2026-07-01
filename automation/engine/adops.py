@@ -22,6 +22,7 @@ KPI_ID = PCFG["kpi_sheet"]["id"]
 KPI_GID = PCFG["kpi_sheet"]["gid"]
 KPI_LINE = PCFG["kpi_sheet"]["line"]
 KPI_CHANNEL = PCFG["kpi_sheet"]["channel"]
+BUDGET_BLOCK = PCFG["kpi_sheet"].get("budget_block", KPI_LINE)  # nhãn khối ngân sách "▸ <SP>" (mặc định = line)
 LEAD_ID = PCFG["lead_sheet"]["id"]
 PHONE_TAB = PCFG["lead_sheet"]["phone_tab"]
 CONTENT_TAB = PCFG["lead_sheet"].get("content_tab")   # tuỳ chọn — không có thì bỏ phần MTD
@@ -112,15 +113,10 @@ else:
     for r in kpi_rows:
         if len(r) > 7 and r[1].strip() == KPI_LINE and r[2].strip() == KPI_CHANNEL:
             thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
-# weekly/daily Inbox budget for the anchor's week (cols 2=W1,3=W2,4=W3,5=W4 by day-of-month)
-_d = int(cfg["anchor"][8:10]); WK = 2 if _d <= 7 else 3 if _d <= 14 else 4 if _d <= 21 else 5
-kpi_day = kpi_week = 0
-for i, r in enumerate(kpi_rows):
-    if len(r) > WK and r[0].strip() == KPI_CHANNEL and r[1].strip() == "Tuần":
-        kpi_week = bnum(r[WK])
-        nr = kpi_rows[i + 1] if i + 1 < len(kpi_rows) else []
-        kpi_day = bnum(nr[WK]) if len(nr) > WK else 0
-        break
+# Ngân sách Inbox tuần/ngày — KPI Master 1-tab, nhiều SP: lọc KHỐI "▸ <SP>" + chọn cột tuần theo mốc ngày anchor.
+_amonth, _aday = int(cfg["anchor"][5:7]), int(cfg["anchor"][8:10])  # anchor = "YYYY-MM-DD"
+_wc, _dc = R.inbox_budget_cells(kpi_rows, BUDGET_BLOCK, KPI_CHANNEL, _amonth, _aday)
+kpi_week, kpi_day = bnum(_wc), bnum(_dc)
 
 # ---- leads (tab lead) — đếm cửa sổ 3 ngày, và 7 ngày nếu sản phẩm bật ----------
 leads = defaultdict(lambda: defaultdict(lambda: {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0}))
