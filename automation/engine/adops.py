@@ -27,6 +27,8 @@ PHONE_TAB = PCFG["lead_sheet"]["phone_tab"]
 CONTENT_TAB = PCFG["lead_sheet"].get("content_tab")   # tuỳ chọn — không có thì bỏ phần MTD
 LC = PCFG["lead_sheet"]                 # chỉ số cột tab lead
 JOIN = LC.get("join", "code")          # 'code' (TOEIC) | 'ad_id' (IELTS Thái: nối lead↔spend theo ad_id)
+# Lớp phủ ad_id: chấm quy tắc 3d×7d cho TỪNG ad_id (bắt ad lẻ tệ trong content tốt). Chỉ khi có cột Ad ID.
+ADID_OVERLAY = bool((PCFG.get("report") or {}).get("adid_overlay")) and JOIN != "ad_id" and LC.get("col_adid") is not None
 ACCOUNTS = PCFG["meta"]["accounts"]     # tên tài khoản (khớp chuỗi con trong cột Account)
 MIN_LEADS = PCFG.get("min_leads", 3)
 RULES = PCFG.get("rules", {}) or {}     # luật tùy chọn theo sản phẩm (0-lead 2 ngưỡng, CR…)
@@ -122,6 +124,7 @@ for i, r in enumerate(kpi_rows):
 
 # ---- leads (tab lead) — đếm cửa sổ 3 ngày, và 7 ngày nếu sản phẩm bật ----------
 leads = defaultdict(lambda: defaultdict(lambda: {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0}))
+leads_ad = defaultdict(lambda: defaultdict(lambda: {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0}))  # lead theo ad_id (overlay)
 _phone_url = f"https://docs.google.com/spreadsheets/d/{LEAD_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(PHONE_TAB)}"
 _lead_rows = list(csv.reader(io.StringIO(fetch(_phone_url))))[1:]
 if JOIN == "ad_id":
@@ -164,12 +167,19 @@ else:
             continue
         code = norm(r[LC["col_code"]])
         isql = r[LC["col_ql"]].strip() == "1"
+        _adid = norm(r[LC["col_adid"]]) if (ADID_OVERLAY and len(r) > LC["col_adid"]) else None
         if in3:
             leads[acct][code]["lead"] += 1
             if isql: leads[acct][code]["ql"] += 1
+            if _adid:
+                leads_ad[acct][_adid]["lead"] += 1
+                if isql: leads_ad[acct][_adid]["ql"] += 1
         if in7:
             leads[acct][code]["lead7"] += 1
             if isql: leads[acct][code]["ql7"] += 1
+            if _adid:
+                leads_ad[acct][_adid]["lead7"] += 1
+                if isql: leads_ad[acct][_adid]["ql7"] += 1
 
 # ---- month-to-date (Content Ad) — tuỳ chọn -----------------------------------
 mtd = {}
@@ -227,6 +237,39 @@ def build(acct):
 data = {a: build(a) for a in cfg["accounts"]}
 ZORD = {"TỐT": 0, "TRUNG BÌNH": 1, "YẾU": 2, "RẤT TỆ": 3, "CHƯA CÓ LEAD": 4, "ĐÃ TẮT": 5, "—": 6}
 
+
+def _is_kill(rec):
+    return rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT")
+
+
+# ---- lớp phủ ad_id: áp CHÍNH quy tắc 3d×7d cho từng ad_id (tuổi = ngày bật lại) ----------------
+# Bắt ad lẻ VI PHẠM nằm trong content mà cấp code vẫn TỐT/GIỮ/SCALE. Không có MTD theo ad ⇒ cpl_mtd=0
+# (không áp 'lũy kế tốt' ở cấp ad → vi phạm 3d & 7d là đề xuất tắt, đúng yêu cầu).
+adid_kill = defaultdict(list)
+adid_gap = defaultdict(list)             # ad cùng phiên nhưng có ngày lẻ 0-chi → nêu để review, KHÔNG reset tuổi
+if ADID_OVERLAY:
+    for acct in cfg["accounts"]:
+        code_rec = {r["code"]: r["rec"] for r in data[acct]}      # đề xuất cấp content
+        for ad in cfg["accounts"][acct].get("ads_overlay", []):
+            s3 = ad.get("spend", 0); s7 = ad.get("spend7", 0)
+            if ad.get("zero_gap") and s3 > 0:
+                adid_gap[acct].append({"id": ad["id"], "code": norm(ad.get("code") or ""),
+                                       "name": ad.get("name", ""), "age": ad.get("age")})
+            if s3 <= 0:
+                continue
+            aid = norm(ad["id"]); acode = norm(ad.get("code") or "")
+            if _is_kill(code_rec.get(acode, "")):                 # cả content đã bị tắt → ad đã nằm trong danh sách đó
+                continue
+            ld = leads_ad[acct].get(aid, {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0})
+            z3, cpl3 = classify(s3, ld["lead"])
+            z7, _ = classify(s7, ld["lead7"]) if HAS7 else ("", None)
+            rec = recommend(z3, ld["lead"], s3, 0, z7=(z7 if HAS7 else ""), cpl=cpl3 or 0, ql=ld["ql"], age=ad.get("age"))
+            if _is_kill(rec):
+                adid_kill[acct].append({"id": ad["id"], "code": acode, "name": ad.get("name", ""),
+                                        "spend": s3, "lead": ld["lead"], "cpl": round(cpl3) if cpl3 else 0,
+                                        "zone": z3, "zone7": z7, "age": ad.get("age"), "rec": rec,
+                                        "content_rec": code_rec.get(acode, "")})
+
 # ---- console -----------------------------------------------------------------
 for acct, rows in data.items():
     ts, tl = sum(r["spend"] for r in rows), sum(r["lead"] for r in rows)
@@ -244,6 +287,15 @@ for acct, rows in data.items():
         else:
             print(f"{r['code']:>7} {r['spend']:>12,} {r['lead']:>4} {cpl:>10} {r['zone']:<11} {r['avg_day']:>10,} {r['proj_day']:>10,}  {r['rec']} · {pa}{r['name'][:22]}")
 
+if ADID_OVERLAY and any(adid_kill.values()):
+    print("\n===== 🔴 AD LẺ VI PHẠM (trong content vẫn TỐT/GIỮ/SCALE) — xét tắt riêng ad này =====")
+    for acct, ks in adid_kill.items():
+        for k in sorted(ks, key=lambda x: -(x["cpl"] or 0)):
+            cpl = f"{k['cpl']:,}" if k["cpl"] else ("0 lead" if k["spend"] else "—")
+            ag = f"{k['age']}d" if k.get("age") is not None else "—"
+            print(f"  {acct[:7]} {k['id']} [{k['code']}] tuổi {ag} · chi3d {k['spend']:,} · lead {k['lead']} · CPL {cpl} "
+                  f"· {k['zone']}/{k['zone7']} → {k['rec']}  (content: {k['content_rec']}) · {k['name'][:24]}")
+
 cur_all = sum(r["avg_day"] for rs in data.values() for r in rs)
 proj_all = sum(r["proj_day"] for rs in data.values() for r in rs)
 print("\n===== TÁC ĐỘNG NGÂN SÁCH/NGÀY (run-rate = spend 3 ngày ÷ 3) =====")
@@ -254,6 +306,29 @@ print(f"  TỔNG: {cur_all:,} → {proj_all:,}  (Δ {proj_all-cur_all:+,})")
 if kpi_day:
     print(f"  KPI Inbox/ngày (tuần này): {kpi_day:,} → dự kiến {'VƯỢT' if proj_all>kpi_day else 'trong ngưỡng'} ({(proj_all/kpi_day-1)*100:+.1f}%)")
     print(f"  KPI Inbox/tuần: {kpi_week:,} → dự kiến tuần (×7) {proj_all*7:,} ({(proj_all*7/kpi_week-1)*100:+.1f}%)")
+
+# ---- phương án giữ KPI: phân bổ lại trong trần ngân sách ngày (tính SỚM để bucket/summary bám ngân sách) ----
+all_rows = [(a, r) for a, rs in data.items() for r in rs]
+def base_alloc(r):  # cắt/giảm bắt buộc giải phóng ngân sách; còn lại giữ nguyên
+    if r["rec"].startswith("TẮT") or r["rec"].startswith("XEM XÉT TẮT"): return 0
+    if r["rec"].startswith("GIẢM"): return round(r["avg_day"] * 0.8)
+    return r["avg_day"]
+base = {(a, r["code"]): base_alloc(r) for a, r in all_rows}
+ceiling = kpi_day or sum(base.values())
+rem = max(0, ceiling - sum(base.values()))
+winners = sorted([(a, r) for a, r in all_rows if r["zone"] == "TỐT" and r["lead"] >= MIN_LEADS], key=lambda x: x[1]["cpl"])
+scale_add = {}
+for a, r in winners:                              # ưu tiên CPL tốt nhất, cấp +20% đến khi chạm trần
+    give = min(round(r["avg_day"] * 0.2), rem); scale_add[(a, r["code"])] = give; rem -= give
+plan = {k: base[k] + scale_add.get(k, 0) for k in base}
+plan_total = sum(plan.values())
+under = [r for a, r in winners if scale_add.get((a, r["code"]), 0) < round(r["avg_day"] * 0.2) - 1]
+def plan_label(a, r):
+    cur, fin = r["avg_day"], plan[(a, r["code"])]
+    if fin == 0 and cur > 0: return "TẮT"
+    if fin > cur: return f"SCALE +{round((fin/cur-1)*100)}%"
+    if fin < cur: return f"GIẢM −{round((1-fin/cur)*100)}%"
+    return "GIỮ"
 
 # ---- tóm tắt máy-đọc (opt-in qua env ADOPS_SUMMARY_JSON) — cho caption Telegram tự sinh -------
 _summary_path = __import__("os").environ.get("ADOPS_SUMMARY_JSON")
@@ -278,13 +353,24 @@ if _summary_path:
         _b = {"scale": [], "giam": [], "tat": [], "xemxet": []}
         _items = []
         for r in _rows:
-            k = _bucket(r["rec"])
-            if k and r["spend"] > 0:
+            if r["spend"] <= 0:
+                continue
+            # SCALE chỉ liệt kê khi phương án ngân sách THỰC SỰ scale (còn room dưới trần); hết room → giữ, không nêu.
+            if r["rec"].startswith("SCALE"):
+                if scale_add.get((_acct, r["code"]), 0) <= 0:
+                    continue
+                k, rec_out = "scale", plan_label(_acct, r)
+            else:
+                k, rec_out = _bucket(r["rec"]), r["rec"]
+            if k:
                 _b[k].append(r["code"])
-                _items.append({"code": r["code"], "name": r["name"], "rec": r["rec"], "bucket": k,
+                _items.append({"code": r["code"], "name": r["name"], "rec": rec_out, "bucket": k,
                                "ads": _ads_by_code.get(r["code"], [])})
+        _kills = [{"id": k["id"], "code": k["code"], "name": k["name"], "cpl": k["cpl"], "lead": k["lead"],
+                   "age": k.get("age"), "rec": k["rec"], "content_rec": k["content_rec"]}
+                  for k in adid_kill.get(_acct, [])]
         _summary["accounts"][_acct] = {"spend": _ts, "lead": _tl, "cpl": round(_ts / _tl) if _tl else 0,
-                                       "buckets": _b, "items": _items}
+                                       "buckets": _b, "items": _items, "adid_kill": _kills}
     json.dump(_summary, open(_summary_path, "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---- baseline cho đối soát cuối ngày (opt-in qua env ADOPS_BASELINE_JSON) ----------------------
@@ -310,28 +396,7 @@ if _baseline_path:
         ]
     json.dump(_bl, open(_baseline_path, "w", encoding="utf-8"), ensure_ascii=False)
 
-# ---- fit-to-KPI plan: reallocate within the daily ceiling --------------------
-all_rows = [(a, r) for a, rs in data.items() for r in rs]
-def base_alloc(r):  # mandatory cuts/reductions free up budget; everything else holds
-    if r["rec"].startswith("TẮT") or r["rec"].startswith("XEM XÉT TẮT"): return 0
-    if r["rec"].startswith("GIẢM"): return round(r["avg_day"] * 0.8)
-    return r["avg_day"]
-base = {(a, r["code"]): base_alloc(r) for a, r in all_rows}
-ceiling = kpi_day or sum(base.values())
-rem = max(0, ceiling - sum(base.values()))
-winners = sorted([(a, r) for a, r in all_rows if r["zone"] == "TỐT" and r["lead"] >= MIN_LEADS], key=lambda x: x[1]["cpl"])
-scale_add = {}
-for a, r in winners:
-    give = min(round(r["avg_day"] * 0.2), rem); scale_add[(a, r["code"])] = give; rem -= give
-plan = {k: base[k] + scale_add.get(k, 0) for k in base}
-plan_total = sum(plan.values())
-under = [r for a, r in winners if scale_add.get((a, r["code"]), 0) < round(r["avg_day"] * 0.2) - 1]
-def plan_label(a, r):
-    cur, fin = r["avg_day"], plan[(a, r["code"])]
-    if fin == 0 and cur > 0: return "TẮT"
-    if fin > cur: return f"SCALE +{round((fin/cur-1)*100)}%"
-    if fin < cur: return f"GIẢM −{round((1-fin/cur)*100)}%"
-    return "GIỮ"
+# ---- in phương án giữ KPI (đã tính ở trên, trước summary) ---------------------
 print(f"\n===== PHƯƠNG ÁN GIỮ KPI (phân bổ lại ≤ {ceiling:,}/ngày) =====")
 for a, r in sorted(all_rows, key=lambda x: -plan[(x[0], x[1]['code'])]):
     if r["avg_day"] or plan[(a, r["code"])]:
@@ -464,6 +529,36 @@ def adset_section(acct):
     return f'<h3 class="h3">Prep {acct}</h3><div class="scroll"><table><thead><tr><th>Content</th><th>Đề xuất</th><th>Ad set (ngân sách/ngày) · Ad ID</th></tr></thead><tbody>{rh}</tbody></table></div>{gn}{n60}{nt}'
 addetail = '<h2><span class="bar"></span>Chi tiết Ad set / Ad ID để thao tác</h2>' + "".join(adset_section(a) for a in cfg["accounts"])
 
+# Ad lẻ vi phạm quy tắc (R3×R7) nằm trong content vẫn tốt → tắt riêng ad này.
+adkill = ""
+if ADID_OVERLAY and any(adid_kill.values()):
+    _kr = ""
+    for acct in cfg["accounts"]:
+        for k in sorted(adid_kill.get(acct, []), key=lambda x: -(x["cpl"] or 0)):
+            cpl = f'{vnd(k["cpl"])} ₫' if k["cpl"] else ("0 lead" if k["spend"] else "—")
+            ag = f'{k["age"]}d' if k.get("age") is not None else "—"
+            _kr += (f'<tr><td><code>{k["id"]}</code></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
+                    f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
+                    f'<td><span class="badge act-off">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div></td></tr>')
+    adkill = (f'<h2><span class="bar"></span>🔴 Ad lẻ vi phạm — tắt riêng ad này (content vẫn tốt)</h2>'
+              f'<div class="note warn">Áp đúng quy tắc R3×R7 + ngày tuổi (bật lại) cho <b>từng Ad ID</b>. Các ad dưới đây vi phạm '
+              f'dù content tổng đang GIỮ/SCALE → chỉ tắt ad này, giữ nguyên content.</div>'
+              f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>Tuổi</th><th class="num">Chi 3d</th>'
+              f'<th class="num">Lead</th><th class="num">CPL/ad</th><th>Đề xuất</th></tr></thead><tbody>{_kr}</tbody></table></div>')
+
+# Ad cùng phiên nhưng có ngày lẻ 0-chi (không đủ để reset tuổi) → nêu cảnh báo để người review.
+gapnote = ""
+if ADID_OVERLAY and any(adid_gap.values()):
+    _items = "".join(
+        f'<li>{acct} · <code>{g["id"]}</code> {g["code"]}'
+        + (f' · {g["age"]}d' if g.get("age") is not None else "")
+        + (f' — {(g["name"] or "")[:30]}' if g.get("name") else "") + '</li>'
+        for acct in cfg["accounts"] for g in adid_gap.get(acct, []))
+    gapnote = (f'<div class="note warn"><b>⚠️ Ad có ngày lẻ 0-chi — kiểm tra tình hình</b>'
+               f'<div class="pct">Các ad dưới đây vẫn tính CÙNG phiên (ngày tuổi giữ nguyên), nhưng có ngày không tiêu tiền xen giữa. '
+               f'Không tự reset — nên rà xem là hết ngân sách/thua đấu giá (bình thường) hay đã bị tắt tay (cân nhắc coi là phiên mới).</div>'
+               f'<ul class="tight">{_items}</ul></div>')
+
 # ---- nhãn header/footer suy từ config (TOEIC giữ nguyên; sản phẩm khác hiển thị đúng tên/ngưỡng) ----
 DISPLAY = PCFG.display
 ACCT_JOIN = " + ".join(ACCOUNTS.keys())
@@ -517,6 +612,8 @@ footer{{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-s
 <span class="chip">Ngưỡng: {THR_CHIP}</span></div></div></header>
 <div class="wrap">
 {sections}
+{adkill}
+{gapnote}
 {budget}
 {fitplan}
 {addetail}

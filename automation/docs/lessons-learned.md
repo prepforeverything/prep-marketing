@@ -134,3 +134,36 @@ Publish. (Đã xảy ra với workflow EOD 27–28/6: chưa publish → đối s
 5. Chạy thử: `run_daily.py --product <sp> --dry-run` → đối chiếu spend khớp account total trước khi bật.
 6. Lịch: nhân thêm 1 n8n workflow (Schedule → HTTP dispatch) trỏ workflow GitHub của sản phẩm.
 7. Dedup + baseline + EOD dùng chung cơ chế (state/ trong git) — không cần code mới.
+
+## 12. Chấm theo content-code che ad_id tệ + định nghĩa "ngày tuổi" (01/07/2026) ⭐
+- **Triệu chứng:** ad_id CPL 3 ngày 1,4–2,3tr nhưng KHÔNG bị đề xuất tắt, thậm chí nằm trong content được SCALE.
+- **Gốc:** engine chấm CPL **theo content-code (gộp mọi ad_id)** → CPL gộp đẹp che ad_id lẻ tệ. (KHÔNG phải do
+  ngày tuổi — 3 ad chi liên tục cả tháng, không hề bật-tắt.) *Xác minh:* Meta ad-level daily spend + đối chiếu
+  CPL/ad_id (lead tab Phone cột 5) vs CPL gộp code.
+- **Fix:** lớp phủ ad_id — áp CHÍNH `recommend()` (R3×R7) cho từng ad_id; vi phạm → "TẮT ad lẻ" (mục 4.6). Bật bằng
+  `report.adid_overlay=true` + `lead_sheet.col_adid`. Lead/ad_id mỏng → chỉ tắt khi Rất tệ / 0-lead chi cao.
+- **Định nghĩa lại "ngày tuổi"** = ngày **bật lại gần nhất** (đầu chuỗi chi liên tục, gap ≥2 ngày = reset), thay
+  "ngày đầu tiêu tiền". Ad bật-tắt-bật về Phiên 1 (cổng gắt). Proxy vì `ads_account_get_activity_logs` (activity log
+  status) **chưa mở** cho account 829372215242475 → không lấy được lịch sử đổi trạng thái chính xác.
+- **Caption bám ngân sách:** chỉ liệt kê SCALE khi phương án ngân sách còn room dưới trần ngày (không SCALE thô mọi
+  winner). Vượt trần → "GIỮ toàn bộ, chưa scale".
+- **Bài học đo lường:** "2 hôm gần nhất" (nhân viên nhìn) ≠ cửa sổ R3 của engine → CPL lệch; luôn nói rõ cửa sổ.
+
+## 13. "Ngày tuổi" chuẩn từ activity log — không chỉ suy từ spend (01/07/2026) ⭐
+- **Vấn đề với proxy spend-gap (mục 12):** "0-chi ≥2 ngày = reset" là **suy đoán**, không phải sự thật.
+  (a) Ad ACTIVE vẫn có thể 0-chi (hết ngân sách/thua đấu giá) → reset OAN. (b) **Pause NGẮN ≤1 ngày** rồi bật lại
+  bị `gap_tol=1` bỏ qua → KHÔNG reset dù thực tế đã sang phiên mới.
+- **Phát hiện:** MCP `ads_account_get_activity_logs` bị gate ("đang rollout"), NHƯNG gọi **thẳng Graph API**
+  `act_{id}/activities?category=STATUS` (token System User trong `.env`) thì CHẠY — lấy đúng sự kiện đổi trạng thái.
+- **Bật lại THẬT = chuyển `Inactive`→`Active`** (`extra_data.run_status`: mã cũ ∈ {7,8,15} → mã mới 1). Bỏ qua
+  `Pending Review/process → Active` (ad mới lên sóng / duyệt lại sau sửa — KHÔNG phải bật-lại thủ công).
+- **Bật/tắt hay làm ở cấp AD SET, không phải từng ad** → phải bắt cả 3 cấp (`update_ad_run_status` / `_ad_set_` /
+  `_campaign_`) rồi chiếu xuống ad qua `hier {ad_id: (adset_id, campaign_id)}` (lấy từ insights, không thêm call nặng).
+  Meta dùng tên cũ: ADGROUP=Ad, CAMPAIGN=Ad set, CAMPAIGN_GROUP=Campaign. (Thực đo TOEIC 3: 0 bật-lại cấp ad,
+  30 cấp ad set → nếu chỉ lọc cấp ad sẽ TRƯỢT HẾT.)
+- **Quy tắc tuổi:** `ngày-bắt-đầu-phiên = max(bật-lại-log, đầu-chuỗi-chi)`. Log bắt pause ngắn spend-gap bỏ sót;
+  `max` tránh tính-già-oan ad tạo sau lần bật ad set. Log rỗng (account chưa hỗ trợ) → tự **fallback spend-gap**.
+- **1 ngày lẻ 0-chi mà KHÔNG có đổi trạng thái = nhiễu:** giữ nguyên tuổi (cùng phiên) + gắn cờ `zero_gap` → báo cáo
+  nêu "⚠️ Ad có ngày lẻ 0-chi — kiểm tra". KHÔNG tự reset (tránh kẹt ad tốt mãi ở Phiên 1).
+- **Code:** `fetch_reactivations` + `fetch_ad_hierarchy` + `has_zero_spend_gap` trong `build_meta.py`; test offline
+  `tests/test_reactivation.py`. `reactivation_src` (`log`/`spend`) đi kèm mỗi ad để soi nguồn.

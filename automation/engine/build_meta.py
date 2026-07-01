@@ -135,22 +135,22 @@ def fetch_spend(g, acct_id, preset, join="code", objectives=None, name_include=N
     return spend_by_code, names, window, ad_meta
 
 
-def fetch_first_spend(g, acct_id, preset, join="code", objectives=None, name_include=None):
-    """Ngày đầu tiên có spend (>0) mỗi khoá trong cửa sổ `preset` (dùng time_increment=1 → chia theo ngày).
-    Trả {khoá: 'YYYY-MM-DD'} để suy ngày tuổi = số ngày đã BẮT ĐẦU TIÊU TIỀN (không tính ngày setup chưa chi).
-    Khoá cũ hơn cửa sổ ⇒ ngày sớm nhất trong cửa sổ (age bị chặn dưới = độ dài cửa sổ — vẫn rơi vào 'trưởng thành')."""
+def fetch_daily_spend(g, acct_id, preset, join="code", objectives=None, name_include=None):
+    """Chi theo NGÀY mỗi khoá trong cửa sổ `preset` (time_increment=1).
+    Trả ({khoá: {date: spend}}, {khoá: name}). Dùng để suy 'ngày bật lại' (reactivation) + cộng spend theo cửa sổ con."""
     extra = (["objective"] if objectives else []) + (["campaign_name"] if name_include else [])
     fields = "ad_id,ad_name,spend" + (("," + ",".join(sorted(set(extra)))) if extra else "")
     rows = g.page(f"act_{acct_id}/insights",
                   {"level": "ad", "date_preset": preset, "time_increment": "1", "fields": fields, "limit": "500"})
     nlow = name_include.lower() if name_include else None
-    first, names = {}, {}
+    daily, names = defaultdict(dict), {}
     for r in rows:
         if objectives and r.get("objective") not in objectives:
             continue
         if nlow and nlow not in (r.get("campaign_name") or "").lower():
             continue
-        if float(r.get("spend", 0) or 0) <= 0:
+        s = float(r.get("spend", 0) or 0)
+        if s <= 0:
             continue
         if join == "ad_id":
             key, nm = norm(r.get("ad_id") or ""), (r.get("ad_name") or "").strip()
@@ -159,14 +159,91 @@ def fetch_first_spend(g, acct_id, preset, join="code", objectives=None, name_inc
         d = r.get("date_start")
         if not key or not d:
             continue
-        if key not in first or d < first[key]:
-            first[key] = d
+        daily[key][d] = daily[key].get(d, 0) + s
         if nm and key not in names:                 # tên từ cửa sổ dò → lấp (?) cho content đã tắt trong 30 ngày
             names[key] = nm
-    return first, names
+    return daily, names
 
 
-def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rate=1, cbo_budget=False, join="code", objectives=None, name_include=None, short_preset=None, with_meta=False, age_preset=None):
+def reactivation_day(date_spend, gap_tol=1):
+    """'Ngày tuổi' MỚI: đầu chuỗi chi LIÊN TỤC gần nhất (ngày bật/bật-lại gần nhất).
+    date_spend = {date: spend}. gap_tol = số ngày 0-chi được bỏ qua trong 1 chuỗi; khoảng trống > gap_tol ngày
+    (vd ≥2 ngày liền không chi) ⇒ coi ad đã TẮT→BẬT LẠI → tuổi tính lại từ ngày sau khoảng trống đó.
+    Ad chạy liên tục từ đầu cửa sổ dò ⇒ trả ngày sớm nhất (vẫn 'trưởng thành', như cũ). None nếu chưa từng chi."""
+    days = sorted(date_spend)
+    if not days:
+        return None
+    start = days[-1]
+    for i in range(len(days) - 1, 0, -1):
+        missing = (datetime.date.fromisoformat(days[i]) - datetime.date.fromisoformat(days[i - 1])).days - 1
+        if missing > gap_tol:
+            break
+        start = days[i - 1]
+    return start
+
+
+def has_zero_spend_gap(date_spend, gap_tol=1):
+    """True nếu CHUỖI chi gần nhất (đã giữ, bỏ qua ≤gap_tol ngày trống) có ngày 0-chi XEN GIỮA.
+    Ad vẫn 'cùng phiên' (không reset) nhưng có ngày lẻ không tiêu tiền ⇒ gắn cờ để người review."""
+    start = reactivation_day(date_spend, gap_tol)
+    if not start:
+        return False
+    days = [d for d in date_spend if d >= start]
+    span = (datetime.date.fromisoformat(max(days)) - datetime.date.fromisoformat(start)).days + 1
+    return span > len(days)                              # số ngày trong khoảng > số ngày có chi ⇒ có lỗ trống
+
+
+# Mã run_status trong activity log (act/activities, category=STATUS) — xác nhận từ Graph API thực tế.
+_ACTIVE_CODE = 1
+_INACTIVE_CODES = {7, 8, 15}                             # 'Inactive' = bị TẮT (pause thủ công/hệ thống)
+# event_type → cấp. Bật/tắt thường làm ở cấp AD SET (nhân viên tắt cả nhóm), không phải từng ad ⇒ phải bắt cả 3 cấp.
+_REACT_LEVEL = {"update_ad_run_status": "ad",           # object_id = ad_id  (Meta gọi ADGROUP)
+                "update_ad_set_run_status": "adset",    # object_id = adset_id (Meta gọi CAMPAIGN)
+                "update_campaign_run_status": "campaign"}  # object_id = campaign_id (CAMPAIGN_GROUP)
+
+
+def fetch_reactivations(g, acct_id, since_date):
+    """Ngày 'bật lại' THẬT theo activity log — nguồn sự thật, không suy từ spend.
+    Bật lại = chuyển Inactive→Active. Bắt ở CẢ 3 cấp (ad/adset/campaign) vì bật/tắt hay làm ở cấp ad set.
+    Bỏ qua Pending Review/process→Active (ad mới lên sóng / duyệt lại sau sửa — KHÔNG phải bật-lại thủ công).
+    Trả {'ad': {id: ngày}, 'adset': {...}, 'campaign': {...}} — ngày bật-lại gần nhất mỗi entity.
+    Rỗng nếu account chưa hỗ trợ activities ⇒ build_account tự fallback reactivation_day (spend-gap)."""
+    react = {"ad": {}, "adset": {}, "campaign": {}}
+    try:
+        rows = g.page(f"act_{acct_id}/activities",
+                      {"category": "STATUS", "since": since_date,
+                       "fields": "event_type,event_time,object_id,extra_data", "limit": "400"})
+    except Exception:                                    # noqa: BLE001 — API lỗi/không hỗ trợ ⇒ fallback spend-gap
+        return react
+    for r in rows:
+        level = _REACT_LEVEL.get(r.get("event_type"))
+        if not level:
+            continue
+        oid = norm(r.get("object_id") or "")
+        try:
+            ex = json.loads(r.get("extra_data") or "{}")
+        except (ValueError, TypeError):
+            continue
+        rs = ex.get("run_status") or {}
+        oc, ncode = rs.get("old_value"), rs.get("new_value")
+        is_react = (oc in _INACTIVE_CODES and ncode == _ACTIVE_CODE) if (oc is not None and ncode is not None) \
+            else (ex.get("old_value") == "Inactive" and ex.get("new_value") == "Active")
+        d = (r.get("event_time") or "")[:10]
+        if oid and is_react and d and d > react[level].get(oid, ""):
+            react[level][oid] = d
+    return react
+
+
+def fetch_ad_hierarchy(g, acct_id, preset):
+    """{ad_id: (adset_id, campaign_id)} cho các ad có hoạt động trong cửa sổ `preset` (từ insights, không thêm call nặng).
+    Dùng để chiếu ngày bật-lại cấp adset/campaign xuống từng ad."""
+    rows = g.page(f"act_{acct_id}/insights",
+                  {"level": "ad", "date_preset": preset, "fields": "ad_id,adset_id,campaign_id", "limit": "500"})
+    return {norm(r["ad_id"]): (norm(r.get("adset_id") or ""), norm(r.get("campaign_id") or ""))
+            for r in rows if r.get("ad_id")}
+
+
+def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rate=1, cbo_budget=False, join="code", objectives=None, name_include=None, short_preset=None, with_meta=False, age_preset=None, adid_overlay=False):
     """rate = tỷ giá quy về VND (1 nếu tài khoản đã VND; vd 799 cho THB). Áp cho spend + mọi ngân sách.
     cbo_budget = có lấy ngân sách cấp campaign cho ad set CBO không (chỉ bật cho sản phẩm khai report.cbo_campaign_budget).
     join = 'code' (mã content, TOEIC) | 'ad_id' (ad_id, IELTS Thái) — khoá gộp spend + map ad↔adset.
@@ -191,12 +268,48 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
         sbc1, _, _, _ = fetch_spend(g, acct_id, short_preset, join, objectives, name_include)
         spend_by_code_1d = dict(conv(sbc1))
 
-    # Ngày đầu tiên có spend (suy ngày tuổi) — chỉ khi sản phẩm bật report.age_lookback_days.
-    first_spend_by_code = None
+    # Ngày tuổi = ngày bật/bật-lại gần nhất (reactivation) — chỉ khi sản phẩm bật report.age_lookback_days.
+    reactivation_by_code = None
+    ads_overlay = None
     if age_preset:
-        first_spend_by_code, names_age = fetch_first_spend(g, acct_id, age_preset, join, objectives, name_include)
+        daily_code, names_age = fetch_daily_spend(g, acct_id, age_preset, join, objectives, name_include)
+        reactivation_by_code = {k: reactivation_day(v) for k, v in daily_code.items() if reactivation_day(v)}
         for _c, _n in names_age.items():
             names.setdefault(_c, _n)                # tên từ cửa sổ dò 30 ngày lấp (?) cho content đã tắt
+        # Lớp phủ ad_id: chi + tuổi theo TỪNG ad_id (để áp quy tắc 3d×7d cho ad lẻ trong content tốt).
+        if adid_overlay and join != "ad_id":
+            daily_ad, names_ad = fetch_daily_spend(g, acct_id, age_preset, "ad_id", objectives, name_include)
+            # Nguồn sự thật cho 'bật lại': activity log (Inactive→Active, cả 3 cấp). Rỗng ⇒ fallback spend-gap.
+            _lb = int(re.sub(r"\D", "", age_preset) or 30)
+            _since = (datetime.date.today() - datetime.timedelta(days=_lb + 1)).isoformat()
+            react = fetch_reactivations(g, acct_id, _since)
+            hier = fetch_ad_hierarchy(g, acct_id, age_preset)
+            def _sum_win(dmap, win):
+                return int(round(sum(s for d, s in dmap.items() if win and win[0] <= d <= win[1]) * rate))
+            def _log_react(aid):                    # ngày bật-lại-log muộn nhất trong {ad, adset, campaign của nó}
+                asid, cid = hier.get(aid, ("", ""))
+                cands = [react["ad"].get(aid), react["adset"].get(asid), react["campaign"].get(cid)]
+                cands = [d for d in cands if d]
+                return max(cands) if cands else None
+            # Log áp cho LỚP AD-ID (nơi ra quyết định tắt ad lẻ). Cấp content giữ spend-gap gộp — không để 1 ad
+            # restart kéo cả content mature về Phiên 1 (gating oan content đã chín).
+            ads_overlay = []
+            for _aid, _dmap in daily_ad.items():
+                _code, _ = parse_name(names_ad.get(_aid, ""))
+                _spend_start = reactivation_day(_dmap)
+                _log = _log_react(_aid)
+                # Phiên bắt đầu = MUỘN hơn giữa (bật-lại-log, đầu chuỗi chi). Log bắt pause NGẮN (≤1 ngày) mà
+                # spend-gap bỏ qua; max giữ đúng cho ad mới tạo sau lần bật adset (không tính già oan).
+                _react = max([d for d in (_log, _spend_start) if d], default=None)
+                _src = "log" if (_log and (not _spend_start or _log >= _spend_start)) else "spend"
+                # Cờ ngày-lẻ-0-chi: chỉ khi tuổi theo spend (không có reset từ log) mà spend có lỗ trống trong phiên.
+                _gap = bool(_src == "spend" and has_zero_spend_gap(_dmap))
+                _entry = {"id": _aid, "code": _code, "name": names_ad.get(_aid, ""),
+                          "spend": _sum_win(_dmap, window), "spend7": _sum_win(_dmap, window_7d),
+                          "reactivation": _react, "reactivation_src": _src}
+                if _gap:
+                    _entry["zero_gap"] = True
+                ads_overlay.append(_entry)
 
     adsets = g.page(f"act_{acct_id}/adsets",
                     {"fields": "id,name,daily_budget,effective_status,campaign_id",
@@ -265,8 +378,10 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
         acc["spend_by_code_7d"] = spend_by_code_7d
     if spend_by_code_1d is not None:
         acc["spend_by_code_1d"] = spend_by_code_1d
-    if first_spend_by_code:
-        acc["first_spend_by_code"] = first_spend_by_code        # main() suy age_by_code sau khi biết anchor
+    if reactivation_by_code:
+        acc["reactivation_by_code"] = reactivation_by_code      # main() suy age_by_code sau khi biết anchor
+    if ads_overlay:
+        acc["ads_overlay"] = ads_overlay                        # main() suy age cho từng ad_id
     if ad_meta:
         acc["ad_meta"] = ad_meta
     if ghost_ids:
@@ -305,8 +420,9 @@ def main():
     confirm_preset = f"last_{rep['confirm_days']}d" if rep.get("confirm_days") else None
     _sd = rep.get("short_days")  # Meta KHÔNG có 'last_1d' → 1 ngày dùng 'yesterday'
     short_preset = ("yesterday" if _sd == 1 else f"last_{_sd}d") if _sd else None
-    _ald = rep.get("age_lookback_days")  # bật ngày tuổi (first-spend day) — cửa sổ dò first-spend
+    _ald = rep.get("age_lookback_days")  # bật ngày tuổi (reactivation) — cửa sổ dò chi theo ngày
     age_preset = f"last_{_ald}d" if _ald else None
+    adid_overlay = bool(rep.get("adid_overlay"))  # lớp phủ chấm quy tắc theo TỪNG ad_id (opt-in/sản phẩm)
     cbo_budget = bool(rep.get("cbo_campaign_budget"))     # lấy ngân sách CBO cấp campaign (opt-in/sản phẩm)
     join = (cfg.get("lead_sheet") or {}).get("join", "code")  # 'code' (TOEIC) | 'ad_id' (IELTS Thái)
     objectives = cfg["meta"].get("objectives")            # vd ["OUTCOME_ENGAGEMENT","OUTCOME_LEADS"] (lọc theo objective)
@@ -364,7 +480,7 @@ def main():
                 continue
         rate, rate_src = resolve_rate(cur, name, acct)
         try:
-            acc, win, win7 = build_account(ga, acct, primary_preset, confirm_preset, rate, cbo_budget, join, objectives, name_include, short_preset, with_meta=(join == "ad_id"), age_preset=age_preset)
+            acc, win, win7 = build_account(ga, acct, primary_preset, confirm_preset, rate, cbo_budget, join, objectives, name_include, short_preset, with_meta=(join == "ad_id"), age_preset=age_preset, adid_overlay=adid_overlay)
             if name_include:  # đối chiếu tổng campaign có tên chứa name_include
                 chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "campaign_name,spend"})
                 acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if name_include.lower() in (c.get("campaign_name") or "").lower()) * rate))
@@ -401,12 +517,17 @@ def main():
     win_dates = expand(window)
     win7_dates = expand(window_7d)
     anchor = (datetime.date.fromisoformat(win_dates[-1]) + datetime.timedelta(days=1)).isoformat() if win_dates else None
-    if anchor:  # suy ngày tuổi = (anchor − ngày đầu tiêu tiền); thay first_spend_by_code bằng age_by_code gọn hơn
+    if anchor:  # suy ngày tuổi = (anchor − ngày bật lại gần nhất); thay reactivation date bằng age (số ngày) gọn hơn
         _anchor_d = datetime.date.fromisoformat(anchor)
+        def _age(v):
+            return (_anchor_d - datetime.date.fromisoformat(v)).days
         for _a in out_accounts.values():
-            _fs = _a.pop("first_spend_by_code", None)
-            if _fs:
-                _a["age_by_code"] = {k: (_anchor_d - datetime.date.fromisoformat(v)).days for k, v in _fs.items()}
+            _rc = _a.pop("reactivation_by_code", None)
+            if _rc:
+                _a["age_by_code"] = {k: _age(v) for k, v in _rc.items()}
+            for _ad in _a.get("ads_overlay", []):        # ad_id: reactivation date → age (số ngày)
+                _r = _ad.pop("reactivation", None)
+                _ad["age"] = _age(_r) if _r else None
     doc = {"anchor": anchor, "window": win_dates,
            "note": f"Dựng tự động bằng build_meta.py (Graph API {ver}, ad-level KHÔNG lọc trạng thái).",
            "accounts": out_accounts}
