@@ -50,7 +50,7 @@ KPI = **CPL mục tiêu tháng** (đồng/Lead). Leader cập nhật đầu thá
 | **Ad ID** | Mã định danh 1 quảng cáo (content) trong adset. Đơn vị nhỏ nhất để đánh giá. |
 | **Content lẻ** | Adset 1 content lúc setup, có thể thêm content sau → đánh giá **từng Ad ID** riêng. |
 | **Content cụm** | Adset 3–5 content đặt từ đầu, KHÔNG thêm sau → đánh giá **tổng adset**. |
-| **Ngày tuổi** | Số ngày Ad/Adset/Campaign đã **BẮT ĐẦU TIÊU TIỀN** (không tính ngày setup chưa chi). |
+| **Ngày tuổi** | Số ngày kể từ **ngày BẬT / BẬT LẠI gần nhất** = đầu chuỗi chi tiêu liên tục gần nhất. Ad bị **tắt rồi bật lại** (khoảng trống ≥2 ngày 0-chi) sẽ **tính tuổi lại từ đầu** → về Phiên 1 (cổng gắt), không được "trưởng thành" che. *(Trước đây tính từ ngày đầu tiêu tiền — sai khi ad bật-tắt-bật; sửa 01/07/2026.)* |
 | **Dữ liệu đầy đủ ngày** | Dữ liệu của ngày đã chốt (đủ 24h). Cào 9h sáng hôm sau. KHÔNG dùng dữ liệu trong ngày. |
 | **R3 / R7** | 3 ngày / 7 ngày calendar gần nhất tính đến hôm qua. |
 | **Phiên 1** | Ngày 1–3 sau khi content lên. **Cổng kiểm tra**: chỉ Tốt/TB qua; Yếu/Rất tệ → tắt. |
@@ -138,6 +138,19 @@ Mọi quyết định bắt đầu từ việc xếp content vào 1 trong 4 vùn
 | 🟡 TB | KPI ≤ R7 < 120% | Giữ ngân sách + điều chỉnh, theo dõi tuần sau |
 | 🟠 Yếu | 120% ≤ R7 < 150% | **TẮT** (đã giảm ở Phiên 2 mà vẫn Yếu) |
 | 🔴 Rất tệ | R7 ≥ 150% | **TẮT** (ngắn & dài hạn đều tệ) |
+
+### 4.6 Hai tầng chấm: content (scale) + ad_id (tắt ad lẻ)
+
+Engine chấm CPL **theo content-code** (gộp mọi Ad ID cùng content) để quyết định **scale** — ổn định, ít nhiễu vì
+đủ lead. Nhưng content tốt vẫn có thể chứa **Ad ID lẻ tệ** bị "giấu" trong CPL gộp. Vì vậy chạy thêm **lớp phủ ad_id**:
+
+- **Content-level (scale):** CPL content tốt → đề xuất scale (bám trần ngân sách ngày, xem mục 6).
+- **Ad_id-level (tắt ad lẻ):** áp **đúng bộ Vùng CPL + vòng đời (R3×R7, ngày tuổi mới)** cho **từng Ad ID** (spend Meta ÷ lead
+  theo Ad ID). Ad ID nào **vi phạm quy tắc** (Rất tệ R3&R7, hoặc 0-lead chi cao, hoặc vừa bật lại mà Yếu ở Phiên 1) →
+  **đề xuất TẮT riêng Ad ID đó**, kể cả khi content tổng đang TỐT/SCALE. Không có MTD theo Ad ID ⇒ không áp "lũy kế tốt"
+  ở cấp ad (vi phạm R3&R7 là tắt).
+- Điều kiện dữ liệu: tab lead phải có cột **Ad ID** (TOEIC: cột 5 Phone tab, `lead_sheet.col_adid`); bật bằng
+  `report.adid_overlay=true`. Đơn vị lead/Ad ID mỏng → chỉ tắt khi vi phạm rõ (Rất tệ / 0-lead), Yếu lẻ chỉ giảm.
 
 ---
 

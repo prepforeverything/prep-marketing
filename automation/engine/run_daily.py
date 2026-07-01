@@ -64,9 +64,14 @@ def build_caption(cfg, summary, doc_fmt="pdf"):
         if b["giam"]: L.append(f"   GIẢM (YẾU): {', '.join(b['giam'])}")
         if b["tat"]: L.append(f"   TẮT (RẤT TỆ): {', '.join(b['tat'])}")
         if b["xemxet"]: L.append(f"   XEM XÉT TẮT (0 lead, chi cao): {', '.join(b['xemxet'])}")
+        _k = a.get("adid_kill") or []
+        if _k: L.append(f"   🔴 TẮT ad lẻ (content vẫn tốt): {len(_k)} ad — xem tin Ad ID ⬇️")
     bud = summary["budget"]
+    _any_scale = any(a["buckets"]["scale"] for a in summary["accounts"].values())
     if bud.get("kpi_day"):
         L.append(f"\n💰 Dự kiến ~{vnd(bud['proj_day'])}/ngày vs KPI {vnd(bud['kpi_day'])} → <b>{bud['kpi_status']} ({bud['kpi_pct']:+}%)</b>")
+        if not _any_scale and bud.get("kpi_status") == "VƯỢT":
+            L.append("   ⚠️ Đã chạm trần ngân sách ngày → GIỮ toàn bộ, chưa scale (ưu tiên tắt ad tệ + giảm YẾU trước).")
     if doc_fmt == "html":
         L.append("📂 Mở file HTML bằng trình duyệt để xem đủ bảng — CUỘN NGANG được (khác PDF). Ad ID để thao tác ở tin dưới ⬇️")
     else:
@@ -95,6 +100,15 @@ def build_adid_message(cfg, summary):
             L.append(f"• [{acct}] {it['code']} {(it.get('name') or '')[:24]}".rstrip())
             ads = " ".join(it.get("ads", []))
             L.append(f"<code>{ads}</code>" if ads else "<i>(ad đã tắt — không còn ad đang chạy)</i>")
+    # Ad lẻ vi phạm quy tắc nằm trong content vẫn tốt/scale → tắt riêng TỪNG ad ID này.
+    kills = [(acct, k) for acct, a in summary["accounts"].items() for k in (a.get("adid_kill") or [])]
+    if kills:
+        any_item = True
+        L.append("\n<b>🔴 TẮT AD LẺ (content vẫn tốt — chỉ tắt ad này)</b>")
+        for acct, k in sorted(kills, key=lambda x: -(x[1].get("cpl") or 0)):
+            cpl = f"{k['cpl']:,}".replace(",", ".") if k.get("cpl") else ("0 lead" if not k.get("lead") else "—")
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:24]} · CPL {cpl} · {k['rec']}".rstrip())
+            L.append(f"<code>{k['id']}</code>")
     L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách ad set chứa ad ID. TẮT: tắt ad ID. Chỉ đề xuất — NV tự thao tác trên Meta.")
     return "\n".join(L) if any_item else ""
 
