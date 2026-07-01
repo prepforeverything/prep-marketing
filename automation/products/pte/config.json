@@ -1,21 +1,20 @@
 {
-  "product": "toeic",
-  "display": "TOEIC",
+  "product": "pte",
+  "display": "PTE",
   "meta": {
-    "accounts": { "TOEIC 3": "829372215242475", "TOEIC 5": "555686623359807" },
+    "accounts": { "PrepTalk 1": "1352348895443641" },
     "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"]
   },
   "kpi_sheet": {
     "id": "1K7zUuUCDZJ3puEAi0VeNsILlsdqIKSBiGlOn6loTB5g",
     "gid": "338525856",
-    "line": "TOEIC",
+    "line": "PTE",
     "channel": "Inbox"
   },
   "lead_sheet": {
-    "id": "161R5Jj5CMYzOnflwEl4mnIyDVbilAvk8NxkWduUnto8",
+    "id": "1vjwrprFvyX1iLxtwVuNciqoc2N5MhB-AkW8rWigbPZg",
     "phone_tab": "Phone",
-    "content_tab": "Content Ad",
-    "col_date": 0,
+    "col_date": 2,
     "col_code": 7,
     "col_adid": 5,
     "col_account": 8,
@@ -24,5 +23,5 @@
   },
   "min_leads": 3,
   "report": { "primary_days": 3, "confirm_days": 7, "age_lookback_days": 30, "adid_overlay": true, "telegram_doc": "html" },
-  "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_CHAT_ID" }
+  "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_PTE_CHAT_ID" }
 }

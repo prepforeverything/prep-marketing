@@ -120,4 +120,47 @@ assert rec_ad("YẾU", 2, 2_200_000, z7="YẾU", cpl=1_100_000, age=30).startswi
 # ad vừa bật lại (Phiên 1) YẾU/RẤT TỆ → TẮT ngay (cổng)
 eq(rec_ad("YẾU", 1, 1_400_000, cpl=1_400_000, age=2), "TẮT · Phiên 1 (cổng) — yếu", "ad vừa bật lại yếu → cổng tắt")
 
+# ---- KPI Master parser (nhiều SP/1 tab): budget_block_rows + week_col + inbox_budget_cells ----
+def _b(s):  # bnum rút gọn cho test
+    import re as _re
+    d = _re.sub(r"[^\d]", "", s or ""); return int(d) if d else 0
+_hdr = ["Kênh", "Loại", "Tuần 1\n1–5/7", "Tuần 2\n6–12/7", "Tuần 3\n13–19/7", "Tuần 4\n20–26/7", "Tuần 5\n27–31/7", "Tổng tháng", "Tỷ trọng"]
+KPI_MASTER = [
+    ["KPI MASTER · THÁNG 7/2026"],
+    ["PHẦN 1 — KẾ HOẠCH NGÂN SÁCH THEO TUẦN"],
+    ["▸  TOEIC"],
+    _hdr,
+    ["Tổng ngân sách tuần (NHẬP)", "Tuần", "141.423.530 ₫", "192.850.267 ₫", "192.850.267 ₫", "192.850.267 ₫", "137.137.968 ₫", "857.112.299 ₫", "100.0%"],
+    ["Inbox", "Tuần", "76,368,706 ₫", "104,139,144 ₫", "104,139,144 ₫", "104,139,144 ₫", "74,054,503 ₫", "462,840,641 ₫", "54.0%"],
+    ["", "Ngày", "15,273,741 ₫", "14,877,021 ₫", "14,877,021 ₫", "14,877,021 ₫", "14,810,901 ₫"],  # Ngày CĂN như Tuần (ô Loại merge rỗng)
+    ["FB Conv", "Tuần", "14,142,353 ₫", "19,285,027 ₫", "19,285,027 ₫", "19,285,027 ₫", "13,713,797 ₫", "85,711,230 ₫", "10.0%"],
+    ["", "Ngày", "2,828,471 ₫", "2,755,004 ₫", "2,755,004 ₫", "2,755,004 ₫", "2,742,759 ₫"],
+    ["▸  PTE"],
+    _hdr,
+    ["Inbox", "Tuần", "41,850,000 ₫", "62,100,000 ₫", "62,100,000 ₫", "62,100,000 ₫", "41,850,000 ₫", "270,000,000 ₫", "1"],
+    ["Ngày", "8,370,000 ₫", "8,871,429 ₫", "8,871,429 ₫", "8,871,429 ₫", "8,370,000 ₫"],  # Ngày LỆCH: ô Loại collapse → r[0]="Ngày"
+    ["PHẦN 2 — BẢNG TRA CỨU NGƯỠNG CPL"],
+    ["STT", "Line", "Mục tiêu", "KPI (Tốt <)", "TB (≥)", "Yếu (≥)", "RẤT TỆ (≥)", "Test min/ngày"],
+    ["1", "TOEIC", "Inbox", "CPL < 900.000", "900.000 < CPL < 1080.000", "1080.000 < CPL < 1.350.000", "1.350.000 đ", "450.000 đ"],
+    ["8", "PTE", "Inbox", "CPL<350.000 đ", "350.000 < CPL < 420.000", "420.000 < CPL < 525.000", "525.000 đ", "450.000 đ"],
+]
+# budget_block_rows: khoanh đúng khối, không lẫn SP khác / PHẦN 2
+_toeic_blk = R.budget_block_rows(KPI_MASTER, "TOEIC")
+eq(any(r and r[0] == "▸  PTE" for r in _toeic_blk), False, "khối TOEIC không chứa marker PTE")
+eq(any(r and r[0].startswith("PHẦN") for r in _toeic_blk), False, "khối TOEIC không chứa PHẦN 2")
+eq(_toeic_blk[0][0], "Kênh", "khối TOEIC bắt đầu từ header Kênh (đã bỏ marker ▸)")
+# week_col: chọn cột theo mốc ngày trong header
+eq(R.week_col(_hdr, 7, 1), 2, "1/7 → Tuần 1 (cột 2)")
+eq(R.week_col(_hdr, 7, 10), 3, "10/7 → Tuần 2 (cột 3)")
+eq(R.week_col(_hdr, 7, 31), 6, "31/7 → Tuần 5 (cột 6)")
+eq(R.week_col(_hdr, 8, 1), None, "tháng khác → không khớp")
+# inbox_budget_cells: đúng SP + đúng tuần + xử lý cả 2 kiểu căn dòng Ngày
+_wc, _dc = R.inbox_budget_cells(KPI_MASTER, "TOEIC", "Inbox", 7, 1)
+eq((_b(_wc), _b(_dc)), (76368706, 15273741), "TOEIC tuần 1: (tuần, ngày) — dòng Ngày căn chuẩn")
+_wc2, _dc2 = R.inbox_budget_cells(KPI_MASTER, "TOEIC", "Inbox", 7, 10)
+eq((_b(_wc2), _b(_dc2)), (104139144, 14877021), "TOEIC tuần 2")
+_wp, _dp = R.inbox_budget_cells(KPI_MASTER, "PTE", "Inbox", 7, 1)
+eq((_b(_wp), _b(_dp)), (41850000, 8370000), "PTE tuần 1 — lọc đúng khối PTE + dòng Ngày LỆCH cột")
+eq(R.inbox_budget_cells(KPI_MASTER, "HSK", "Inbox", 7, 1), ("", ""), "SP không có khối → rỗng")
+
 print(f"OK — {n} assertions passed")

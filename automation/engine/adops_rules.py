@@ -8,7 +8,9 @@ Mọi ngưỡng truyền vào qua tham số (`thr`, `rules`, `min_leads`) — KH
 - `thr`   : {"kpi","tb","yeu","zero_inbox"} (ngưỡng vùng CPL, từ Sheet KPI).
 - `rules` : tùy chọn theo sản phẩm — {"zero_lead_kill","zero_lead_read","cr_keep_pct","cr_keep_min"}.
             Vắng mặt ⇒ hành vi mặc định (1 ngưỡng 0-lead, không luật CR) như bản TOEIC gốc.
+Cũng chứa parser thuần cho KPI Master (nhiều SP/1 tab): budget_block_rows + week_col.
 """
+import re
 
 
 def classify(spend, lead, thr):
@@ -178,3 +180,52 @@ def decide_1_3_7(z1, z3, z7, lead3, spend3, spend7, order3, thr, rules, min_lead
     if z3 == "RẤT TỆ":                                      # 3d & 7d đều xấu
         return "GIẢM mạnh · 1d hồi, cho 1 nhịp trước khi tắt" if g1 else "TẮT"
     return "GIẢM 20% · 3d & 7d yếu"
+
+
+# ---- parser KPI Master (nhiều sản phẩm / 1 tab) ------------------------------------------------
+def budget_block_rows(rows, block):
+    """Các dòng ngân sách thuộc khối sản phẩm `block` — từ dòng '▸ <SP>' đến trước khối/PHẦN kế tiếp.
+    KPI Master xếp mỗi SP một khối trên cùng 1 tab ⇒ phải khoanh vùng theo marker '▸' kẻo vớ nhầm SP đầu."""
+    out, cap = [], False
+    for r in rows:
+        c0 = (r[0] if r else "").strip()
+        if c0.startswith("▸"):
+            cap = (c0.lstrip("▸").strip() == block)
+            continue
+        if c0.startswith("PHẦN"):
+            cap = False
+        if cap:
+            out.append(r)
+    return out
+
+
+def week_col(header, month, day):
+    """Cột tuần chứa (month, day), dò khoảng 'd1–d2/m' trong header 'Tuần N ...'. None nếu không khớp.
+    Bền với layout tháng khác nhau (mốc tuần đọc động từ header thay vì chia cứng theo ngày-trong-tháng)."""
+    for j, cell in enumerate(header):
+        m = re.search(r"(\d+)\s*[–-]\s*(\d+)\s*/\s*(\d+)", cell or "")
+        if m and int(m.group(3)) == month and int(m.group(1)) <= day <= int(m.group(2)):
+            return j
+    return None
+
+
+def inbox_budget_cells(rows, block, channel, month, day):
+    """(ô tuần, ô ngày) ngân sách của (block, channel) cho tuần chứa (month, day) — CHUỖI THÔ (chưa parse số).
+    Xử lý ô 'Loại' bị merge ở dòng Ngày (gviz có thể trả r[0]='' r[1]='Ngày', hoặc collapse → r[0]='Ngày' lệch 1 cột).
+    Trả ('','') nếu không tìm thấy khối/kênh/tuần."""
+    blk = budget_block_rows(rows, block)
+    wk = None
+    for i, r in enumerate(blk):
+        if r and r[0].strip() == "Kênh":
+            wk = week_col(r, month, day)
+        elif wk is not None and r and r[0].strip() == channel and len(r) > 1 and r[1].strip() == "Tuần":
+            week_cell = r[wk] if len(r) > wk else ""
+            nr = blk[i + 1] if i + 1 < len(blk) else []
+            if len(nr) > 1 and nr[1].strip() == "Ngày":          # dòng Ngày căn như Tuần (ô Loại rỗng do merge)
+                day_cell = nr[wk] if len(nr) > wk else ""
+            elif nr and nr[0].strip() == "Ngày":                 # ô Loại bị collapse → lệch trái 1 cột
+                day_cell = nr[wk - 1] if len(nr) > wk - 1 >= 0 else ""
+            else:
+                day_cell = ""
+            return week_cell, day_cell
+    return "", ""

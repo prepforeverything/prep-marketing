@@ -1,0 +1,62 @@
+name: PTE ad-ops hằng ngày
+
+# Engine ad-ops headless cho PTE (always-on). Cron LUÔN theo UTC → 10:12 VN = 03:12 UTC, 14:12 VN = 07:12 UTC.
+# Lệch 5 phút sau TOEIC để 2 workflow không cùng lúc push cờ vào main. Push có rebase để an toàn nếu vẫn trùng.
+# Chống gửi trùng BỀN VỮNG: cờ "đã gửi" commit vào automation/products/pte/state/ (đọc từ main mỗi lần chạy → SKIP nếu đã có).
+# Gửi HTML (telegram_doc=html) → KHÔNG cần Chrome. ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
+on:
+  schedule:
+    - cron: "12 3 * * *"   # 10:12 giờ VN
+    - cron: "12 7 * * *"   # 14:12 giờ VN
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — KHÔNG gửi Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: pte-adops
+  cancel-in-progress: false
+
+permissions:
+  contents: write          # để commit cờ "đã gửi" vào repo
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_PTE_CHAT_ID: ${{ secrets.TELEGRAM_PTE_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4   # lấy main mới nhất → gồm cờ "đã gửi" của lần chạy trước trong ngày
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Chạy ad-ops PTE
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/engine/run_daily.py --product pte --dry-run
+          else
+            python3 automation/engine/run_daily.py --product pte
+          fi
+
+      - name: Lưu cờ "đã gửi" vào repo (chống gửi trùng)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          if [ -n "$(git status --porcelain automation/products/pte/state)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add automation/products/pte/state
+            git commit -m "chore(adops): PTE đã gửi báo cáo $(date +%F) [skip ci]"
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push origin HEAD:main && break
+              echo "push lần $i trượt (có commit mới trên main) — rebase & thử lại"; sleep 3
+            done
+          else
+            echo "Không gửi lần này (SKIP/alert) — không có cờ mới để commit."
+          fi
