@@ -1,7 +1,8 @@
-name: TOEIC ad-ops — đối soát cuối ngày
+name: PTE ad-ops — đối soát cuối ngày
 
-# 17:07 VN: so việc nhân sự đã thao tác trên Meta vs checklist đề xuất buổi sáng → gửi nhóm.
-# Đọc baseline (state/baseline-<ngày>.json) do run buổi sáng commit. Cron UTC: 17:07 VN = 10:07 UTC.
+# 17:07 VN: so việc nhân sự đã thao tác trên Meta vs checklist đề xuất buổi sáng → gửi nhóm PTE.
+# Đọc baseline (automation/products/pte/state/baseline-<ngày>.json) do run buổi sáng commit. Cron UTC: 17:07 VN = 10:07 UTC.
+# Push cờ có rebase-retry vì EOD TOEIC cũng ~17:07 → 2 workflow không đua push main. HTML/text nên KHÔNG cần Chrome.
 # ⚠️ Lịch chỉ chạy khi file nằm trên nhánh mặc định (main).
 on:
   schedule:
@@ -14,7 +15,7 @@ on:
         default: false
 
 concurrency:
-  group: toeic-adops-eod
+  group: pte-adops-eod
   cancel-in-progress: false
 
 permissions:
@@ -27,29 +28,29 @@ jobs:
       TZ: Asia/Ho_Chi_Minh
       META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_PTE_CHAT_ID: ${{ secrets.TELEGRAM_PTE_CHAT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Đối soát thực thi cuối ngày
+      - name: Đối soát thực thi cuối ngày (PTE)
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            python3 automation/engine/eod_compliance.py --product toeic --dry-run
+            python3 automation/engine/eod_compliance.py --product pte --dry-run
           else
-            python3 automation/engine/eod_compliance.py --product toeic
+            python3 automation/engine/eod_compliance.py --product pte
           fi
 
       - name: Lưu cờ đã-gửi đối soát (chống trùng)
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
-          if [ -n "$(git status --porcelain automation/products/toeic/state)" ]; then
+          if [ -n "$(git status --porcelain automation/products/pte/state)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add automation/products/toeic/state
-            git commit -m "chore(adops): TOEIC đối soát cuối ngày $(date +%F) [skip ci]"
+            git add automation/products/pte/state
+            git commit -m "chore(adops): PTE đối soát cuối ngày $(date +%F) [skip ci]"
             for i in 1 2 3; do
               git pull --rebase origin main && git push origin HEAD:main && break
               echo "push lần $i trượt (workflow khác vừa vào main) — rebase & thử lại"; sleep 3
