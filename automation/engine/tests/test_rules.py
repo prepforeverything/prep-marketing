@@ -102,4 +102,22 @@ eq(R.mult("XEM XÉT TẮT · 0 lead — mở Pancake (0 inbox→tắt)"), 0.0, "
 eq(R.mult("ĐỌC INBOX · 0 lead, chi cao"), 1.0, "mult đọc inbox = giữ")
 eq(R.mult("GIỮ"), 1.0, "mult giữ")
 
+# ---- ngày tuổi MỚI = ngày bật lại gần nhất (reactivation, spend-gap) — build_meta.reactivation_day ----
+import build_meta as B
+eq(B.reactivation_day({"2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 1}), "2026-06-01", "chi liên tục → ngày sớm nhất")
+eq(B.reactivation_day({"2026-06-01": 1, "2026-06-02": 1, "2026-06-10": 1, "2026-06-11": 1}), "2026-06-10", "gap ≥2 ngày → tính lại từ ngày bật lại")
+eq(B.reactivation_day({"2026-06-01": 1, "2026-06-03": 1, "2026-06-04": 1}), "2026-06-01", "gap 1 ngày (tol) → không reset")
+eq(B.reactivation_day({}), None, "chưa từng chi → None")
+eq(B.reactivation_day({"2026-06-05": 1}), "2026-06-05", "1 ngày chi")
+
+# ---- lớp phủ ad_id: áp CHÍNH recommend() cho ad lẻ, cpl_mtd=0 (không có MTD theo ad) ----
+def rec_ad(z3, lead, spend, z7="", cpl=0, age=None):
+    return R.recommend(z3, lead, spend, 0, TOEIC, {}, 3, z7=z7, cpl=cpl, age=age)
+# ad trưởng thành (Mốc 2+) RẤT TỆ cả 3d & 7d → TẮT (đúng ca ad 120256864660490586)
+eq(rec_ad("RẤT TỆ", 1, 2_268_486, z7="RẤT TỆ", cpl=2_268_486, age=26), "TẮT", "ad lẻ Mốc2+ RẤT TỆ 3d&7d → tắt")
+# ad YẾU (không phải RẤT TỆ) trong content tốt → GIẢM, KHÔNG tắt (đúng: chỉ vi phạm nặng mới tắt)
+assert rec_ad("YẾU", 2, 2_200_000, z7="YẾU", cpl=1_100_000, age=30).startswith("GIẢM"), "ad lẻ YẾU → giảm, không tắt"
+# ad vừa bật lại (Phiên 1) YẾU/RẤT TỆ → TẮT ngay (cổng)
+eq(rec_ad("YẾU", 1, 1_400_000, cpl=1_400_000, age=2), "TẮT · Phiên 1 (cổng) — yếu", "ad vừa bật lại yếu → cổng tắt")
+
 print(f"OK — {n} assertions passed")

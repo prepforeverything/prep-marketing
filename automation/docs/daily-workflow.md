@@ -98,6 +98,9 @@ python3 automation/engine/check_leads.py --date=2026-06-18
   lệnh `daily_gate.py` trong prompt.
 - **Nơi gửi**: đổi `TELEGRAM_CHAT_ID` trong `.env`. Muốn tách cảnh báo và báo cáo ra 2 nơi thì
   thêm biến thứ hai và sửa lệnh gửi tương ứng.
+- **Sản phẩm khác (vd IELTS Thái)**: mọi script nhận `--product <sp>` (config ở `automation/products/<sp>/config.json`).
+  IELTS Thái thêm cửa sổ xác nhận 7 ngày + ma trận 3d×7d + luật CR/2-ngưỡng 0-lead — bật qua config, xem
+  `automation/products/ielts-thai/SETUP.md`. Chạy độc lập với TOEIC (cờ `.sent` + Telegram chat riêng).
 
 ## Giới hạn cần biết (chế độ chạy-trên-Claude)
 
