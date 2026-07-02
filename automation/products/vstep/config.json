@@ -1,0 +1,29 @@
+{
+  "product": "vstep",
+  "display": "VSTEP",
+  "meta": {
+    "accounts": { "VSTEP - 01": "750272838130772" },
+    "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"]
+  },
+  "kpi_sheet": {
+    "id": "1K7zUuUCDZJ3puEAi0VeNsILlsdqIKSBiGlOn6loTB5g",
+    "gid": "338525856",
+    "line": "VSTEP",
+    "channel": "Inbox"
+  },
+  "lead_sheet": {
+    "id": "1G7g0qgVEiu9M_fHkRB_R6FvgX4bB0eOGlSCZgooNWW4",
+    "phone_tab": "Phone",
+    "content_tab": "Content Ad",
+    "col_date": 0,
+    "col_code": 7,
+    "col_adid": 5,
+    "col_account": 8,
+    "col_ql": 12,
+    "min_cols": 13
+  },
+  "min_leads": 3,
+  "report": { "primary_days": 3, "confirm_days": 7, "age_lookback_days": 30, "adid_overlay": true, "telegram_doc": "html" },
+  "gate_labels": { "morning": "10h10", "recheck": "17h10" },
+  "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_CHAT_ID" }
+}
