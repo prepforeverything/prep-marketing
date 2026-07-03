@@ -429,18 +429,79 @@ def actb(rec):
     if rec.startswith("GIẢM") or rec.startswith("CẢNH BÁO"): return "act-warn"
     return "act-hold"
 
-def why_cell(rec):
-    """Ô 'vì sao + cần làm gì' dưới mỗi đề xuất — rỗng nếu không cần thao tác."""
-    e = R.explain(rec)
+KILL_DEADLINE = "14h"  # hạn NV phải thao tác (tắt / soi inbox) trong ngày — rule vận hành, KHÔNG dùng giờ đối soát
+
+def _act_note(rec, phase, zone):
+    """Hành động cụ thể theo SOP (mục 3+4) suy từ đề xuất + phiên + vùng CPL."""
+    if rec.startswith("SCALE"):
+        return "đủ điều kiện → tăng ngân sách ad set +20% ngay (nghỉ 24h sau scale)"
+    if rec.startswith("GIẢM mạnh"):
+        return "giảm mạnh ~50%, cho 1 nhịp rồi TẮT nếu không hồi"
+    if rec.startswith("GIẢM"):
+        if phase == "Phiên 2":
+            return f"Phiên 2 · vùng {zone} → giảm ngân sách ad set 20% (chưa tắt; để chạy ổn 2–3 ngày rồi mới xét tiếp)"
+        return f"vùng {zone} đang tụt → giảm ngân sách ad set ~20% để cắt lỗ, chưa tắt"
+    if rec.startswith("ĐỌC INBOX"):
+        return f"0 lead nhưng chi rất cao → mở Pancake đọc inbox trước {KILL_DEADLINE}: spam thì TẮT, ≥30% quan tâm thì GIỮ"
+    if rec.startswith("XEM XÉT TẮT"):
+        return f"0 lead & đã chi cao → mở Pancake soi inbox trước {KILL_DEADLINE}: 0 inbox thì TẮT"
+    if rec.startswith("TẮT"):
+        if phase == "Phiên 1":
+            return f"cổng Phiên 1 chỉ cho TỐT/TB qua; vùng {zone} → TẮT trước {KILL_DEADLINE}, kẻo phí ngân sách sang ngày sau"
+        if phase == "Phiên 2":
+            return f"Phiên 2 · vùng {zone} → TẮT trước {KILL_DEADLINE} (2 ngày không cải thiện / rất tệ)"
+        return f"vùng {zone} → TẮT trước {KILL_DEADLINE} (đã qua cổng hoặc đã giảm mà vẫn tệ)"
+    if rec.startswith("CẢNH BÁO"):
+        return "3 ngày tệ nhưng CPL lũy kế tháng còn tốt → CHƯA tắt, chờ người phụ trách review"
+    if rec.startswith("GIỮ") or rec.startswith("Theo dõi"):
+        if zone == "TRUNG BÌNH":
+            return "vùng TB → giữ ngân sách + điều chỉnh nhẹ, theo dõi"
+        return "giữ ngân sách, theo dõi tiếp (chưa đủ cơ sở để tăng/giảm)"
+    return ""
+
+def explain_detail(r):
+    """Lý do CỤ THỂ (mọi SP): phiên + tuổi + CPL thực + vùng + hành động theo file quy tắc.
+    Nhận cả hàng content (có phase/cpl7) lẫn hàng ad lẻ (suy phase từ age)."""
+    rec = r.get("rec", "")
+    if not rec or rec.startswith("—") or rec.startswith("Bài đã tắt"):
+        return ""
+    age = r.get("age")
+    phase = r.get("phase") or (R.phase_of(age) if age is not None else "")
+    ctx = []
+    if age is not None:
+        c = f"{phase} · tuổi {age}d"
+        if age > 14:
+            c += " (content trưởng thành >14d)"
+        ctx.append(c)
+    cpl, zone = r.get("cpl"), r.get("zone", "")
+    if cpl:
+        seg = f"CPL 3 ngày {vnd(cpl)}₫ → vùng {zone}"
+        if r.get("cpl7") and r.get("zone7"):
+            seg += f"; CPL 7 ngày {vnd(r['cpl7'])}₫ ({r['zone7']})"
+        elif r.get("zone7"):
+            seg += f"; 7 ngày: {r['zone7']}"
+        ctx.append(seg)
+    elif r.get("lead") == 0 and r.get("spend"):
+        ctx.append(f"0 lead sau khi chi {vnd(r['spend'])}₫")
+    note = _act_note(rec, phase, zone)
+    head = " · ".join(ctx)
+    return f"{head} → {note}" if (head and note) else (note or head)
+
+def why_cell(r):
+    """Ô 'vì sao + cần làm gì' (cụ thể theo dữ liệu) dưới mỗi đề xuất — rỗng nếu không cần thao tác."""
+    e = explain_detail(r)
     return f'<div class="why">{e}</div>' if e else ""
 
 def ads_link(acct, ad_id, label="Mở Meta Ads Manager ↗"):
-    """Link mở đúng Ad ID trong Meta Ads Manager để NV bấm thao tác ngay. Rỗng nếu thiếu id."""
+    """Link lọc thẳng tới ĐÚNG Ad ID trong Meta Ads Manager (filter_set theo ad id + tick sẵn). Rỗng nếu thiếu id."""
     aid = ACCOUNTS.get(acct) or (cfg["accounts"].get(acct, {}) or {}).get("acct_id")
     if not (aid and ad_id):
         return ""
+    # filter_set = lọc bảng Ads theo đúng ad id (FB gọi ad = adgroup) → mở ra là thấy/tương tác đúng ad đó.
+    filt = f'SEARCH_BY_ADGROUP_IDS-STRING_SET\x1eANY\x1e["{ad_id}"]'
+    q = urllib.parse.urlencode({"act": aid, "selected_ad_ids": ad_id, "filter_set": filt})
     return (f'<a class="ads-link" target="_blank" rel="noopener" '
-            f'href="https://adsmanager.facebook.com/adsmanager/manage/ads?act={aid}&selected_ad_ids={ad_id}">{label}</a>')
+            f'href="https://adsmanager.facebook.com/adsmanager/manage/ads?{q}">{label}</a>')
 
 def section(acct, rows):
     ts, tl = sum(r["spend"] for r in rows), sum(r["lead"] for r in rows)
@@ -466,7 +527,7 @@ def section(acct, rows):
                  f'<td class="num">{vnd(r["spend"])}</td><td class="num">{r["lead"]}</td><td class="cpl-wrap">{cpl}</td>{c7}'
                  f'<td>{age_cell}</td>'
                  f'<td><span class="badge {ZB.get(r["zone"],"z-off")}">{r["zone"]}</span></td>'
-                 f'<td><span class="badge {actb(r["rec"])}">{r["rec"]}</span>{why_cell(r["rec"])}</td>'
+                 f'<td><span class="badge {actb(r["rec"])}">{r["rec"]}</span>{why_cell(r)}</td>'
                  f'<td class="num">{vnd(av)}</td><td class="num {pcls}">{arrow}{pjc}</td></tr>')
     h7 = '<th>CPL 7 ngày</th>' if HAS7 else ''
     return f'''<h2><span class="bar"></span>Prep {acct}</h2>
@@ -487,21 +548,21 @@ over_w = proj_all * 7 - kpi_week
 scls = "delta-bad" if over_d > 0 else "delta-up"
 pctd = (over_d / kpi_day * 100) if kpi_day else 0
 if kpi_day and over_d > 0:
-    verdict = f'⚠️ <b>Vượt KPI.</b> Nếu áp dụng đúng các mức đề xuất, chi tiêu dự kiến <b>{vnd(proj_all)} ₫/ngày</b> — vượt KPI Inbox/ngày ({vnd(kpi_day)} ₫) khoảng <b>{vnd(over_d)} ₫ ({pctd:+.0f}%)</b>; quy ra tuần vượt ~{vnd(over_w)} ₫. Nguyên nhân: hiện tại đã chạy gần sát trần ({vnd(cur_all)} ₫/ngày ≈ {cur_all/kpi_day*100:.0f}% KPI) nên scale đồng loạt +20% sẽ phá ngân sách. <b>Cách giữ KPI:</b> ưu tiên scale 2–3 bài CPL thấp nhất, bù bằng phần cắt (60626/60726) thay vì scale tất cả; hoặc xin nới KPI tuần.'
+    verdict = f'⚠️ <b>Vượt KPI.</b> Nếu áp dụng đúng các mức đề xuất, chi tiêu dự kiến <b>{vnd(proj_all)} ₫/ngày</b> — vượt KPI Inbox/ngày ({vnd(kpi_day)} ₫) khoảng <b>{vnd(over_d)} ₫ ({pctd:+.0f}%)</b>; quy ra tuần vượt ~{vnd(over_w)} ₫. Nguyên nhân: hiện tại đã chạy gần sát trần ({vnd(cur_all)} ₫/ngày ≈ {cur_all/kpi_day*100:.0f}% KPI) nên scale đồng loạt +20% sẽ phá ngân sách. <b>Cách giữ KPI:</b> ưu tiên scale 2–3 bài CPL thấp nhất, bù bằng phần cắt từ bài 0-lead/yếu thay vì scale tất cả; hoặc xin nới KPI tuần.'
 elif kpi_day:
     verdict = f'✅ <b>Trong ngưỡng KPI.</b> Chi tiêu dự kiến {vnd(proj_all)} ₫/ngày ≤ KPI Inbox/ngày {vnd(kpi_day)} ₫ (còn dư ~{vnd(-over_d)} ₫/ngày).'
 else:
     verdict = "KPI ngân sách: không đọc được từ Sheet 1."
 budget = f'''<h2><span class="bar"></span>Tác động ngân sách &amp; KPI</h2>
 <div class="cards">
-  <div class="card"><div class="lbl">Chi/ngày hiện tại (2 TK)</div><div class="val">{vnd(cur_all)} <small>₫</small></div></div>
-  <div class="card"><div class="lbl">Chi/ngày dự kiến (2 TK)</div><div class="val {scls}">{vnd(proj_all)} <small>₫</small></div></div>
+  <div class="card"><div class="lbl">Chi/ngày hiện tại ({len(ACCOUNTS)} TK)</div><div class="val">{vnd(cur_all)} <small>₫</small></div></div>
+  <div class="card"><div class="lbl">Chi/ngày dự kiến ({len(ACCOUNTS)} TK)</div><div class="val {scls}">{vnd(proj_all)} <small>₫</small></div></div>
   <div class="card"><div class="lbl">KPI Inbox / ngày (tuần này)</div><div class="val">{vnd(kpi_day)} <small>₫</small></div></div>
   <div class="card"><div class="lbl">Chênh so KPI / ngày</div><div class="val {scls}">{('+' if over_d>=0 else '')}{vnd(over_d)} <small>₫ ({pctd:+.0f}%)</small></div></div>
 </div>
 <div class="scroll"><table><thead><tr><th>Tài khoản</th><th class="num">Chi/ngày hiện tại</th><th class="num">Chi/ngày dự kiến</th><th class="num">Δ</th></tr></thead><tbody>
 {arows}
-<tr style="font-weight:700;background:#f1f5f9"><td>TỔNG TOEIC 3 + 5</td><td class="num">{vnd(cur_all)}</td><td class="num">{vnd(proj_all)}</td><td class="num {scls}">{('+' if proj_all>=cur_all else '')}{vnd(proj_all-cur_all)}</td></tr>
+<tr style="font-weight:700;background:#f1f5f9"><td>TỔNG {PCFG.display}</td><td class="num">{vnd(cur_all)}</td><td class="num">{vnd(proj_all)}</td><td class="num {scls}">{('+' if proj_all>=cur_all else '')}{vnd(proj_all-cur_all)}</td></tr>
 <tr><td>KPI Inbox (tuần này)</td><td class="num">{vnd(kpi_day)}/ngày</td><td class="num">{vnd(kpi_week)}/tuần</td><td class="num">—</td></tr>
 </tbody></table></div>
 <div class="note warn">{verdict}</div>'''
@@ -519,7 +580,7 @@ fitplan = f'''<h2><span class="bar"></span>Phương án giữ KPI — phân bổ
 <div class="note"><b>Nguyên tắc:</b> giữ tổng chi trong trần KPI ({vnd(ceiling)} ₫/ngày) — cắt bài 0 lead chi cao về 0, giảm 20% bài YẾU, dồn ngân sách dư cho bài CPL tốt nhất (mỗi bài tối đa +20%, ưu tiên CPL thấp).{under_txt}</div>
 <div class="scroll"><table><thead><tr><th>Content</th><th class="num">Chi/ngày hiện tại</th><th class="num">Chi/ngày (phương án)</th><th>Thao tác</th></tr></thead><tbody>
 {fp}
-<tr style="font-weight:700;background:#f1f5f9"><td>TỔNG 2 tài khoản</td><td class="num">{vnd(cur_all)}</td><td class="num">{vnd(plan_total)}</td><td>{'≤ KPI ✓' if plan_total<=ceiling else 'VƯỢT'}</td></tr>
+<tr style="font-weight:700;background:#f1f5f9"><td>TỔNG {len(ACCOUNTS)} tài khoản</td><td class="num">{vnd(cur_all)}</td><td class="num">{vnd(plan_total)}</td><td>{'≤ KPI ✓' if plan_total<=ceiling else 'VƯỢT'}</td></tr>
 </tbody></table></div>'''
 
 # ad set / ad id detail
@@ -551,7 +612,7 @@ def adset_section(acct):
         else:
             items = '<span class="pct">⚠ Không còn ad set đang chạy (ad đã tắt giữa kỳ) — chỉ còn dữ liệu chi/lead trong cửa sổ.</span>'
         age_sfx = f' · {r["phase"]} {r["age"]}d' if r.get("age") is not None else ""
-        rh += f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}{age_sfx}</div></td><td><span class="badge {actb(r["rec"])}">{r["rec"]}</span>{why_cell(r["rec"])}</td><td>{items}</td></tr>'
+        rh += f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}{age_sfx}</div></td><td><span class="badge {actb(r["rec"])}">{r["rec"]}</span>{why_cell(r)}</td><td>{items}</td></tr>'
     g = info.get("ghost_adsets")
     gn = f'<div class="note warn">⚠️ {g["note"]}<br>Ad set: {", ".join(g["ids"])}.</div>' if g else ""
     n60 = f'<div class="note">{info["note_60226"]}</div>' if info.get("note_60226") else ""
@@ -569,7 +630,7 @@ if ADID_OVERLAY and any(adid_kill.values()):
             ag = f'{k["age"]}d' if k.get("age") is not None else "—"
             _kr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
                     f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
-                    f'<td><span class="badge act-off">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k["rec"])}</td></tr>')
+                    f'<td><span class="badge act-off">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k)}</td></tr>')
     adkill = (f'<h2><span class="bar"></span>🔴 Ad lẻ vi phạm — tắt riêng ad này (content vẫn tốt)</h2>'
               f'<div class="note warn">Áp đúng quy tắc R3×R7 + ngày tuổi (bật lại) cho <b>từng Ad ID</b>. Các ad dưới đây vi phạm '
               f'dù content tổng đang GIỮ/SCALE → chỉ tắt ad này, giữ nguyên content.</div>'
@@ -588,7 +649,7 @@ if ADID_OVERLAY and any(adid_warn.values()):
             _wr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
                     f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
                     f'<td><span class="pct">{z}</span></td>'
-                    f'<td><span class="badge act-warn">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k["rec"])}</td></tr>')
+                    f'<td><span class="badge act-warn">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k)}</td></tr>')
     adwarn = (f'<h2><span class="bar"></span>🟡 Ad lẻ cần theo dõi — giảm/theo dõi (content vẫn tốt)</h2>'
               f'<div class="note">Chưa tới ngưỡng tắt nhưng <b>từng Ad ID</b> đang yếu (vd 3 ngày tụt nhưng 7 ngày còn tốt) '
               f'trong khi content tổng vẫn GIỮ/SCALE → giảm ~20% &amp; theo dõi sát, chưa tắt.</div>'
@@ -648,7 +709,7 @@ code{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#0f766e;back
 .act-scale{{color:#15803d;background:#dcfce7;border-color:#86efac}} .act-hold{{color:#475569;background:#f1f5f9;border-color:#cbd5e1}}
 .act-warn{{color:#b45309;background:#fef3c7;border-color:#fcd34d}} .act-off{{color:#b91c1c;background:#fee2e2;border-color:#fca5a5}}
 .cpl-wrap{{min-width:118px}} .pct{{font-size:11px;color:var(--muted)}} .cpl-bar{{height:5px;border-radius:3px;background:#eef2f6;margin-top:5px;overflow:hidden}} .cpl-fill{{height:100%}}
-.why{{font-size:11.5px;color:#334155;margin-top:5px;line-height:1.45;max-width:340px}}
+.why{{font-size:11.5px;color:#334155;margin-top:5px;line-height:1.45;width:300px;white-space:normal;overflow-wrap:break-word}}
 .ads-link{{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap}}
 @media print{{.ads-link{{color:#0369a1;-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 .note{{background:#fff;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}} .note.warn{{border-left-color:#dc2626}} .note b{{color:var(--ink)}}
@@ -674,9 +735,9 @@ footer{{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-s
 <ul class="tight">
 <li><b>CPL 3 ngày</b> = Spend 3 ngày (Meta) ÷ Lead 3 ngày (tab Phone). Join qua mã content (tiền tố tên ad = mã bài).</li>
 <li><b>TB chi/ngày</b> = spend 3 ngày ÷ 3 (run-rate thực tế). <b>→ Dự kiến/ngày</b> = run-rate × mức đề xuất (SCALE ×1.2 · GIẢM ×0.8 · TẮT/XEM XÉT TẮT ×0 · còn lại giữ nguyên).</li>
-<li><b>KPI ngân sách</b> đọc từ Sheet 1 (kênh FB Inbox, tuần hiện tại). KPI này gộp toàn bộ tài khoản Inbox của TOEIC — TOEIC 3+5 là phần lớn nhưng có thể chưa phải toàn bộ.</li>
-<li><b>SCALE/GIẢM</b> là hướng — áp vào ngân sách ad set của bài. Bài đã thắng scale tự do; trần 1,8tr/3 ngày chỉ là rào cho content mới test.</li>
-<li>Bài "0 lead" để <b>CẢNH BÁO/XEM XÉT</b> cho người review (chưa có số inbox/mess fresh để tự tắt). CPL MTD lấy từ sheet Content Ad (gộp 2 TK, có thể trễ).</li>{note7}{conv_note}
+<li><b>KPI ngân sách</b> đọc từ Sheet 1 (kênh FB Inbox, tuần hiện tại). KPI này gộp toàn bộ ngân sách kênh FB Inbox của {DISPLAY} theo Sheet.</li>
+<li><b>SCALE/GIẢM</b> là hướng — áp vào ngân sách ad set của bài. Bài đã thắng scale tự do; trần ngân sách chỉ là rào cho content mới test.</li>
+<li>Bài "0 lead" để <b>CẢNH BÁO/XEM XÉT</b> cho người review (chưa có số inbox/mess fresh để tự tắt). CPL MTD lấy từ sheet Content Ad (gộp các TK, có thể trễ).</li>{note7}{conv_note}
 </ul></div>
 <footer>{FOOTER_ACCTS} · Engine tự động (Meta MCP + Google Sheets) · VND · Cửa sổ {WINDOW[0]}→{WINDOW[-1]}.</footer>
 </div></body></html>'''
