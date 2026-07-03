@@ -1,0 +1,58 @@
+{
+  "name": "VSTEP ad-ops — bấm giờ gọi GitHub",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "10 10 * * *" },
+            { "field": "cronExpression", "expression": "10 17 * * *" }
+          ]
+        }
+      },
+      "id": "schedule-1010-1710-vstep",
+      "name": "Lịch 10:10 & 17:10 (VN)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [380, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/prepforeverything/prep-marketing/actions/workflows/vstep-adops.yml/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Accept", "value": "application/vnd.github+json" },
+            { "name": "X-GitHub-Api-Version", "value": "2022-11-28" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"ref\": \"main\",\n  \"inputs\": { \"dry_run\": \"false\" }\n}",
+        "options": {}
+      },
+      "id": "github-dispatch-vstep",
+      "name": "Gọi GitHub chạy ad-ops VSTEP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300],
+      "credentials": {
+        "httpHeaderAuth": { "id": "REPLACE_ME", "name": "GitHub dispatch token" }
+      }
+    }
+  ],
+  "connections": {
+    "Lịch 10:10 & 17:10 (VN)": {
+      "main": [
+        [ { "node": "Gọi GitHub chạy ad-ops VSTEP", "type": "main", "index": 0 } ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "active": false
+}

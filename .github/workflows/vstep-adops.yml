@@ -1,0 +1,63 @@
+name: VSTEP ad-ops hằng ngày
+
+# Engine ad-ops headless cho VSTEP (always-on). Cron LUÔN theo UTC → 10:10 VN = 03:10 UTC, 17:10 VN = 10:10 UTC.
+# Gửi CHẬM hơn TOEIC (10:07/14:07) vì lead VSTEP về muộn hơn: 10:10 sáng + kiểm lại 17:10 chiều.
+# Dùng CHUNG nhóm Telegram với TOEIC (secret TELEGRAM_CHAT_ID) → nhãn "VSTEP ad-ops" phân biệt báo cáo.
+# Chống gửi trùng BỀN VỮNG: cờ "đã gửi" commit vào automation/products/vstep/state/ (đọc từ main mỗi lần chạy → SKIP nếu đã có).
+# Gửi HTML (telegram_doc=html) → KHÔNG cần Chrome. ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
+on:
+  schedule:
+    - cron: "10 3 * * *"    # 10:10 giờ VN
+    - cron: "10 10 * * *"   # 17:10 giờ VN
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — KHÔNG gửi Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: vstep-adops
+  cancel-in-progress: false
+
+permissions:
+  contents: write          # để commit cờ "đã gửi" vào repo
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4   # lấy main mới nhất → gồm cờ "đã gửi" của lần chạy trước trong ngày
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Chạy ad-ops VSTEP
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/engine/run_daily.py --product vstep --dry-run
+          else
+            python3 automation/engine/run_daily.py --product vstep
+          fi
+
+      - name: Lưu cờ "đã gửi" vào repo (chống gửi trùng)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          if [ -n "$(git status --porcelain automation/products/vstep/state)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add automation/products/vstep/state
+            git commit -m "chore(adops): VSTEP đã gửi báo cáo $(date +%F) [skip ci]"
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push origin HEAD:main && break
+              echo "push lần $i trượt (có commit mới trên main) — rebase & thử lại"; sleep 3
+            done
+          else
+            echo "Không gửi lần này (SKIP/alert) — không có cờ mới để commit."
+          fi
