@@ -238,10 +238,15 @@ def _is_kill(rec):
     return rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT")
 
 
+def _is_reduce(rec):  # mức "giảm/theo dõi" (chưa tắt) — vd 3d tụt nhưng 7d còn tốt
+    return rec.startswith("GIẢM") or rec.startswith("CẢNH BÁO")
+
+
 # ---- lớp phủ ad_id: áp CHÍNH quy tắc 3d×7d cho từng ad_id (tuổi = ngày bật lại) ----------------
 # Bắt ad lẻ VI PHẠM nằm trong content mà cấp code vẫn TỐT/GIỮ/SCALE. Không có MTD theo ad ⇒ cpl_mtd=0
 # (không áp 'lũy kế tốt' ở cấp ad → vi phạm 3d & 7d là đề xuất tắt, đúng yêu cầu).
 adid_kill = defaultdict(list)
+adid_warn = defaultdict(list)            # ad lẻ mức GIẢM/theo dõi (chưa tắt, vd 3d tụt/7d còn tốt) nấp trong content vẫn tốt
 adid_gap = defaultdict(list)             # ad cùng phiên nhưng có ngày lẻ 0-chi → nêu để review, KHÔNG reset tuổi
 if ADID_OVERLAY:
     for acct in cfg["accounts"]:
@@ -256,15 +261,18 @@ if ADID_OVERLAY:
             aid = norm(ad["id"]); acode = norm(ad.get("code") or "")
             if _is_kill(code_rec.get(acode, "")):                 # cả content đã bị tắt → ad đã nằm trong danh sách đó
                 continue
+            cr = code_rec.get(acode, "")
             ld = leads_ad[acct].get(aid, {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0})
             z3, cpl3 = classify(s3, ld["lead"])
             z7, _ = classify(s7, ld["lead7"]) if HAS7 else ("", None)
             rec = recommend(z3, ld["lead"], s3, 0, z7=(z7 if HAS7 else ""), cpl=cpl3 or 0, ql=ld["ql"], age=ad.get("age"))
+            row = {"id": ad["id"], "code": acode, "name": ad.get("name", ""),
+                   "spend": s3, "lead": ld["lead"], "cpl": round(cpl3) if cpl3 else 0,
+                   "zone": z3, "zone7": z7, "age": ad.get("age"), "rec": rec, "content_rec": cr}
             if _is_kill(rec):
-                adid_kill[acct].append({"id": ad["id"], "code": acode, "name": ad.get("name", ""),
-                                        "spend": s3, "lead": ld["lead"], "cpl": round(cpl3) if cpl3 else 0,
-                                        "zone": z3, "zone7": z7, "age": ad.get("age"), "rec": rec,
-                                        "content_rec": code_rec.get(acode, "")})
+                adid_kill[acct].append(row)
+            elif _is_reduce(rec) and not _is_reduce(cr):   # ad yếu (giảm/theo dõi) mà content tổng vẫn tốt → nêu để soi sớm
+                adid_warn[acct].append(row)
 
 # ---- console -----------------------------------------------------------------
 for acct, rows in data.items():
@@ -287,6 +295,15 @@ if ADID_OVERLAY and any(adid_kill.values()):
     print("\n===== 🔴 AD LẺ VI PHẠM (trong content vẫn TỐT/GIỮ/SCALE) — xét tắt riêng ad này =====")
     for acct, ks in adid_kill.items():
         for k in sorted(ks, key=lambda x: -(x["cpl"] or 0)):
+            cpl = f"{k['cpl']:,}" if k["cpl"] else ("0 lead" if k["spend"] else "—")
+            ag = f"{k['age']}d" if k.get("age") is not None else "—"
+            print(f"  {acct[:7]} {k['id']} [{k['code']}] tuổi {ag} · chi3d {k['spend']:,} · lead {k['lead']} · CPL {cpl} "
+                  f"· {k['zone']}/{k['zone7']} → {k['rec']}  (content: {k['content_rec']}) · {k['name'][:24]}")
+
+if ADID_OVERLAY and any(adid_warn.values()):
+    print("\n===== 🟡 AD LẺ CẦN THEO DÕI (giảm/theo dõi — content vẫn TỐT/GIỮ/SCALE) =====")
+    for acct, ws in adid_warn.items():
+        for k in sorted(ws, key=lambda x: -(x["cpl"] or 0)):
             cpl = f"{k['cpl']:,}" if k["cpl"] else ("0 lead" if k["spend"] else "—")
             ag = f"{k['age']}d" if k.get("age") is not None else "—"
             print(f"  {acct[:7]} {k['id']} [{k['code']}] tuổi {ag} · chi3d {k['spend']:,} · lead {k['lead']} · CPL {cpl} "
@@ -362,11 +379,14 @@ if _summary_path:
                 _b[k].append(r["code"])
                 _items.append({"code": r["code"], "name": r["name"], "rec": rec_out, "bucket": k,
                                "ads": _ads_by_code.get(r["code"], [])})
-        _kills = [{"id": k["id"], "code": k["code"], "name": k["name"], "cpl": k["cpl"], "lead": k["lead"],
-                   "age": k.get("age"), "rec": k["rec"], "content_rec": k["content_rec"]}
-                  for k in adid_kill.get(_acct, [])]
+        def _adrow(k):
+            return {"id": k["id"], "code": k["code"], "name": k["name"], "cpl": k["cpl"], "lead": k["lead"],
+                    "zone": k["zone"], "zone7": k["zone7"], "age": k.get("age"), "rec": k["rec"],
+                    "content_rec": k["content_rec"]}
+        _kills = [_adrow(k) for k in adid_kill.get(_acct, [])]
+        _warns = [_adrow(k) for k in adid_warn.get(_acct, [])]
         _summary["accounts"][_acct] = {"spend": _ts, "lead": _tl, "cpl": round(_ts / _tl) if _tl else 0,
-                                       "buckets": _b, "items": _items, "adid_kill": _kills}
+                                       "buckets": _b, "items": _items, "adid_kill": _kills, "adid_warn": _warns}
     json.dump(_summary, open(_summary_path, "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---- baseline cho đối soát cuối ngày (opt-in qua env ADOPS_BASELINE_JSON) ----------------------
@@ -409,6 +429,19 @@ def actb(rec):
     if rec.startswith("GIẢM") or rec.startswith("CẢNH BÁO"): return "act-warn"
     return "act-hold"
 
+def why_cell(rec):
+    """Ô 'vì sao + cần làm gì' dưới mỗi đề xuất — rỗng nếu không cần thao tác."""
+    e = R.explain(rec)
+    return f'<div class="why">{e}</div>' if e else ""
+
+def ads_link(acct, ad_id, label="Mở Meta Ads Manager ↗"):
+    """Link mở đúng Ad ID trong Meta Ads Manager để NV bấm thao tác ngay. Rỗng nếu thiếu id."""
+    aid = ACCOUNTS.get(acct) or (cfg["accounts"].get(acct, {}) or {}).get("acct_id")
+    if not (aid and ad_id):
+        return ""
+    return (f'<a class="ads-link" target="_blank" rel="noopener" '
+            f'href="https://adsmanager.facebook.com/adsmanager/manage/ads?act={aid}&selected_ad_ids={ad_id}">{label}</a>')
+
 def section(acct, rows):
     ts, tl = sum(r["spend"] for r in rows), sum(r["lead"] for r in rows)
     acpl = round(ts / tl) if tl else 0
@@ -433,7 +466,7 @@ def section(acct, rows):
                  f'<td class="num">{vnd(r["spend"])}</td><td class="num">{r["lead"]}</td><td class="cpl-wrap">{cpl}</td>{c7}'
                  f'<td>{age_cell}</td>'
                  f'<td><span class="badge {ZB.get(r["zone"],"z-off")}">{r["zone"]}</span></td>'
-                 f'<td><span class="badge {actb(r["rec"])}">{r["rec"]}</span></td>'
+                 f'<td><span class="badge {actb(r["rec"])}">{r["rec"]}</span>{why_cell(r["rec"])}</td>'
                  f'<td class="num">{vnd(av)}</td><td class="num {pcls}">{arrow}{pjc}</td></tr>')
     h7 = '<th>CPL 7 ngày</th>' if HAS7 else ''
     return f'''<h2><span class="bar"></span>Prep {acct}</h2>
@@ -513,11 +546,12 @@ def adset_section(acct):
                     bud = f'<b>{vnd(s["budget"])}₫</b>/ngày'
                 else:
                     bud = '<b>—</b>'
-                items += f'<div style="margin:2px 0"><code>{s["id"]}</code> — {bud}{cbo}{shared}<br><span class="code">ad: {", ".join(s["ads"]) or "—"}</span></div>'
+                ad_links = " ".join(f'<code>{aid}</code> {ads_link(acct, aid, "↗ Meta")}' for aid in s["ads"]) or "—"
+                items += f'<div style="margin:2px 0"><code>{s["id"]}</code> — {bud}{cbo}{shared}<br><span class="code">ad: </span>{ad_links}</div>'
         else:
             items = '<span class="pct">⚠ Không còn ad set đang chạy (ad đã tắt giữa kỳ) — chỉ còn dữ liệu chi/lead trong cửa sổ.</span>'
         age_sfx = f' · {r["phase"]} {r["age"]}d' if r.get("age") is not None else ""
-        rh += f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}{age_sfx}</div></td><td><span class="badge {actb(r["rec"])}">{r["rec"]}</span></td><td>{items}</td></tr>'
+        rh += f'<tr><td><div class="content-name">{r["name"] or "(?)"}</div><div class="code">{r["code"]}{age_sfx}</div></td><td><span class="badge {actb(r["rec"])}">{r["rec"]}</span>{why_cell(r["rec"])}</td><td>{items}</td></tr>'
     g = info.get("ghost_adsets")
     gn = f'<div class="note warn">⚠️ {g["note"]}<br>Ad set: {", ".join(g["ids"])}.</div>' if g else ""
     n60 = f'<div class="note">{info["note_60226"]}</div>' if info.get("note_60226") else ""
@@ -533,14 +567,33 @@ if ADID_OVERLAY and any(adid_kill.values()):
         for k in sorted(adid_kill.get(acct, []), key=lambda x: -(x["cpl"] or 0)):
             cpl = f'{vnd(k["cpl"])} ₫' if k["cpl"] else ("0 lead" if k["spend"] else "—")
             ag = f'{k["age"]}d' if k.get("age") is not None else "—"
-            _kr += (f'<tr><td><code>{k["id"]}</code></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
+            _kr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
                     f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
-                    f'<td><span class="badge act-off">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div></td></tr>')
+                    f'<td><span class="badge act-off">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k["rec"])}</td></tr>')
     adkill = (f'<h2><span class="bar"></span>🔴 Ad lẻ vi phạm — tắt riêng ad này (content vẫn tốt)</h2>'
               f'<div class="note warn">Áp đúng quy tắc R3×R7 + ngày tuổi (bật lại) cho <b>từng Ad ID</b>. Các ad dưới đây vi phạm '
               f'dù content tổng đang GIỮ/SCALE → chỉ tắt ad này, giữ nguyên content.</div>'
               f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>Tuổi</th><th class="num">Chi 3d</th>'
               f'<th class="num">Lead</th><th class="num">CPL/ad</th><th>Đề xuất</th></tr></thead><tbody>{_kr}</tbody></table></div>')
+
+# Ad lẻ mức GIẢM/theo dõi (chưa tới ngưỡng tắt) mà content tổng vẫn tốt — nêu để soi sớm, ví dụ 3d tụt nhưng 7d còn tốt.
+adwarn = ""
+if ADID_OVERLAY and any(adid_warn.values()):
+    _wr = ""
+    for acct in cfg["accounts"]:
+        for k in sorted(adid_warn.get(acct, []), key=lambda x: -(x["cpl"] or 0)):
+            cpl = f'{vnd(k["cpl"])} ₫' if k["cpl"] else ("0 lead" if k["spend"] else "—")
+            ag = f'{k["age"]}d' if k.get("age") is not None else "—"
+            z = f'{k["zone"]}/{k["zone7"]}' if HAS7 else k["zone"]
+            _wr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
+                    f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
+                    f'<td><span class="pct">{z}</span></td>'
+                    f'<td><span class="badge act-warn">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k["rec"])}</td></tr>')
+    adwarn = (f'<h2><span class="bar"></span>🟡 Ad lẻ cần theo dõi — giảm/theo dõi (content vẫn tốt)</h2>'
+              f'<div class="note">Chưa tới ngưỡng tắt nhưng <b>từng Ad ID</b> đang yếu (vd 3 ngày tụt nhưng 7 ngày còn tốt) '
+              f'trong khi content tổng vẫn GIỮ/SCALE → giảm ~20% &amp; theo dõi sát, chưa tắt.</div>'
+              f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>Tuổi</th><th class="num">Chi 3d</th>'
+              f'<th class="num">Lead</th><th class="num">CPL/ad</th><th>Vùng 3d/7d</th><th>Đề xuất</th></tr></thead><tbody>{_wr}</tbody></table></div>')
 
 # Ad cùng phiên nhưng có ngày lẻ 0-chi (không đủ để reset tuổi) → nêu cảnh báo để người review.
 gapnote = ""
@@ -595,6 +648,9 @@ code{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#0f766e;back
 .act-scale{{color:#15803d;background:#dcfce7;border-color:#86efac}} .act-hold{{color:#475569;background:#f1f5f9;border-color:#cbd5e1}}
 .act-warn{{color:#b45309;background:#fef3c7;border-color:#fcd34d}} .act-off{{color:#b91c1c;background:#fee2e2;border-color:#fca5a5}}
 .cpl-wrap{{min-width:118px}} .pct{{font-size:11px;color:var(--muted)}} .cpl-bar{{height:5px;border-radius:3px;background:#eef2f6;margin-top:5px;overflow:hidden}} .cpl-fill{{height:100%}}
+.why{{font-size:11.5px;color:#334155;margin-top:5px;line-height:1.45;max-width:340px}}
+.ads-link{{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap}}
+@media print{{.ads-link{{color:#0369a1;-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 .note{{background:#fff;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}} .note.warn{{border-left-color:#dc2626}} .note b{{color:var(--ink)}}
 ul.tight{{margin:6px 0 0;padding-left:18px}} ul.tight li{{margin:3px 0}}
 footer{{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}}
@@ -609,6 +665,7 @@ footer{{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-s
 <div class="wrap">
 {sections}
 {adkill}
+{adwarn}
 {gapnote}
 {budget}
 {fitplan}
