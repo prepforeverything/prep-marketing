@@ -54,9 +54,15 @@ def dmy(iso):
     return f"{d.day}/{d.month}"
 
 
+def channel_tag(cfg):
+    """Nhãn kênh khi sản phẩm lọc campaign theo tên (vd chỉ Inbox) — rỗng nếu không lọc."""
+    ni = (cfg.get("meta") or {}).get("campaign_name_include")
+    return f" · chỉ kênh {ni}" if ni else ""
+
+
 def build_caption(cfg, summary, doc_fmt="pdf"):
     w = summary["window"]
-    L = [f"📊 <b>{cfg.display} ad-ops — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]})</b>", ""]
+    L = [f"📊 <b>{cfg.display} ad-ops — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]}){channel_tag(cfg)}</b>", ""]
     for acct, a in summary["accounts"].items():
         L.append(f"• <b>{acct}</b> — chi {vnd(a['spend'])} · {a['lead']} lead · CPL {vnd(a['cpl'])}")
         b = a["buckets"]
@@ -88,7 +94,7 @@ def build_adid_message(cfg, summary):
     for acct, a in summary["accounts"].items():
         for it in a.get("items", []):
             by_bucket.setdefault(it["bucket"], []).append((acct, it))
-    L = [f"🎯 <b>{cfg.display} — Ad ID theo đề xuất (copy nhanh)</b>"]
+    L = [f"🎯 <b>{cfg.display} — Ad ID theo đề xuất (copy nhanh){channel_tag(cfg)}</b>"]
     any_item = False
     for k, label in order:
         items = by_bucket.get(k) or []

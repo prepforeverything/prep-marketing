@@ -3,7 +3,8 @@
   "display": "VSTEP",
   "meta": {
     "accounts": { "VSTEP - 01": "750272838130772" },
-    "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"]
+    "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"],
+    "campaign_name_include": "Inbox"
   },
   "kpi_sheet": {
     "id": "1K7zUuUCDZJ3puEAi0VeNsILlsdqIKSBiGlOn6loTB5g",
