@@ -135,30 +135,6 @@ def recommend(zone, lead, spend, cpl_mtd, thr, rules, min_leads, *, z7="", cpl=0
     return "—"
 
 
-def explain(rec):
-    """Diễn giải 'CẦN LÀM GÌ + VÌ SAO' cho một đề xuất — bằng lời cho NV không chuyên.
-    Khớp theo tiền tố chuẩn của recommend()/decide_1_3_7(). Trả '' khi không cần thao tác."""
-    if not rec or rec.startswith("—") or rec.startswith("Bài đã tắt"):
-        return ""
-    if rec.startswith("SCALE"):
-        return "Cần làm: tăng ngân sách ad set +20%. Vì sao: CPL 3 ngày dưới KPI và đã đủ lead tin cậy → nhân bài đang hiệu quả."
-    if rec.startswith("GIẢM mạnh"):
-        return "Cần làm: giảm ngân sách ad set ~50%. Vì sao: 3 & 7 ngày đều xấu, chỉ cho thêm 1 nhịp trước khi tắt."
-    if rec.startswith("GIẢM"):
-        return "Cần làm: giảm ngân sách ad set ~20%. Vì sao: CPL vào vùng yếu / đang tụt → cắt bớt để giảm lỗ, chưa tắt vì còn cơ hội."
-    if rec.startswith("XEM XÉT TẮT"):
-        return "Cần làm: mở Pancake soi inbox rồi quyết — 0 inbox thì TẮT. Vì sao: 0 lead nhưng đã chi cao."
-    if rec.startswith("ĐỌC INBOX"):
-        return "Cần làm: mở Pancake đọc inbox — spam thì TẮT, ≥30% quan tâm thì GIỮ. Vì sao: 0 lead nhưng chi rất cao."
-    if rec.startswith("TẮT"):
-        return "Cần làm: TẮT ad/content này ngay. Vì sao: CPL rất tệ hoặc vi phạm luật pha (đang đốt tiền, không ra lead hiệu quả)."
-    if rec.startswith("CẢNH BÁO"):
-        return "Cần làm: chưa tắt — người phụ trách review quyết. Vì sao: 3 ngày tệ nhưng lũy kế tháng vẫn tốt."
-    if rec.startswith("GIỮ") or rec.startswith("Theo dõi"):
-        return "Cần làm: giữ nguyên ngân sách, theo dõi tiếp. Vì sao: chưa đủ cơ sở để tăng hay giảm."
-    return ""
-
-
 def mult(rec):
     """Hệ số chiếu ngân sách/ngày từ đề xuất (run-rate × mult)."""
     if rec.startswith("SCALE"):
