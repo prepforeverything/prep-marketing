@@ -28,8 +28,11 @@ def fetch(u, retries=4):
 
 
 def parse_date(s):
-    """Định dạng DD-M-YYYY (ngày-tháng-năm), vd '18-6-2026'. Năm = số >= 2000."""
-    p = [int(x) for x in re.split(r"[-/]", (s or "").strip()) if x.isdigit()]
+    """Định dạng DD-M-YYYY (ngày-tháng-năm), vd '18-6-2026'. Năm = số >= 2000.
+    Chấp nhận cả timestamp 'HH:MM DD/MM/YYYY' (lead_feed IELTS Thái) — lấy token cuối."""
+    s = (s or "").strip()
+    s = s.split()[-1] if s else ""
+    p = [int(x) for x in re.split(r"[-/]", s) if x.isdigit()]
     if len(p) != 3:
         return None
     yi = next((i for i, x in enumerate(p) if x >= 2000), None)
