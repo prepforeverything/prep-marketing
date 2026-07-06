@@ -7,7 +7,7 @@ Nguồn TIN CẬY (filter-proof):
 Gộp ad theo Nhóm QC (adset), đề xuất theo ma trận 1d×3d×7d (nghiêng 3d, 7d nền, 1d sớm) + luật CR (QL/lead).
 CHỈ ĐỀ XUẤT — không tự đổi Meta. Chạy: python3 adops_inbox.py [--product ielts-thai] [meta_spend.json] [out.html]
 """
-import csv, io, re, sys, time, socket, json, urllib.request, urllib.parse, urllib.error
+import csv, io, os, re, sys, time, socket, json, urllib.request, urllib.parse, urllib.error
 from collections import defaultdict
 
 import prepcfg
@@ -20,6 +20,9 @@ RULES = PCFG.get("rules", {}) or {}
 MIN_LEADS = PCFG.get("min_leads", 3)
 DISPLAY = PCFG.display
 LS = PCFG["lead_sheet"]
+ACCOUNT_IDS = PCFG["meta"]["accounts"]           # tên TK → act id (link Ads Manager)
+CBO = bool((PCFG.get("report") or {}).get("cbo_campaign_budget"))  # Thái chạy CBO → chỉnh ngân sách cấp campaign
+KILL_DEADLINE = "14h"  # hạn NV phải thao tác (tắt / soi inbox) trong ngày — rule vận hành
 
 _args, _skip = [], False
 for _a in sys.argv[1:]:
@@ -63,16 +66,16 @@ WIN3 = cfg["window"]
 WIN7 = cfg.get("window_7d") or WIN3
 WIN1 = [WIN3[-1]]
 def mk_wset(dates):
-    return ({frozenset((int(d[5:7]), int(d[8:10]))) for d in dates}, int(dates[0][:4]))
+    return {(int(d[8:10]), int(d[5:7]), int(d[:4])) for d in dates}  # (ngày, tháng, năm)
 WS1, WS3, WS7 = mk_wset(WIN1), mk_wset(WIN3), mk_wset(WIN7)
 def indates(s, ws):
-    sset, yr = ws
+    """Ngày lead_feed LUÔN là DD/MM/YYYY (timestamp 'HH:MM DD/MM/YYYY') → parse CHẶT theo vị trí.
+    (Bản frozenset cũ nhận cả 2 chiều DD/MM↔MM/DD → 07/05 (7 tháng 5) bị đếm nhầm thành 5/7.)"""
     s = (s or "").strip(); s = s.split()[-1] if s else ""  # bỏ tiền tố giờ nếu timestamp
     p = [int(x) for x in re.split(r"[-/]", s) if x.isdigit()]
     if len(p) != 3:
         return False
-    y = next((x for x in p if x >= 2000), None)
-    return y == yr and frozenset(x for x in p if x < 2000) in sset
+    return (p[0], p[1], p[2]) in ws
 
 
 # ---- ad records từ meta_spend (chi 1d/3d/7d + tên nhóm/camp) ----
@@ -127,7 +130,10 @@ for nm, g in groups.items():
     s1 = sum(a["s1"] for a in g["ads"]); s3 = sum(a["s3"] for a in g["ads"]); s7 = sum(a["s7"] for a in g["ads"])
     l1 = sum(a["l1"] for a in g["ads"]); l3 = sum(a["l3"] for a in g["ads"]); l7 = sum(a["l7"] for a in g["ads"]); q3 = sum(a["q3"] for a in g["ads"])
     z1, z3, z7 = zone(s1, l1), zone(s3, l3), zone(s7, l7)
-    rec = R.decide_1_3_7(z1, z3, z7, l3, s3, s7, q3, THR, RULES, MIN_LEADS)
+    if s3 == 0:  # nhóm không chi trong 3 ngày → không có gì để thao tác (lead trễ trên ad đã tắt)
+        rec = "Bài đã tắt · có lead trễ — không cần thao tác" if l3 > 0 else "—"
+    else:
+        rec = R.decide_1_3_7(z1, z3, z7, l3, s3, s7, q3, THR, RULES, MIN_LEADS)
     G.append({"name": nm, "camp": g["camp"], "ads": g["ads"], "s1": s1, "s3": s3, "s7": s7, "l1": l1, "l3": l3, "l7": l7,
               "cpl1": cpl(s1, l1), "cpl3": cpl(s3, l3), "cpl7": cpl(s7, l7), "z1": z1, "z3": z3, "z7": z7,
               "rec": rec, "cr3": (q3 / l3 if l3 else 0), "avg_day": round(s3 / 3), "proj_day": round(s3 / 3 * R.mult(rec))})
@@ -150,7 +156,63 @@ except Exception:  # noqa: BLE001
     kpi_day = 0
 
 tot_s3 = sum(x["s3"] for x in G); tot_l3 = sum(x["l3"] for x in G)
-proj_day = sum(x["proj_day"] for x in G)
+cur_day = sum(x["avg_day"] for x in G); proj_day = sum(x["proj_day"] for x in G)
+
+# ---- "vì sao + cần làm" theo SOP 1d×3d×7d (học từ báo cáo TOEIC VN) ----------
+BUDGET_AT = "cấp CHIẾN DỊCH (CBO)" if CBO else "ad set"
+
+def act_note(rec):
+    """Hành động cụ thể suy từ đề xuất decide_1_3_7 — hạn thao tác trong ngày = KILL_DEADLINE."""
+    if rec.startswith("SCALE"):
+        return f"3d & 7d đều TỐT, đủ lead → tăng ngân sách {BUDGET_AT} +20% ngay (nghỉ 24h sau scale)"
+    if rec.startswith("GIẢM mạnh"):
+        return f"3d & 7d rất tệ nhưng 1d đang hồi → giảm mạnh ~50% ngân sách {BUDGET_AT}, cho 1 nhịp; không hồi thì TẮT"
+    if rec.startswith("GIẢM"):
+        return f"giảm ngân sách {BUDGET_AT} ~20% để cắt lỗ, CHƯA tắt — theo dõi sát 1–2 ngày"
+    if rec.startswith("ĐỌC INBOX"):
+        return f"0 lead nhưng chi rất cao → mở Pancake đọc inbox trước {KILL_DEADLINE}: spam thì TẮT, ≥30% quan tâm thì GIỮ"
+    if rec.startswith("XEM XÉT TẮT"):
+        return f"0 lead & đã chi đáng kể → mở Pancake soi inbox trước {KILL_DEADLINE}: 0 inbox thì TẮT"
+    if rec.startswith("TẮT"):
+        return f"3d & 7d đều rất tệ → TẮT trước {KILL_DEADLINE}, kẻo phí ngân sách sang ngày sau"
+    if rec.startswith("GIỮ · CR cao"):
+        return "CPL hơi vượt KPI nhưng tỷ lệ lead chất (QL) cao → giữ ngân sách, theo dõi CPL"
+    if rec.startswith("GIỮ · 3d&7d tốt nhưng 1d"):
+        return "nền 3d & 7d còn tốt, 1 ngày gần nhất tụt → GIỮ, mai tụt tiếp mới xét giảm"
+    if rec.startswith("GIỮ · 3d tốt, 7d chưa"):
+        return "3 ngày tốt nhưng 7 ngày chưa xác nhận → giữ hoặc scale nhẹ, chưa scale mạnh"
+    if rec.startswith("GIỮ · 3d tụt"):
+        return "3 ngày tụt nhưng nền 7 ngày tốt và 1 ngày hồi → giữ, theo dõi"
+    if rec.startswith("GIỮ") or rec.startswith("Theo dõi"):
+        return "giữ ngân sách, theo dõi tiếp (chưa đủ cơ sở tăng/giảm)"
+    return ""
+
+def explain(x):
+    """Lý do CỤ THỂ theo dữ liệu: CPL 3 cửa sổ + vùng → hành động. Rỗng nếu không cần thao tác."""
+    rec = x["rec"]
+    ctx = []
+    if x["cpl3"]:
+        seg = f"CPL 3 ngày {vnd(x['cpl3'])}₫ → vùng {x['z3']}"
+        if x["cpl7"]:
+            seg += f"; 7 ngày {vnd(x['cpl7'])}₫ ({x['z7']})"
+        if x["cpl1"]:
+            seg += f"; 1 ngày {vnd(x['cpl1'])}₫ ({x['z1']})"
+        ctx.append(seg)
+    elif x["l3"] == 0 and (x["s3"] or x["s7"]):
+        ctx.append(f"0 lead sau khi chi {vnd(x['s3'] or x['s7'])}₫")
+    note = act_note(rec)
+    head = " · ".join(ctx)
+    return f"{head} → {note}" if (head and note) else (note or head)
+
+def ads_link(acct, ad_id, label="↗ Meta"):
+    """Link lọc thẳng tới ĐÚNG Ad ID trong Meta Ads Manager. Rỗng nếu thiếu act id (vd ad đã tắt, TK '-')."""
+    aid = ACCOUNT_IDS.get(acct)
+    if not (aid and ad_id):
+        return ""
+    filt = f'SEARCH_BY_ADGROUP_IDS-STRING_SET\x1eANY\x1e["{ad_id}"]'
+    q = urllib.parse.urlencode({"act": aid, "selected_ad_ids": ad_id, "filter_set": filt})
+    return (f'<a class="ads-link" target="_blank" rel="noopener" '
+            f'href="https://adsmanager.facebook.com/adsmanager/manage/ads?{q}">{label}</a>')
 
 # ---- console ----
 print(f"\n===== {DISPLAY} · Inbox · 3 ngày {WIN3[0]}→{WIN3[-1]} · {len(G)} nhóm QC · {len(ads)} ad =====")
@@ -160,6 +222,32 @@ print(f"(tổng {lead_total} lead Inbox 3 ngày, trong đó {lead_paused} lead t
 for x in G:
     print(f"\n▶ {x['name'][:54]}  [{x['z3']}/{x['z7']} · 1d {x['z1']}]  → {x['rec']}")
     print(f"   3d: chi {vnd(x['s3'])} · lead {x['l3']} · CPL {vnd(x['cpl3'])} | 7d CPL {vnd(x['cpl7'])} | 1d CPL {vnd(x['cpl1'])} | CR(QL) {round(x['cr3']*100)}%")
+
+# ---- tóm tắt máy-đọc (opt-in qua env ADOPS_SUMMARY_JSON) — cho caption + tin Ad ID Telegram ----
+_summary_path = os.environ.get("ADOPS_SUMMARY_JSON")
+if _summary_path:
+    def _bucket(rec):
+        if rec.startswith("SCALE"): return "scale"
+        if rec.startswith("GIẢM"): return "giam"
+        if rec.startswith("TẮT"): return "tat"
+        if rec.startswith("XEM XÉT TẮT") or rec.startswith("ĐỌC INBOX"): return "xemxet"
+        return None
+    _items = []
+    for x in G:
+        _k = _bucket(x["rec"])
+        if not _k:
+            continue
+        _ads = [a["id"] for a in sorted(x["ads"], key=lambda a: -a["s3"]) if a["s3"] > 0 and a["acct"] in ACCOUNT_IDS]
+        _items.append({"name": x["name"], "camp": x["camp"], "rec": x["rec"], "bucket": _k,
+                       "spend": x["s3"], "lead": x["l3"], "cpl": x["cpl3"], "why": explain(x), "ads": _ads})
+    _summary = {"mode": "inbox", "window": [WIN3[0], WIN3[-1]], "window7": [WIN7[0], WIN7[-1]], "window1": WIN1[0],
+                "totals": {"spend": tot_s3, "lead": tot_l3, "cpl": cpl(tot_s3, tot_l3),
+                           "groups": len(G), "ads": len(ads), "lead_paused": lead_paused},
+                "budget": {"cur_day": cur_day, "proj_day": proj_day, "kpi_day": kpi_day,
+                           "kpi_status": ("VƯỢT" if proj_day > kpi_day else "trong ngưỡng") if kpi_day else None,
+                           "kpi_pct": round((proj_day / kpi_day - 1) * 100, 1) if kpi_day else None},
+                "items": _items}
+    json.dump(_summary, open(_summary_path, "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---- HTML ----
 ZB = {"TỐT": "z-good", "TRUNG BÌNH": "z-mid", "YẾU": "z-weak", "RẤT TỆ": "z-bad", "CHƯA CÓ LEAD": "z-bad", "—": "z-off"}
@@ -177,15 +265,18 @@ sections = ""
 for x in G:
     kids = ""
     for a in sorted(x["ads"], key=lambda a: -a["s3"]):
-        kids += (f'<tr><td><div class="content-name">{a["name"]}</div><div class="code">{a["id"]}</div></td>'
+        link = ads_link(a["acct"], a["id"])
+        kids += (f'<tr><td><div class="content-name">{a["name"]}</div><div class="code">{a["id"]}{(" " + link) if link else ""}</div></td>'
                  f'<td class="cpl-wrap">{cplcell(cpl(a["s1"], a["l1"]), zone(a["s1"], a["l1"]))}</td>'
                  f'<td class="cpl-wrap">{cplcell(cpl(a["s3"], a["l3"]), zone(a["s3"], a["l3"]))}</td>'
                  f'<td class="cpl-wrap">{cplcell(cpl(a["s7"], a["l7"]), zone(a["s7"], a["l7"]))}</td>'
                  f'<td class="num">{vnd(a["s3"])}</td><td class="num">{a["l3"]}</td></tr>')
+    _why = explain(x)
+    why_html = f'<div class="why">{_why}</div>' if _why else ""
     sections += f'''<div class="grp">
       <div class="grp-head"><div><span class="badge {ZB.get(x["z3"],"z-off")}">{x["z3"]}/{x["z7"]}</span> <b>{x["name"]}</b>
       <div class="code">{x["camp"]} · {len(x["ads"])} ad · CR(QL) {round(x["cr3"]*100)}%</div></div>
-      <span class="badge {actb(x["rec"])}">{x["rec"]}</span></div>
+      <div style="text-align:right;max-width:340px"><span class="badge {actb(x["rec"])}">{x["rec"]}</span>{why_html}</div></div>
       <div class="grp-kpi">3 ngày: <b>{vnd(x["s3"])}₫</b> · {x["l3"]} lead · CPL <b>{vnd(x["cpl3"])}₫</b>
         &nbsp;|&nbsp; 7 ngày CPL {vnd(x["cpl7"])}₫ · 1 ngày CPL {vnd(x["cpl1"])}₫</div>
       <div class="scroll"><table><thead><tr><th>Ad (content)</th><th>CPL 1 ngày</th><th>CPL 3 ngày</th><th>CPL 7 ngày</th><th class="num">Chi 3d</th><th class="num">Lead 3d</th></tr></thead><tbody>{kids}</tbody></table></div>
@@ -214,6 +305,9 @@ th{{background:#fafbfc;font-size:10.5px;text-transform:uppercase;letter-spacing:
 .act-warn{{color:#b45309;background:#fef3c7;border-color:#fcd34d}} .act-off{{color:#b91c1c;background:#fee2e2;border-color:#fca5a5}}
 .cpl-wrap{{min-width:120px}} .pct{{font-size:11px;color:#64748b}} .cpl-bar{{height:5px;border-radius:3px;background:#eef2f6;margin-top:4px;overflow:hidden}} .cpl-fill{{height:100%}}
 .note{{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}}
+.why{{font-size:11.5px;color:#334155;margin-top:5px;line-height:1.45;white-space:normal;overflow-wrap:break-word;text-align:right;font-weight:400}}
+.ads-link{{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-size:10.5px;font-weight:600;text-decoration:none;white-space:nowrap}}
+@media print{{.ads-link{{color:#0369a1;-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 footer{{margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b}}
 @media(max-width:720px){{.cards{{grid-template-columns:repeat(2,1fr)}}}}
 @media print{{header{{-webkit-print-color-adjust:exact;print-color-adjust:exact}} .grp,.card,.note{{break-inside:avoid}}}}

@@ -1,0 +1,60 @@
+name: IELTS Thái ad-ops hằng ngày
+
+# Engine ad-ops headless (always-on) cho IELTS Thái — engine "inbox" (gộp Nhóm QC, 1d×3d×7d), gửi HTML
+# nên KHÔNG cần Chrome. Cron LUÔN theo UTC → 10:07 VN/Thái = 03:07 UTC, 14:07 = 07:07 UTC (VN & Bangkok cùng UTC+7).
+# Chống gửi trùng BỀN VỮNG: cờ "đã gửi" commit vào repo (automation/products/ielts-thai/state/).
+# ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main). Secrets cần thêm: META_TOKEN_THAILAND, TELEGRAM_THAI_CHAT_ID.
+on:
+  schedule:
+    - cron: "7 3 * * *"   # 10:07 giờ VN/Thái
+    - cron: "7 7 * * *"   # 14:07 giờ VN/Thái
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — KHÔNG gửi Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ielts-thai-adops  # serialize: lần chạy sau chỉ bắt đầu (và checkout cờ mới) sau khi lần trước xong
+  cancel-in-progress: false
+
+permissions:
+  contents: write          # để commit cờ "đã gửi" vào repo
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      META_TOKEN_THAILAND: ${{ secrets.META_TOKEN_THAILAND }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_THAI_CHAT_ID: ${{ secrets.TELEGRAM_THAI_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4   # lấy main mới nhất → gồm cờ "đã gửi" của lần chạy trước trong ngày
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Chạy ad-ops IELTS Thái
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/engine/run_daily.py --product ielts-thai --dry-run
+          else
+            python3 automation/engine/run_daily.py --product ielts-thai
+          fi
+
+      - name: Lưu cờ "đã gửi" vào repo (chống gửi trùng)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          if [ -n "$(git status --porcelain automation/products/ielts-thai/state)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add automation/products/ielts-thai/state
+            git commit -m "chore(adops): IELTS Thái đã gửi báo cáo $(date +%F) [skip ci]"
+            git push origin HEAD:main
+          else
+            echo "Không gửi lần này (SKIP/alert) — không có cờ mới để commit."
+          fi
