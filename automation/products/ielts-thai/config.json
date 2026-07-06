@@ -1,0 +1,47 @@
+{
+  "product": "ielts-thai",
+  "display": "IELTS Thái",
+  "currency": "VND",
+  "meta": {
+    "accounts": { "IELTS Thái 1": "553262224077942", "IEThai 01": "1907161559943907" },
+    "account_tokens": { "IEThai 01": "META_TOKEN_THAILAND" },
+    "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"],
+    "currency_to_vnd": { "THB": 850 },
+    "campaign_name_include": "Inbox"
+  },
+  "kpi_sheet": {
+    "id": "1Qp5yJ9I4RiJVJzHhuFV4bDWdw3NpMdopeokN7AerIuY",
+    "gid": "1008046172",
+    "line": "IELTS",
+    "channel": "Inbox",
+    "thresholds": { "kpi": 1000000, "tb": 1250000, "yeu": 1500000, "zero_inbox": 450000 }
+  },
+  "lead_sheet": {
+    "id": "1Y5kSCcnGlxeuaJ9j7bDUH-T-EbWdjJ4--1eAUMSvxPw",
+    "phone_tab": "lead_feed",
+    "join": "ad_id",
+    "col_adid": 0,
+    "col_date": 1,
+    "col_ql_status": 2,
+    "ql_statuses": ["L3", "L4", "L5", "L6"],
+    "min_cols": 1
+  },
+  "min_leads": 3,
+  "ads_report": {
+    "sheet_id": "1Y5kSCcnGlxeuaJ9j7bDUH-T-EbWdjJ4--1eAUMSvxPw",
+    "gid": "1799361808",
+    "data_start_row": 3,
+    "cols": { "ad_id": 1, "ad_name": 2, "adset": 3, "camp": 4, "status": 5 },
+    "blocks": { "d1": 18, "d3": 30, "d7": 42 },
+    "offsets": { "spend": 0, "lead": 2, "order": 3 },
+    "currency_note": "VND (sheet quy đổi THB→VND theo tỷ giá cố định 850 của team)"
+  },
+  "report": { "primary_days": 3, "confirm_days": 7, "short_days": 1, "cbo_campaign_budget": true, "engine": "inbox", "telegram_doc": "html" },
+  "rules": {
+    "zero_lead_kill": 200000,
+    "zero_lead_read": 500000,
+    "cr_keep_pct": 1.35,
+    "cr_keep_min": 0.20
+  },
+  "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_THAI_CHAT_ID" }
+}
