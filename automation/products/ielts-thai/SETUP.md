@@ -16,9 +16,12 @@ và **luật CR đặc biệt** — tất cả bật qua `config.json`. **Recomm
 `build_meta` → `adops_inbox.py` (gộp Nhóm QC, 1d×3d×7d) → gửi **HTML** + caption + tin Ad ID vào nhóm Thái.
 Học đủ cải tiến của TOEIC: ô **"vì sao + cần làm"** theo SOP (hạn tắt/soi inbox 14h), **link ↗ Meta Ads Manager**
 từng ad, tóm tắt máy-đọc cho caption/tin Ad ID. Gate cào-lead hoạt động (đã sửa parse timestamp lead_feed).
-⚠️ 2026-07-06: tab `lead_feed` dừng ở **30/06** (lead 1–5/7 chưa cào) → hệ thống gửi cảnh báo vào nhóm thay vì
-báo cáo. Khi team cào xong: `python3 automation/engine/run_daily.py --product ielts-thai` là ra báo cáo đầy đủ.
-⏳ Còn lại: lịch tự động (n8n/GitHub Actions workflow riêng cho Thái).
+✅ **CHẠY TỰ ĐỘNG (2026-07-06):** sheet lead theo KỲ — file cũ "Inbox Report - 2606" dừng 30/06, file mới
+`1Y5kSCcnGlxeuaJ9j7bDUH-T-EbWdjJ4--1eAUMSvxPw` có tab `lead_feed` copy kèm (tự trỏ tab 3 nội bộ) → config đã trỏ
+file mới. **Khi team Thái sang file kỳ mới: chỉ cần thay `lead_sheet.id` + `ads_report.sheet_id` trong config.**
+Báo cáo thật 06/07 đã gửi nhóm Thái (73 lead/3d, CPL ~998k). CI: `ielts-thai-adops.yml` trên main (10:07/14:07,
+merged PR #26), secrets `META_TOKEN_THAILAND` + `TELEGRAM_THAI_CHAT_ID` đã set, dry-run CI xanh. n8n trigger
+(`automation/n8n/ielts-thai-adops-trigger.workflow.json`) là backup bấm giờ chuẩn — import + **Publish** nếu muốn.
 
 ## Trạng thái 2026-06-22 (lịch sử)
 
