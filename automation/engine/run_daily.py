@@ -134,10 +134,12 @@ def build_caption_inbox(cfg, s, doc_fmt="html"):
         if names:
             head = ", ".join(n[:26] for n in names[:3])
             L.append(f"{label}: <b>{len(names)} nhóm</b> — {head}{'…' if len(names) > 3 else ''}")
+    if t.get("lead_noid"):
+        L.append(f"⚠️ {t['lead_noid']} lead CHƯA gắn AD ID (đối soát thiếu) — chưa tính vào camp/nhóm nào")
     if bud.get("kpi_day"):
         L.append(f"\n💰 Dự kiến ~{vnd(bud['proj_day'])}/ngày vs KPI {vnd(bud['kpi_day'])} → <b>{bud['kpi_status']} ({bud['kpi_pct']:+}%)</b>")
     if doc_fmt == "html":
-        L.append("📂 Mở file HTML bằng trình duyệt — mỗi nhóm QC có 'vì sao + cần làm' và link ↗ Meta từng ad. Ad ID ở tin dưới ⬇️")
+        L.append("📂 Mở file HTML bằng trình duyệt — bóc 3 lớp Campaign → Nhóm QC → Ad, mỗi cấp có trạng thái + 'vì sao, cần làm' và link ↗ Meta từng ad. Ad ID ở tin dưới ⬇️")
     else:
         L.append("⚠️ Chỉ đề xuất — NV tự thao tác trên Meta. Ad ID để thao tác ở tin dưới ⬇️")
     return "\n".join(L)
