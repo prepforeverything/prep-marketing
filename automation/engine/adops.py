@@ -107,16 +107,29 @@ def _fetch_kpi():  # export?format=csv cần "publish to web"; gviz chỉ cần 
     except urllib.error.HTTPError:
         return list(csv.reader(io.StringIO(fetch(f"{base}/gviz/tq?tqx=out:csv&gid={KPI_GID}"))))
 kpi_rows = _fetch_kpi()
+thr_from_sheet = False
 if THR_INLINE:                                  # ngưỡng nhúng config (sheet không có bảng PHẦN 2 chuẩn)
     thr = {**thr, **THR_INLINE}
+    thr_from_sheet = True                       # nguồn hợp lệ (khai trong config, không phải mặc định cũ)
 else:
     for r in kpi_rows:
         if len(r) > 7 and r[1].strip() == KPI_LINE and r[2].strip() == KPI_CHANNEL:
             thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
+            thr_from_sheet = True
 # Ngân sách Inbox tuần/ngày — KPI Master 1-tab, nhiều SP: lọc KHỐI "▸ <SP>" + chọn cột tuần theo mốc ngày anchor.
 _amonth, _aday = int(cfg["anchor"][5:7]), int(cfg["anchor"][8:10])  # anchor = "YYYY-MM-DD"
 _wc, _dc = R.inbox_budget_cells(kpi_rows, BUDGET_BLOCK, KPI_CHANNEL, _amonth, _aday)
 kpi_week, kpi_day = bnum(_wc), bnum(_dc)
+
+# HARDENING: nếu KHÔNG đọc được số từ sheet → cảnh báo RÕ (đừng âm thầm dùng mặc định cũ = số tháng trước).
+# THR_INLINE = SP dùng sheet KPI phi-chuẩn (ngưỡng khai trong config, KHÔNG có bảng ngân sách tuần) → bỏ qua cảnh báo.
+kpi_warn = []
+if not thr_from_sheet:
+    kpi_warn.append(f"Ngưỡng CPL (giá lead) đang dùng MẶC ĐỊNH CŨ — không thấy dòng Line=\"{KPI_LINE}\" · Mục tiêu=\"{KPI_CHANNEL}\" trong PHẦN 2 của sheet KPI. Vào sheet điền/ sửa lại.")
+if not kpi_day and not THR_INLINE:
+    kpi_warn.append(f"Ngân sách/ngày tuần này KHÔNG đọc được — không thấy cột tuần chứa ngày {_aday}/{_amonth} trong khối \"▸ {BUDGET_BLOCK}\". Kiểm tra mốc tuần trong sheet.")
+kpi_warn_html = ('<div class="note warn"><b>⚠️ CẢNH BÁO KPI — số dưới đây CHƯA chắc khớp sheet tháng này:</b>'
+                 '<ul class="tight">' + "".join(f"<li>{w}</li>" for w in kpi_warn) + "</ul></div>") if kpi_warn else ""
 
 # ---- leads (tab lead) — đếm cửa sổ 3 ngày, và 7 ngày nếu sản phẩm bật ----------
 leads = defaultdict(lambda: defaultdict(lambda: {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0}))
@@ -353,6 +366,7 @@ if _summary_path:
         if rec.startswith("TẮT"): return "tat"
         return None
     _summary = {"window": [WINDOW[0], WINDOW[-1]],
+                "kpi_warn": kpi_warn,
                 "budget": {"cur_day": cur_all, "proj_day": proj_all, "kpi_day": kpi_day,
                            "kpi_status": ("VƯỢT" if proj_all > kpi_day else "trong ngưỡng") if kpi_day else None,
                            "kpi_pct": round((proj_all / kpi_day - 1) * 100, 1) if kpi_day else None},
@@ -724,6 +738,7 @@ footer{{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-s
 <span class="chip">📊 Spend: Meta · Lead: tab {PHONE_TAB} · Ngưỡng+KPI: Sheet 1</span>
 <span class="chip">Ngưỡng: {THR_CHIP}</span></div></div></header>
 <div class="wrap">
+{kpi_warn_html}
 {sections}
 {adkill}
 {adwarn}
