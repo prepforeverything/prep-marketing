@@ -63,6 +63,10 @@ def channel_tag(cfg):
 def build_caption(cfg, summary, doc_fmt="pdf"):
     w = summary["window"]
     L = [f"📊 <b>{cfg.display} ad-ops — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]}){channel_tag(cfg)}</b>", ""]
+    for _w in summary.get("kpi_warn") or []:        # cảnh báo nếu KHÔNG đọc được KPI từ sheet (đừng âm thầm dùng số cũ)
+        L.append(f"⚠️ <b>{_w}</b>")
+    if summary.get("kpi_warn"):
+        L.append("")
     for acct, a in summary["accounts"].items():
         L.append(f"• <b>{acct}</b> — chi {vnd(a['spend'])} · {a['lead']} lead · CPL {vnd(a['cpl'])}")
         b = a["buckets"]
