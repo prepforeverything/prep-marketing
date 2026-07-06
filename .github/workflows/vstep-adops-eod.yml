@@ -1,0 +1,57 @@
+name: VSTEP ad-ops — đối soát cuối ngày
+
+# 18:07 VN: so việc nhân sự đã thao tác trên Meta vs checklist đề xuất buổi sáng → gửi nhóm (chung với TOEIC).
+# Muộn hơn TOEIC (17:07) vì VSTEP chạy trễ hơn (báo cáo 10h10/17h10). Đọc baseline (state/baseline-<ngày>.json)
+# do run buổi sáng commit. Cron UTC: 18:07 VN = 11:07 UTC. ⚠️ Lịch chỉ chạy khi file nằm trên nhánh mặc định (main).
+on:
+  schedule:
+    - cron: "7 11 * * *"   # 18:07 giờ VN
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — KHÔNG gửi Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: vstep-adops-eod
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Đối soát thực thi cuối ngày
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/engine/eod_compliance.py --product vstep --dry-run
+          else
+            python3 automation/engine/eod_compliance.py --product vstep
+          fi
+
+      - name: Lưu cờ đã-gửi đối soát (chống trùng)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          if [ -n "$(git status --porcelain automation/products/vstep/state)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add automation/products/vstep/state
+            git commit -m "chore(adops): VSTEP đối soát cuối ngày $(date +%F) [skip ci]"
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push origin HEAD:main && break
+              echo "push lần $i trượt (có commit mới trên main) — rebase & thử lại"; sleep 3
+            done
+          fi
