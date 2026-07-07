@@ -19,6 +19,7 @@ THR.update(PCFG["kpi_sheet"].get("thresholds") or {})
 RULES = PCFG.get("rules", {}) or {}
 MIN_LEADS = PCFG.get("min_leads", 3)
 DISPLAY = PCFG.display
+BRAND = PCFG.brand  # dải màu brand theo SP — chọn trong file KPI Master (bảng tra cứu line)
 LS = PCFG["lead_sheet"]
 ACCOUNT_IDS = PCFG["meta"]["accounts"]           # tên TK → act id (link Ads Manager)
 CBO = bool((PCFG.get("report") or {}).get("cbo_campaign_budget"))  # Thái chạy CBO → chỉnh ngân sách cấp campaign
@@ -334,19 +335,19 @@ html = f'''<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name
 <title>{DISPLAY} Inbox — Nhóm QC · 1/3/7 ngày {WIN3[0]}→{WIN3[-1]}</title>
 <style>
 *{{box-sizing:border-box}} body{{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#0f172a;background:#f8fafc;line-height:1.5}}
-.wrap{{max-width:1120px;margin:0 auto;padding:0 20px 54px}} header{{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:26px 0 22px}}
+.wrap{{max-width:1120px;margin:0 auto;padding:0 20px 54px}} header{{background:linear-gradient(135deg,{BRAND["dark"]},{BRAND["primary"]});color:#fff;padding:26px 0 22px}}
 h1{{margin:0 0 6px;font-size:22px}} .sub{{opacity:.92;font-size:13.5px}} .meta{{margin-top:13px;display:flex;flex-wrap:wrap;gap:9px}}
 .chip{{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:5px 11px;border-radius:999px;font-size:12.5px}}
 .cards{{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}} .card{{background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px 15px}}
 .card .lbl{{font-size:12px;color:#64748b;margin-bottom:5px}} .card .val{{font-size:19px;font-weight:700}} .card .val small{{font-size:13px;color:#64748b}}
 .camp{{margin:20px 0}}
-.camp-head{{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;border-radius:11px;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}}
+.camp-head{{background:linear-gradient(135deg,{BRAND["dark"]},{BRAND["primary"]});color:#fff;border-radius:11px;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}}
 .camp-name{{font-weight:700;font-size:14.5px;min-width:0;overflow-wrap:anywhere}}
 .camp-stats{{font-size:12.5px;white-space:nowrap}}
 .cbadge{{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3)}}
 .camp .grp{{margin:10px 0 10px 14px;border-left-width:4px}}
 .grp{{background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin:14px 0;overflow:hidden}}
-.grp-head{{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:13px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0}}
+.grp-head{{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:13px 16px;background:{BRAND["tint"]};border-bottom:1px solid #e2e8f0}}
 .grp-kpi{{padding:7px 0 0;font-size:12.5px;color:#334155}}
 .pctchip{{display:inline-block;margin-left:3px;padding:0 5px;border-radius:5px;background:#f1f5f9;border:1px solid #e2e8f0;font-size:10.5px;color:#475569;font-variant-numeric:tabular-nums}}
 .code{{color:#64748b;font-size:11.5px}} .content-name{{font-weight:600;font-size:13px}}
@@ -358,7 +359,7 @@ th{{background:#fafbfc;font-size:10.5px;text-transform:uppercase;letter-spacing:
 .act-scale{{color:#15803d;background:#dcfce7;border-color:#86efac}} .act-hold{{color:#475569;background:#f1f5f9;border-color:#cbd5e1}}
 .act-warn{{color:#b45309;background:#fef3c7;border-color:#fcd34d}} .act-off{{color:#b91c1c;background:#fee2e2;border-color:#fca5a5}}
 .cpl-wrap{{min-width:120px}} .pct{{font-size:11px;color:#64748b}} .cpl-bar{{height:5px;border-radius:3px;background:#eef2f6;margin-top:4px;overflow:hidden}} .cpl-fill{{height:100%}}
-.note{{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}}
+.note{{background:#fff;border:1px solid #e2e8f0;border-left:4px solid {BRAND["primary"]};border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}}
 .why{{font-size:11.5px;color:#334155;margin-top:5px;line-height:1.45;white-space:normal;overflow-wrap:break-word;font-weight:400}}
 .ads-link{{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-size:10.5px;font-weight:600;text-decoration:none;white-space:nowrap}}
 @media print{{.ads-link{{color:#0369a1;-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}

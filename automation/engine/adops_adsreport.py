@@ -22,6 +22,7 @@ THR.update(PCFG["kpi_sheet"].get("thresholds") or {})
 RULES = PCFG.get("rules", {}) or {}
 MIN_LEADS = PCFG.get("min_leads", 3)
 DISPLAY = PCFG.display
+BRAND = PCFG.brand  # dải màu brand theo SP — chọn trong file KPI Master (bảng tra cứu line)
 C, B, O = AR["cols"], AR["blocks"], AR["offsets"]
 
 _args, _skip = [], False
@@ -182,13 +183,13 @@ html = f'''<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name
 <title>{DISPLAY} Ads — Ads Report 1d/3d/7d {WIN["d3"]}</title>
 <style>
 *{{box-sizing:border-box}} body{{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#0f172a;background:#f8fafc;line-height:1.5}}
-.wrap{{max-width:1120px;margin:0 auto;padding:0 20px 54px}} header{{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:26px 0 22px}}
+.wrap{{max-width:1120px;margin:0 auto;padding:0 20px 54px}} header{{background:linear-gradient(135deg,{BRAND["dark"]},{BRAND["primary"]});color:#fff;padding:26px 0 22px}}
 h1{{margin:0 0 6px;font-size:22px}} .sub{{opacity:.92;font-size:13.5px}} .meta{{margin-top:13px;display:flex;flex-wrap:wrap;gap:9px}}
 .chip{{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:5px 11px;border-radius:999px;font-size:12.5px}}
 .cards{{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}} .card{{background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px 15px}}
 .card .lbl{{font-size:12px;color:#64748b;margin-bottom:5px}} .card .val{{font-size:19px;font-weight:700}} .card .val small{{font-size:13px;color:#64748b}}
 .grp{{background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin:14px 0;overflow:hidden}}
-.grp-head{{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:13px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0}}
+.grp-head{{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:13px 16px;background:{BRAND["tint"]};border-bottom:1px solid #e2e8f0}}
 .grp-kpi{{padding:9px 16px;font-size:13px;color:#334155;border-bottom:1px solid #eef2f6}}
 .code{{color:#64748b;font-size:11.5px}} .content-name{{font-weight:600;font-size:13px}}
 .scroll{{overflow-x:auto}} table{{width:100%;border-collapse:collapse;font-size:13px}} th,td{{padding:8px 12px;text-align:left;border-bottom:1px solid #eef2f6;white-space:nowrap;vertical-align:top}}
@@ -199,7 +200,7 @@ th{{background:#fafbfc;font-size:10.5px;text-transform:uppercase;letter-spacing:
 .act-scale{{color:#15803d;background:#dcfce7;border-color:#86efac}} .act-hold{{color:#475569;background:#f1f5f9;border-color:#cbd5e1}}
 .act-warn{{color:#b45309;background:#fef3c7;border-color:#fcd34d}} .act-off{{color:#b91c1c;background:#fee2e2;border-color:#fca5a5}}
 .cpl-wrap{{min-width:120px}} .pct{{font-size:11px;color:#64748b}} .cpl-bar{{height:5px;border-radius:3px;background:#eef2f6;margin-top:4px;overflow:hidden}} .cpl-fill{{height:100%}}
-.note{{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}}
+.note{{background:#fff;border:1px solid #e2e8f0;border-left:4px solid {BRAND["primary"]};border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}}
 footer{{margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b}}
 @media(max-width:720px){{.cards{{grid-template-columns:repeat(2,1fr)}}}}
 @media print{{header{{-webkit-print-color-adjust:exact;print-color-adjust:exact}} .grp,.card,.note{{break-inside:avoid}}}}

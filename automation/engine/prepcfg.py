@@ -36,6 +36,16 @@ def load_env():
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
+# Màu brand mặc định (teal Prep cũ) khi config sản phẩm chưa khai "brand".
+_BRAND_DEFAULT = {"primary": "#0d9488", "dark": "#0f766e", "tint": "#ccfbf1"}
+
+
+def _darken(hex_color, f=0.8):
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return "#{:02x}{:02x}{:02x}".format(round(r * f), round(g * f), round(b * f))
+
+
 class Config:
     def __init__(self, product):
         self.product = product
@@ -58,6 +68,17 @@ class Config:
     @property
     def display(self):
         return self.d.get("display", self.product.upper())
+
+    @property
+    def brand(self):
+        """Dải màu brand theo SP (nguồn: bảng tra cứu line trong KPI Master trên Drive).
+        primary = màu chip line, dark = đầu gradient header, tint = nền nhạt kèm theo."""
+        b = self.d.get("brand") or {}
+        if not b:
+            return dict(_BRAND_DEFAULT)
+        primary = b.get("primary", _BRAND_DEFAULT["primary"])
+        return {"primary": primary, "dark": b.get("dark") or _darken(primary),
+                "tint": b.get("tint", _BRAND_DEFAULT["tint"])}
 
     @property
     def meta_json(self):

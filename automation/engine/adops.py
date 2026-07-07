@@ -685,6 +685,7 @@ if ADID_OVERLAY and any(adid_gap.values()):
 
 # ---- nhãn header/footer suy từ config (TOEIC giữ nguyên; sản phẩm khác hiển thị đúng tên/ngưỡng) ----
 DISPLAY = PCFG.display
+BRAND = PCFG.brand  # dải màu brand theo SP — chọn trong file KPI Master (bảng tra cứu line)
 ACCT_JOIN = " + ".join(ACCOUNTS.keys())
 def kfmt(n):
     return f"{n // 1000}k" if n < 1_000_000 else f"{n / 1e6:.2f}tr".replace(".", ",")
@@ -703,7 +704,7 @@ conv_note = ("<li><b>Quy đổi tiền tệ → VND:</b> " + "; ".join(f"{a} (g�
 html = f'''<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{DISPLAY} Ads — Báo cáo 3 ngày {WINDOW[0]}→{WINDOW[-1]}</title>
 <style>
-:root{{--teal:#0d9488;--teal-d:#0f766e;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc}}
+:root{{--teal:{BRAND["primary"]};--teal-d:{BRAND["dark"]};--tint:{BRAND["tint"]};--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc}}
 *{{box-sizing:border-box}} body{{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5}}
 .wrap{{max-width:1120px;margin:0 auto;padding:0 20px 54px}} header{{background:linear-gradient(135deg,var(--teal-d),var(--teal));color:#fff;padding:28px 0 24px}}
 h1{{margin:0 0 6px;font-size:24px}} .sub{{opacity:.92;font-size:14px}} .meta{{margin-top:14px;display:flex;flex-wrap:wrap;gap:9px}}
@@ -714,9 +715,9 @@ h2{{font-size:18px;margin:30px 0 12px;display:flex;align-items:center;gap:8px}} 
 .delta-up{{color:#15803d}} .delta-bad{{color:#b91c1c}}
 table{{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;font-size:13.5px}}
 .scroll{{overflow-x:auto}} th,td{{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}}
-th{{background:#f1f5f9;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#475569}} td.num,th.num{{text-align:right;font-variant-numeric:tabular-nums}}
+th{{background:var(--tint);font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#475569}} td.num,th.num{{text-align:right;font-variant-numeric:tabular-nums}}
 tr:last-child td{{border-bottom:none}} .content-name{{font-weight:600}} .code{{color:var(--muted);font-size:12px}}
-code{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#0f766e;background:#f1f5f9;padding:1px 5px;border-radius:4px}} .h3{{font-size:15px;margin:20px 0 8px;color:var(--teal-d)}}
+code{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--teal-d);background:#f1f5f9;padding:1px 5px;border-radius:4px}} .h3{{font-size:15px;margin:20px 0 8px;color:var(--teal-d)}}
 .badge{{display:inline-block;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700;border:1px solid;white-space:normal}}
 .z-good{{color:#15803d;background:#dcfce7;border-color:#86efac}} .z-mid{{color:#b45309;background:#fef3c7;border-color:#fcd34d}}
 .z-weak{{color:#c2410c;background:#ffedd5;border-color:#fdba74}} .z-bad{{color:#b91c1c;background:#fee2e2;border-color:#fca5a5}} .z-off{{color:#475569;background:#f1f5f9;border-color:#cbd5e1}}
