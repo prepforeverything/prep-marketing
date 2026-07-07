@@ -1,9 +1,21 @@
 {
   "product": "pte",
   "display": "PTE",
+  "brand": {
+    "primary": "#7c3aed",
+    "dark": "#6d28d9",
+    "tint": "#ede9fe"
+  },
   "meta": {
-    "accounts": { "PrepTalk 1": "1352348895443641" },
-    "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"]
+    "accounts": {
+      "PrepTalk 1": "1352348895443641"
+    },
+    "api_versions": [
+      "v23.0",
+      "v22.0",
+      "v21.0",
+      "v20.0"
+    ]
   },
   "kpi_sheet": {
     "id": "1K7zUuUCDZJ3puEAi0VeNsILlsdqIKSBiGlOn6loTB5g",
@@ -22,6 +34,15 @@
     "min_cols": 13
   },
   "min_leads": 3,
-  "report": { "primary_days": 3, "confirm_days": 7, "age_lookback_days": 30, "adid_overlay": true, "telegram_doc": "html" },
-  "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_PTE_CHAT_ID" }
+  "report": {
+    "primary_days": 3,
+    "confirm_days": 7,
+    "age_lookback_days": 30,
+    "adid_overlay": true,
+    "telegram_doc": "html"
+  },
+  "telegram": {
+    "token_env": "TELEGRAM_BOT_TOKEN",
+    "chat_env": "TELEGRAM_PTE_CHAT_ID"
+  }
 }

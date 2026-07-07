@@ -1,9 +1,22 @@
 {
   "product": "toeic",
   "display": "TOEIC",
+  "brand": {
+    "primary": "#2563eb",
+    "dark": "#1d4ed8",
+    "tint": "#dbeafe"
+  },
   "meta": {
-    "accounts": { "TOEIC 3": "829372215242475", "TOEIC 5": "555686623359807" },
-    "api_versions": ["v23.0", "v22.0", "v21.0", "v20.0"]
+    "accounts": {
+      "TOEIC 3": "829372215242475",
+      "TOEIC 5": "555686623359807"
+    },
+    "api_versions": [
+      "v23.0",
+      "v22.0",
+      "v21.0",
+      "v20.0"
+    ]
   },
   "kpi_sheet": {
     "id": "1K7zUuUCDZJ3puEAi0VeNsILlsdqIKSBiGlOn6loTB5g",
@@ -23,6 +36,15 @@
     "min_cols": 13
   },
   "min_leads": 3,
-  "report": { "primary_days": 3, "confirm_days": 7, "age_lookback_days": 30, "adid_overlay": true, "telegram_doc": "html" },
-  "telegram": { "token_env": "TELEGRAM_BOT_TOKEN", "chat_env": "TELEGRAM_CHAT_ID" }
+  "report": {
+    "primary_days": 3,
+    "confirm_days": 7,
+    "age_lookback_days": 30,
+    "adid_overlay": true,
+    "telegram_doc": "html"
+  },
+  "telegram": {
+    "token_env": "TELEGRAM_BOT_TOKEN",
+    "chat_env": "TELEGRAM_CHAT_ID"
+  }
 }

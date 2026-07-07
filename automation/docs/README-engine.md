@@ -80,6 +80,10 @@ hành vi TOEIC gốc):
 - `rules.zero_lead_kill` / `rules.zero_lead_read` → **2 ngưỡng 0-lead** (chi > kill → XEM XÉT TẮT; chi ≥ read → ĐỌC INBOX
   rồi quyết). Vắng `rules` ⇒ về 1 ngưỡng `zero_inbox` như TOEIC.
 - `rules.cr_keep_pct` / `rules.cr_keep_min` → **luật CR đặc biệt**: KPI ≤ CPL < pct×KPI nhưng CR (QL/lead) ≥ min → GIỮ.
+- `brand: {"primary","dark","tint"}` → **dải màu brand theo SP** cho báo cáo HTML (header gradient `dark→primary`,
+  viền note, nền đầu nhóm QC/`th`). Nguồn màu: **KPI Master** trên Drive (TOEIC xanh dương `#2563eb`, VSTEP cam
+  `#d97706`, PTE tím `#7c3aed` theo bảng tra cứu line; IELTS Thái hồng `#d753d7` theo header khối PHẦN 1 — user chọn). Vắng `brand` ⇒ teal Prep cũ
+  (`#0d9488`); vắng `dark` ⇒ tự làm tối `primary` 20%.
 
 Luật phân loại/đề xuất tách ra `automation/engine/adops_rules.py` (thuần, không I/O). Test offline:
 `python3 automation/engine/tests/test_rules.py`. CBO: `build_meta.py` lấy `daily_budget` cấp campaign cho ad set CBO
