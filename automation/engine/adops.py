@@ -419,11 +419,30 @@ if _baseline_path:
             for _c in _s.get("codes", []):
                 _bud[norm(_c)] += _s.get("budget") or 0
                 _adc[norm(_c)] += len(_s.get("ads", []))
-        _bl["accounts"][_acct] = [
+        _codes = [
             {"code": r["code"], "name": r["name"], "rec": r["rec"], "dir": _dir(r["rec"]),
              "budget": _bud.get(r["code"], 0), "ads": _adc.get(r["code"], 0)}
             for r in _rows if r["spend"] > 0
         ]
+        # Ad ID CẦN TẮT sáng nay (để đối soát EOD theo từng ad, không theo campaign):
+        #   ad lẻ vi phạm (adid_kill) + mọi ad ACTIVE nằm dưới content được đề xuất TẮT/XEM XÉT TẮT.
+        _off_codes = {r["code"] for r in _rows if _dir(r["rec"]) == "off" and r["spend"] > 0}
+        _seen = set(); _kill_ads = []
+        for _k in (adid_kill.get(_acct, []) if ADID_OVERLAY else []):
+            if _k["id"] not in _seen:
+                _seen.add(_k["id"])
+                _kill_ads.append({"id": _k["id"], "code": _k["code"], "name": (_k.get("name") or "")[:30], "rec": _k["rec"], "src": "ad lẻ"})
+        for _s in cfg["accounts"][_acct].get("adsets", []):
+            _sc = next((norm(_c) for _c in _s.get("codes", []) if norm(_c) in _off_codes), None)
+            if not _sc:
+                continue
+            _crow = next((r for r in _rows if r["code"] == _sc), None)
+            for _ad in _s.get("ads", []):
+                if _ad not in _seen:
+                    _seen.add(_ad)
+                    _kill_ads.append({"id": _ad, "code": _sc, "name": ((_crow or {}).get("name") or "")[:30],
+                                      "rec": (_crow or {}).get("rec", "TẮT"), "src": "content TẮT"})
+        _bl["accounts"][_acct] = {"codes": _codes, "kill_ads": _kill_ads}
     json.dump(_bl, open(_baseline_path, "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---- in phương án giữ KPI (đã tính ở trên, trước summary) ---------------------

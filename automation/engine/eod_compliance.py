@@ -100,47 +100,65 @@ def main():
     meta = json.load(open(cfg.meta_json, encoding="utf-8"))
 
     lines = [f"📋 <b>{cfg.display} — đối soát thực thi cuối ngày {target.strftime('%d/%m')}</b>",
-             "So ngân sách/bật-tắt ad set <b>sáng → chiều</b> với checklist sáng:", ""]
-    tot_ok = tot_act = 0
-    for acct, items in baseline["accounts"].items():
+             "Đối soát theo <b>từng ADS ID</b> (sáng → chiều) với checklist sáng:", ""]
+    tot_off_ok = tot_off = 0      # TẮT — chấm theo từng Ad ID
+    tot_bud_ok = tot_bud = 0      # SCALE/GIẢM — chấm theo ngân sách ad set
+    for acct, entry in baseline["accounts"].items():
         macct = meta.get("accounts", {}).get(acct)
         if macct is None:  # build_meta hụt tài khoản này → KHÔNG chấm (tránh hiểu nhầm "đã tắt hết")
             lines.append(f"⚠️ <b>{acct}</b> — không kéo được dữ liệu Meta cuối ngày → bỏ qua đối soát tài khoản này.")
             lines.append("")
             continue
+        codes, kill_ads = (entry, []) if isinstance(entry, list) else (entry.get("codes", []), entry.get("kill_ads", []))
+        active_ids = {a for s in macct.get("adsets", []) for a in s.get("ads", [])}  # ad ID còn CHẠY cuối ngày
         ebud, eads = per_code(macct)
-        ok, pending, wrong = [], [], []
-        n_ok = n_act = 0
-        for it in items:
-            verdict, label = assess(it["dir"], it["budget"], ebud.get(it["code"], 0), eads.get(it["code"], 0))
-            if verdict == "hold":
-                continue
-            n_act += 1
-            tag = f"{it['code']} ({label})"
-            if verdict == "ok":
-                ok.append(tag); n_ok += 1
-            elif verdict == "wrong":
-                wrong.append(tag)
-            else:
-                pending.append(tag)
-        tot_ok += n_ok; tot_act += n_act
         emoji = "🟦" if "3" in acct else "🟩"
-        lines.append(f"{emoji} <b>{acct}</b> — tuân thủ {n_ok}/{n_act}")
-        if ok: lines.append("✅ " + ", ".join(ok))
-        if pending: lines.append("⚠️ " + ", ".join(pending))
-        if wrong: lines.append("❌ " + ", ".join(wrong))
+        lines.append(f"{emoji} <b>{acct}</b>")
+
+        # 1) TẮT — theo TỪNG AD ID: đã tắt = ad không còn chạy (không nằm trong tập ACTIVE cuối ngày)
+        off_pending = [k for k in kill_ads if k["id"] in active_ids]
+        n_off, n_off_ok = len(kill_ads), len(kill_ads) - len(off_pending)
+        tot_off += n_off; tot_off_ok += n_off_ok
+        if n_off:
+            lines.append(f"🔴 TẮT ad: <b>{n_off_ok}/{n_off} đã tắt</b>")
+            for k in off_pending:
+                lines.append(f"   ⚠️ CÒN CHẠY: <code>{k['id']}</code> — {k['code']} {(k.get('name') or '')[:20]} ({k.get('src','')})".rstrip())
+        else:
+            lines.append("🔴 TẮT ad: sáng nay không có ad nào phải tắt")
+
+        # 2) SCALE/GIẢM — theo ad set (ngân sách); bỏ 'off' vì đã chấm theo ad ID ở trên
+        bud_ok, bud_pending, bud_wrong = [], [], []
+        for it in codes:
+            if it["dir"] not in ("up", "down"):
+                continue
+            verdict, label = assess(it["dir"], it["budget"], ebud.get(it["code"], 0), eads.get(it["code"], 0))
+            tag = f"{it['code']} ({label})"
+            (bud_ok if verdict == "ok" else bud_wrong if verdict == "wrong" else bud_pending).append(tag)
+        n_bud = len(bud_ok) + len(bud_pending) + len(bud_wrong)
+        tot_bud += n_bud; tot_bud_ok += len(bud_ok)
+        if n_bud:
+            lines.append(f"🟢🟠 Ngân sách ad set (SCALE/GIẢM): <b>{len(bud_ok)}/{n_bud} đúng hướng</b>")
+            if bud_ok: lines.append("   ✅ " + ", ".join(bud_ok))
+            if bud_pending: lines.append("   ⚠️ chưa làm: " + ", ".join(bud_pending))
+            if bud_wrong: lines.append("   ❌ ngược hướng: " + ", ".join(bud_wrong))
         lines.append("")
-    pct = round(tot_ok / tot_act * 100) if tot_act else 0
-    lines.append(f"📊 <b>Tuân thủ chung: {pct}%</b> ({tot_ok}/{tot_act} mục cần thao tác)")
-    lines.append("ℹ️ 'Đạt' = đúng hướng đề xuất (số liệu Meta tự so sáng↔chiều).")
+
+    pct_off = round(tot_off_ok / tot_off * 100) if tot_off else None
+    head = f"📊 <b>TẮT (theo Ad ID): {tot_off_ok}/{tot_off}"
+    head += f" = {pct_off}%</b>" if pct_off is not None else " ad</b>"
+    if tot_bud:
+        head += f" · Ngân sách ad set: {tot_bud_ok}/{tot_bud}"
+    lines.append(head)
+    lines.append("ℹ️ TẮT chấm theo <b>từng Ad ID</b> (đã tắt = ad không còn chạy trên Meta). SCALE/GIẢM chấm theo ngân sách ad set.")
     msg = "\n".join(lines)
 
+    pct = round((tot_off_ok + tot_bud_ok) / (tot_off + tot_bud) * 100) if (tot_off + tot_bud) else 0
     if DRY:
         print("[--dry-run] KHÔNG gửi:\n" + msg); return 0
     if not tg(cfg, "message", msg):
         print("LỖI gửi Telegram", file=sys.stderr); return 1
     flag.touch()
-    print(f"✓ Đã gửi đối soát cuối ngày {tgt} (tuân thủ {pct}%)")
+    print(f"✓ Đã gửi đối soát cuối ngày {tgt} (TẮT {tot_off_ok}/{tot_off} ad · chung {pct}%)")
     return 0
 
 
