@@ -151,7 +151,8 @@ def mult(rec):
 def decide_1_3_7(z1, z3, z7, lead3, spend3, spend7, order3, thr, rules, min_leads):
     """Đề xuất cho 1 nhóm/ad dựa hiệu quả 1 ngày × 3 ngày × 7 ngày (SOP IELTS Thái — Ads Report).
     Nghiêng 3 ngày (quyết định chính), 7 ngày = nền xác nhận, 1 ngày = tín hiệu sớm phản ứng nhanh.
-    z* = vùng CPL mỗi cửa sổ (từ classify); cr3 = đơn/lead 3 ngày. Trả chuỗi tiền tố chuẩn cho mult()."""
+    z* = vùng CPL mỗi cửa sổ (từ classify); order3 = số ĐƠN (L5/L6) 3 ngày — luật CR của SOP tính
+    bằng CR ĐƠN (đơn/lead), KHÔNG phải CIR (lead tư vấn L3+/lead). Trả chuỗi tiền tố chuẩn cho mult()."""
     z_kill, z_read = rules.get("zero_lead_kill"), rules.get("zero_lead_read")
     if lead3 == 0:                                          # chưa ra lead 3 ngày → xét theo chi (3d, fallback 7d)
         base = spend3 or spend7
@@ -164,7 +165,7 @@ def decide_1_3_7(z1, z3, z7, lead3, spend3, spend7, order3, thr, rules, min_lead
     cr3 = (order3 / lead3) if lead3 else 0
     cr_pct, cr_min = rules.get("cr_keep_pct"), rules.get("cr_keep_min")
     if cr_pct and cr_min and thr["kpi"] <= cpl3 < thr["kpi"] * cr_pct and cr3 >= cr_min:
-        return f"GIỮ · CR cao ({round(cr3 * 100)}%) dù CPL>KPI"
+        return f"GIỮ · CR đơn cao ({round(cr3 * 100)}%) dù CPL>KPI"
     g1, g3, g7 = z1 == "TỐT", z3 == "TỐT", z7 == "TỐT"
     bad1 = z1 in ("YẾU", "RẤT TỆ")
     if g3 and g7:                                           # nền chắc
