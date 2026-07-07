@@ -412,7 +412,7 @@ if _baseline_path:
         if rec.startswith("GIẢM"): return "down"
         if rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"): return "off"
         return "hold"
-    _bl = {"window": [WINDOW[0], WINDOW[-1]], "anchor": cfg.get("anchor"), "accounts": {}}
+    _bl = {"window": [WINDOW[0], WINDOW[-1]], "anchor": cfg.get("anchor"), "kpi_day": kpi_day, "accounts": {}}
     for _acct, _rows in data.items():
         _bud = defaultdict(int); _adc = defaultdict(int)
         for _s in cfg["accounts"][_acct].get("adsets", []):
