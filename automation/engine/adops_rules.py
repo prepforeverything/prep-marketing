@@ -151,8 +151,9 @@ def mult(rec):
 def decide_1_3_7(z1, z3, z7, lead3, spend3, spend7, order3, thr, rules, min_leads):
     """Đề xuất cho 1 nhóm/ad dựa hiệu quả 1 ngày × 3 ngày × 7 ngày (SOP IELTS Thái — Ads Report).
     Nghiêng 3 ngày (quyết định chính), 7 ngày = nền xác nhận, 1 ngày = tín hiệu sớm phản ứng nhanh.
-    z* = vùng CPL mỗi cửa sổ (từ classify); order3 = số ĐƠN (L5/L6) 3 ngày — luật CR của SOP tính
-    bằng CR ĐƠN (đơn/lead), KHÔNG phải CIR (lead tư vấn L3+/lead). Trả chuỗi tiền tố chuẩn cho mult()."""
+    z* = vùng CPL mỗi cửa sổ (từ classify); order3 = số ĐƠN 3 ngày (trạng thái theo config
+    lead_sheet.order_statuses, Thái chốt = L6 Purchased) — luật CR của SOP tính
+    bằng CR ĐƠN (đơn/lead), KHÔNG phải %QL (lead chất L3+/lead). Trả chuỗi tiền tố chuẩn cho mult()."""
     z_kill, z_read = rules.get("zero_lead_kill"), rules.get("zero_lead_read")
     if lead3 == 0:                                          # chưa ra lead 3 ngày → xét theo chi (3d, fallback 7d)
         base = spend3 or spend7

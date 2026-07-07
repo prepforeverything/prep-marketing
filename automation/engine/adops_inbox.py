@@ -97,10 +97,10 @@ for acct, a in cfg["accounts"].items():
 # ---- lead từ lead_feed (ad_id | ngày | status) ----
 lurl = f"https://docs.google.com/spreadsheets/d/{LS['id']}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(LS['phone_tab'])}"
 ca, cd, cq = LS["col_adid"], LS["col_date"], LS.get("col_ql_status")
-# 2 tầng trạng thái, TÁCH BẠCH (yêu cầu team Thái 2026-07-07):
-#   CIR    = lead đã tư vấn trở lên (mặc định L3–L6) / lead — chỉ HIỂN THỊ tham khảo.
-#   CR ĐƠN = lead ra đơn (mặc định L5 Confirmed + L6 Purchased) / lead — nạp vào luật giữ của SOP (cr_keep ≥20%).
-qset = tuple(LS.get("cir_statuses", LS.get("ql_statuses", [])))
+# 2 tầng trạng thái, TÁCH BẠCH (team Thái chốt 2026-07-07 — KHÔNG gọi là CIR):
+#   %QL    = lead chất, đã tư vấn trở lên (mặc định L3–L6) / tổng lead — chỉ HIỂN THỊ tham khảo.
+#   CR ĐƠN = lead ra đơn (Order = L6 Purchased) / tổng lead — nạp vào luật giữ của SOP (cr_keep ≥20%).
+qset = tuple(LS.get("ql_statuses", []))
 oset = tuple(LS.get("order_statuses", []))
 # Lead Pancake (lead_feed) ĐỀU là lead Inbox (nhắn tin) → đếm HẾT. Lead trên ad đã tắt/0 chi → nhóm riêng.
 # Dòng KHÔNG có ad_id (đối soát AD ID final chưa làm) → đếm riêng lead_noid để cảnh báo thiếu dữ liệu
@@ -146,13 +146,13 @@ for nm, g in groups.items():
     if s3 == 0:  # nhóm không chi trong 3 ngày → không có gì để thao tác (lead trễ trên ad đã tắt)
         rec = "Bài đã tắt · có lead trễ — không cần thao tác" if l3 > 0 else "—"
     else:
-        # luật cr_keep của SOP tính bằng CR ĐƠN (o3), KHÔNG phải CIR (q3)
+        # luật cr_keep của SOP tính bằng CR ĐƠN (o3), KHÔNG phải %QL (q3)
         rec = R.decide_1_3_7(z1, z3, z7, l3, s3, s7, o3, THR, RULES, MIN_LEADS)
         if rec == "GIỮ":                       # vùng TRUNG BÌNH — wording team Thái (mult/bucket không đổi)
             rec = "GIỮ + tối ưu"
     G.append({"name": nm, "camp": g["camp"], "ads": g["ads"], "s1": s1, "s3": s3, "s7": s7, "l1": l1, "l3": l3, "l7": l7,
               "cpl1": cpl(s1, l1), "cpl3": cpl(s3, l3), "cpl7": cpl(s7, l7), "z1": z1, "z3": z3, "z7": z7, "rec": rec,
-              "cir3": (q3 / l3 if l3 else 0), "crdon3": (o3 / l3 if l3 else 0), "o3": o3,
+              "qlr3": (q3 / l3 if l3 else 0), "crdon3": (o3 / l3 if l3 else 0), "o3": o3,
               "avg_day": round(s3 / 3), "proj_day": round(s3 / 3 * R.mult(rec))})
 ZORD = {"TỐT": 0, "TRUNG BÌNH": 1, "YẾU": 2, "RẤT TỆ": 3, "CHƯA CÓ LEAD": 4, "—": 5}
 G.sort(key=lambda x: (ZORD.get(x["z3"], 9), -x["s3"]))
@@ -258,7 +258,7 @@ for c in CAMPS:
     print(f"\n█ CAMP {c['name'][:60]}  [{c['z3']}/{c['z7']}]  {len(c['groups'])} nhóm QC · {c['n_ads']} ad · chi 3d {vnd(c['s3'])} · {c['l3']} lead · CPL {vnd(c['cpl3'])}")
     for x in c["groups"]:
         print(f"  ▶ {x['name'][:52]}  [{x['z3']}/{x['z7']} · 1d {x['z1']}]  → {x['rec']}")
-        print(f"     3d: chi {vnd(x['s3'])} · lead {x['l3']} · CPL {vnd(x['cpl3'])} | 7d CPL {vnd(x['cpl7'])} | 1d CPL {vnd(x['cpl1'])} | CIR {round(x['cir3']*100)}% · CR đơn {round(x['crdon3']*100)}%")
+        print(f"     3d: chi {vnd(x['s3'])} · lead {x['l3']} · CPL {vnd(x['cpl3'])} | 7d CPL {vnd(x['cpl7'])} | 1d CPL {vnd(x['cpl1'])} | %QL {round(x['qlr3']*100)}% · CR đơn {round(x['crdon3']*100)}%")
 
 # ---- tóm tắt máy-đọc (opt-in qua env ADOPS_SUMMARY_JSON) — cho caption + tin Ad ID Telegram ----
 _summary_path = os.environ.get("ADOPS_SUMMARY_JSON")
@@ -318,7 +318,7 @@ def grp_block(x):
     _bcol = {"act-scale": "#22c55e", "act-off": "#ef4444", "act-warn": "#f59e0b"}.get(actb(x["rec"]), "#cbd5e1")
     return f'''<div class="grp" style="border-left-color:{_bcol}">
       <div class="grp-head"><div style="min-width:0"><b>{x["name"]}</b>
-      <div class="code">{len(x["ads"])} ad · CIR {round(x["cir3"]*100)}% · CR đơn <b>{round(x["crdon3"]*100)}%</b> ({x["o3"]} đơn)</div>
+      <div class="code">{len(x["ads"])} ad · %QL {round(x["qlr3"]*100)}% · CR đơn <b>{round(x["crdon3"]*100)}%</b> ({x["o3"]} đơn)</div>
       <div style="margin-top:6px"><span class="badge {actb(x["rec"])}">{x["rec"]}</span></div>{why_html}
       <div class="grp-kpi">3 ngày: <b>{vnd(x["s3"])}₫</b> · {x["l3"]} lead · CPL <b>{vnd(x["cpl3"])}₫</b>
         &nbsp;|&nbsp; 7 ngày CPL {vnd(x["cpl7"])}₫ · 1 ngày CPL {vnd(x["cpl1"])}₫</div></div>
@@ -390,8 +390,8 @@ footer{{margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:
 {f'<div class="note" style="border-left-color:#dc2626"><b>⚠️ Thiếu dữ liệu đối soát:</b> {lead_noid} lead trong cửa sổ 3 ngày CHƯA gắn AD ID final trong sheet cào lead → không tính được vào camp/nhóm nào (CPL thực tế TỐT hơn số trong báo cáo). Nhờ team đối soát bổ sung cột AD ID.</div>' if lead_noid else ''}
 {sections}
 <div class="note"><b>Cách đọc (3 lớp):</b> Thanh xanh đậm = <b>CHIẾN DỊCH</b> (trạng thái vùng 3d/7d + tổng chi/lead/CPL — Thái chạy CBO
-nên ngân sách chỉnh ở cấp này). Mỗi khối trắng = 1 <b>Nhóm quảng cáo</b> (vùng 3d/7d, đề xuất + vì sao; <b>CIR</b> = lead đã
-tư vấn trở lên L3+/lead — tham khảo; <b>CR đơn</b> = lead ra đơn L5 Confirmed + L6 Purchased/lead — dùng cho luật giữ ≥20% của SOP).
+nên ngân sách chỉnh ở cấp này). Mỗi khối trắng = 1 <b>Nhóm quảng cáo</b> (vùng 3d/7d, đề xuất + vì sao; <b>%QL</b> = lead chất (đã
+tư vấn trở lên, L3+)/tổng lead — tham khảo; <b>CR đơn</b> = lead ra đơn L5 Confirmed + L6 Purchased/lead — dùng cho luật giữ ≥20% của SOP).
 Bảng trong khối = từng <b>AD</b> với CPL 1/3/7 ngày tô màu theo vùng + % so KPI <b>1.000.000₫</b>.
 Đề xuất nghiêng 3 ngày, 7 ngày xác nhận nền, 1 ngày cảnh báo sớm. Chi từ Meta (chỉ camp tên "Inbox"), lead từ lead_feed (gắn ad_id).
 <b>Chỉ đề xuất</b> — staff tự thao tác Meta.</div>
