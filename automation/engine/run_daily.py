@@ -62,6 +62,7 @@ def channel_tag(cfg):
 
 def build_caption(cfg, summary, doc_fmt="pdf"):
     w = summary["window"]
+    per_ad = summary.get("per_ad_kill")            # PTE: TẮT quyết định theo TỪNG ad id, không tắt cả content
     L = [f"📊 <b>{cfg.display} ad-ops — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]}){channel_tag(cfg)}</b>", ""]
     for _w in summary.get("kpi_warn") or []:        # cảnh báo nếu KHÔNG đọc được KPI từ sheet (đừng âm thầm dùng số cũ)
         L.append(f"⚠️ <b>{_w}</b>")
@@ -75,7 +76,12 @@ def build_caption(cfg, summary, doc_fmt="pdf"):
         if b["tat"]: L.append(f"   TẮT (RẤT TỆ): {', '.join(b['tat'])}")
         if b["xemxet"]: L.append(f"   XEM XÉT TẮT (0 lead, chi cao): {', '.join(b['xemxet'])}")
         _k = a.get("adid_kill") or []
-        if _k: L.append(f"   🔴 TẮT ad lẻ (content vẫn tốt): {len(_k)} ad — xem tin Ad ID ⬇️")
+        _sp = a.get("adid_spare") or []
+        if per_ad:
+            if _k: L.append(f"   🔴 TẮT {len(_k)} ad tệ (theo Ad ID) — xem tin Ad ID ⬇️")
+            if _sp: L.append(f"   🟢 GIỮ {len(_sp)} ad tốt trong content xấu (không tắt cả cụm)")
+        elif _k:
+            L.append(f"   🔴 TẮT ad lẻ (content vẫn tốt): {len(_k)} ad — xem tin Ad ID ⬇️")
     bud = summary["budget"]
     _any_scale = any(a["buckets"]["scale"] for a in summary["accounts"].values())
     if bud.get("kpi_day"):
@@ -110,15 +116,27 @@ def build_adid_message(cfg, summary):
             L.append(f"• [{acct}] {it['code']} {(it.get('name') or '')[:24]}".rstrip())
             ads = " ".join(it.get("ads", []))
             L.append(f"<code>{ads}</code>" if ads else "<i>(ad đã tắt — không còn ad đang chạy)</i>")
-    # Ad lẻ vi phạm quy tắc nằm trong content vẫn tốt/scale → tắt riêng TỪNG ad ID này.
+    # Ad lẻ vi phạm quy tắc → tắt riêng TỪNG ad ID. PER_AD_KILL: gồm cả ad tệ trong content xấu (không tắt cả cụm).
+    per_ad = summary.get("per_ad_kill")
     kills = [(acct, k) for acct, a in summary["accounts"].items() for k in (a.get("adid_kill") or [])]
     if kills:
         any_item = True
-        L.append("\n<b>🔴 TẮT AD LẺ (content vẫn tốt — chỉ tắt ad này)</b>")
+        L.append("\n<b>🔴 TẮT AD ID (chỉ tắt ad tệ — giữ ad tốt)</b>" if per_ad
+                 else "\n<b>🔴 TẮT AD LẺ (content vẫn tốt — chỉ tắt ad này)</b>")
         for acct, k in sorted(kills, key=lambda x: -(x[1].get("cpl") or 0)):
             cpl = f"{k['cpl']:,}".replace(",", ".") if k.get("cpl") else ("0 lead" if not k.get("lead") else "—")
             L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:24]} · CPL {cpl} · {k['rec']}".rstrip())
             L.append(f"<code>{k['id']}</code>")
+    # PER_AD_KILL: nêu ad tốt được GIỮ trong content xấu — để NV biết KHÔNG tắt nhầm (đối soát cũng chỉ soi ad tệ).
+    if per_ad:
+        spares = [(acct, s) for acct, a in summary["accounts"].items() for s in (a.get("adid_spare") or [])]
+        if spares:
+            any_item = True
+            L.append("\n<b>🟢 GIỮ (ad tốt trong content xấu — KHÔNG tắt)</b>")
+            for acct, s in sorted(spares, key=lambda x: (x[1].get("cpl") or 0)):
+                cpl = f"{s['cpl']:,}".replace(",", ".") if s.get("cpl") else ("0 lead" if not s.get("lead") else "—")
+                L.append(f"• [{acct}] {s['code']} {(s.get('name') or '')[:24]} · CPL {cpl} · {s['rec']}".rstrip())
+                L.append(f"<code>{s['id']}</code>")
     L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách ad set chứa ad ID. TẮT: tắt ad ID. Chỉ đề xuất — NV tự thao tác trên Meta.")
     return "\n".join(L) if any_item else ""
 
