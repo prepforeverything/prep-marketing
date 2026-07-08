@@ -1,0 +1,52 @@
+{
+  "product": "ielts-vn",
+  "display": "IELTS",
+  "brand": {
+    "primary": "#0d9488",
+    "dark": "#0f766e",
+    "tint": "#ccfbf1"
+  },
+  "currency": "VND",
+  "meta": {
+    "accounts": {
+      "Prep - IELTS 1": "1633973340244951",
+      "Prep - IELTS 9": "628869139580440",
+      "Prep - IELTS 10": "2315420118859218"
+    },
+    "api_versions": [
+      "v23.0",
+      "v22.0",
+      "v21.0",
+      "v20.0"
+    ]
+  },
+  "kpi_sheet": {
+    "id": "1K7zUuUCDZJ3puEAi0VeNsILlsdqIKSBiGlOn6loTB5g",
+    "gid": "338525856",
+    "line": "IELTS",
+    "channel": "Inbox"
+  },
+  "lead_sheet": {
+    "id": "1QQZ0SBCiOc0vAw0lN1fNAO1bIZmTB2hjdCuBKs7ph5Q",
+    "phone_tab": "File cào",
+    "join": "code",
+    "col_date": 0,
+    "col_adid": 5,
+    "col_code": 7,
+    "col_account": 8,
+    "col_ql": 12,
+    "min_cols": 13
+  },
+  "min_leads": 3,
+  "report": {
+    "primary_days": 3,
+    "confirm_days": 7,
+    "age_lookback_days": 30,
+    "adid_overlay": true,
+    "telegram_doc": "html"
+  },
+  "telegram": {
+    "token_env": "TELEGRAM_BOT_TOKEN",
+    "chat_env": "TELEGRAM_IELTS_CHAT_ID"
+  }
+}

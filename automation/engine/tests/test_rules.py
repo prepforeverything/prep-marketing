@@ -163,4 +163,17 @@ _wp, _dp = R.inbox_budget_cells(KPI_MASTER, "PTE", "Inbox", 7, 1)
 eq((_b(_wp), _b(_dp)), (41850000, 8370000), "PTE tuần 1 — lọc đúng khối PTE + dòng Ngày LỆCH cột")
 eq(R.inbox_budget_cells(KPI_MASTER, "HSK", "Inbox", 7, 1), ("", ""), "SP không có khối → rỗng")
 
+# --- match_account: sheet cào lead dùng chung nhiều TK (IELTS VN) — chặn tiền tố số ---------
+_IE = {"Prep - IELTS 1": "a", "Prep - IELTS 9": "b", "Prep - IELTS 10": "c"}
+eq(R.match_account("Prep - IELTS 1", _IE), "Prep - IELTS 1", "khớp chính xác IELTS 1")
+eq(R.match_account("Prep - IELTS 10", _IE), "Prep - IELTS 10", "IELTS 10 KHÔNG bị IELTS 1 nuốt (khớp chính xác)")
+eq(R.match_account("Prep - IELTS 11", _IE), None, "IELTS 11 (ngoài config) KHÔNG rơi vào IELTS 1")
+eq(R.match_account("Prep - IELTS 9", _IE), "Prep - IELTS 9", "khớp IELTS 9")
+eq(R.match_account("IE Junior 2", _IE), None, "TK khác hẳn → None")
+eq(R.match_account(" Prep - IELTS 1 ", _IE), "Prep - IELTS 1", "strip khoảng trắng thừa")
+# TOEIC: tên nhúng trong chuỗi dài (không trùng tiền tố) giữ hành vi chuỗi-con cũ
+_TO = {"TOEIC 3": "x", "TOEIC 5": "y"}
+eq(R.match_account("Facebook/TOEIC 3 - Inbox", _TO), "TOEIC 3", "TOEIC 3 nhúng giữa chuỗi vẫn khớp")
+eq(R.match_account("TOEIC 5", _TO), "TOEIC 5", "TOEIC khớp chính xác")
+
 print(f"OK — {n} assertions passed")

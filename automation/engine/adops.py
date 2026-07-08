@@ -30,7 +30,7 @@ LC = PCFG["lead_sheet"]                 # chỉ số cột tab lead
 JOIN = LC.get("join", "code")          # 'code' (TOEIC) | 'ad_id' (IELTS Thái: nối lead↔spend theo ad_id)
 # Lớp phủ ad_id: chấm quy tắc 3d×7d cho TỪNG ad_id (bắt ad lẻ tệ trong content tốt). Chỉ khi có cột Ad ID.
 ADID_OVERLAY = bool((PCFG.get("report") or {}).get("adid_overlay")) and JOIN != "ad_id" and LC.get("col_adid") is not None
-ACCOUNTS = PCFG["meta"]["accounts"]     # tên tài khoản (khớp chuỗi con trong cột Account)
+ACCOUNTS = PCFG["meta"]["accounts"]     # tên tài khoản (khớp cột Account qua R.match_account — chặn tiền tố số)
 MIN_LEADS = PCFG.get("min_leads", 3)
 RULES = PCFG.get("rules", {}) or {}     # luật tùy chọn theo sản phẩm (0-lead 2 ngưỡng, CR…)
 THR_INLINE = PCFG["kpi_sheet"].get("thresholds")  # nhúng ngưỡng vùng (sản phẩm không có bảng PHẦN 2 chuẩn)
@@ -171,7 +171,7 @@ else:
         in3, in7 = inwin(r[LC["col_date"]]), inwin7(r[LC["col_date"]])
         if not (in3 or in7):
             continue
-        acct = next((n for n in ACCOUNTS if n in r[LC["col_account"]]), None)
+        acct = R.match_account(r[LC["col_account"]], ACCOUNTS)
         if not acct:
             continue
         code = norm(r[LC["col_code"]])
