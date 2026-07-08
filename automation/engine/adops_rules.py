@@ -231,3 +231,26 @@ def inbox_budget_cells(rows, block, channel, month, day):
                 day_cell = ""
             return week_cell, day_cell
     return "", ""
+
+
+def match_account(cell, accounts):
+    """Khớp tên tài khoản trong ô lead (cột Account) → key trong `accounts` (config meta.accounts).
+
+    Ưu tiên khớp CHÍNH XÁC (sau strip). Nếu không, khớp chuỗi con nhưng CHẶN tiền tố số:
+    ký tự ngay SAU tên khớp không được là chữ/số ⇒ 'Prep - IELTS 1' KHÔNG nuốt 'Prep - IELTS 10'/'11'
+    (sheet cào lead dùng chung nhiều tài khoản). Trả key dài nhất hợp lệ; None nếu không khớp.
+    TOEIC/VSTEP (tên không trùng tiền tố) giữ nguyên hành vi cũ."""
+    s = (cell or "").strip()
+    if s in accounts:                       # khớp chính xác — an toàn nhất
+        return s
+    best = None
+    for n in accounts:
+        i = s.find(n)
+        while i >= 0:
+            j = i + len(n)
+            if j >= len(s) or not s[j].isalnum():   # không có hậu tố chữ/số ⇒ ranh giới hợp lệ
+                if best is None or len(n) > len(best):
+                    best = n
+                break
+            i = s.find(n, i + 1)            # còn khớp phía sau (vd tên xuất hiện 2 lần) → thử tiếp
+    return best
