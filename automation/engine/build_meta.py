@@ -105,7 +105,7 @@ def fetch_spend(g, acct_id, preset, join="code", objectives=None, name_include=N
     join='code' → khoá = mã content (tiền tố tên ad, kiểu TOEIC). join='ad_id' → khoá = ad_id (kiểu IELTS Thái).
     Lọc kênh (chọn 1): objectives = danh sách objective cho phép; name_include = chuỗi phải có trong TÊN campaign.
     with_meta=True → kèm adset_name/campaign_name (để gộp theo Nhóm QC). Trả: (spend_by_code, names, window, ad_meta)."""
-    extra = (["objective"] if objectives else []) + (["campaign_name"] if (name_include or with_meta) else []) + (["adset_name"] if with_meta else [])
+    extra = (["objective"] if objectives else []) + (["campaign_name"] if (name_include or with_meta) else []) + (["adset_name", "adset_id", "campaign_id"] if with_meta else [])
     fields = "ad_id,ad_name,spend" + (("," + ",".join(sorted(set(extra)))) if extra else "")
     ads_ins = g.page(f"act_{acct_id}/insights",
                      {"level": "ad", "date_preset": preset, "fields": fields, "limit": "500"})
@@ -129,7 +129,9 @@ def fetch_spend(g, acct_id, preset, join="code", objectives=None, name_include=N
         if name and key not in names:
             names[key] = name
         if with_meta and key not in ad_meta:
-            ad_meta[key] = {"adset": (r.get("adset_name") or "").strip(), "camp": (r.get("campaign_name") or "").strip()}
+            # KÈM id: tên adset/camp KHÔNG duy nhất (Thái đặt trùng tên adset ở nhiều camp) → gộp tầng phải theo ID
+            ad_meta[key] = {"adset": (r.get("adset_name") or "").strip(), "camp": (r.get("campaign_name") or "").strip(),
+                            "adset_id": r.get("adset_id") or "", "camp_id": r.get("campaign_id") or ""}
         if not window and r.get("date_start"):
             window = (r["date_start"], r["date_stop"])
     return spend_by_code, names, window, ad_meta
