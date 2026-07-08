@@ -89,8 +89,10 @@ for acct, a in cfg["accounts"].items():
     s1 = {norm(k): v for k, v in a.get("spend_by_code_1d", {}).items()}
     for k in set(s3) | set(s7) | set(s1):
         m = meta.get(k, {}) or {}
+        # gộp tầng theo ID (adset_id/camp_id) — TÊN adset/camp Thái đặt TRÙNG nhau giữa các camp, gộp theo tên là trộn sai tầng
         ads[k] = {"id": k, "acct": acct, "name": names.get(k, k),
-                  "adset": m.get("adset") or "(nhóm chưa rõ)", "camp": m.get("camp", ""),
+                  "adset": m.get("adset") or "(nhóm chưa rõ)", "adset_id": m.get("adset_id") or (m.get("adset") or "(nhóm chưa rõ)"),
+                  "camp": m.get("camp", ""), "camp_id": m.get("camp_id") or m.get("camp", ""),
                   "s1": s1.get(k, 0), "s3": s3.get(k, 0), "s7": s7.get(k, 0),
                   "l1": 0, "l3": 0, "l7": 0, "q3": 0, "o3": 0}
 
@@ -118,7 +120,8 @@ for r in list(csv.reader(io.StringIO(fetch(lurl))))[1:]:
     if not (in1 or in3 or in7):
         continue
     if k not in ads:  # ad không còn chi trong cửa sổ (đã tắt) nhưng có lead Inbox trễ → nhóm riêng
-        ads[k] = {"id": k, "acct": "-", "name": k, "adset": "(Ad đã tắt / 0 chi trong cửa sổ)", "camp": "",
+        ads[k] = {"id": k, "acct": "-", "name": k, "adset": "(Ad đã tắt / 0 chi trong cửa sổ)", "adset_id": "(paused)",
+                  "camp": "", "camp_id": "",
                   "s1": 0, "s3": 0, "s7": 0, "l1": 0, "l3": 0, "l7": 0, "q3": 0, "o3": 0}
         if in3:
             lead_paused += 1
@@ -132,13 +135,15 @@ for r in list(csv.reader(io.StringIO(fetch(lurl))))[1:]:
     if in1:
         ads[k]["l1"] += 1
 
-# ---- gộp theo Nhóm QC (adset) ----
-groups = defaultdict(lambda: {"ads": [], "camp": ""})
+# ---- gộp theo Nhóm QC (khoá = adset_id, KHÔNG dùng tên — tên trùng nhau giữa các camp) ----
+groups = defaultdict(lambda: {"ads": [], "name": "", "camp": "", "camp_id": ""})
 for a in ads.values():
-    groups[a["adset"]]["ads"].append(a); groups[a["adset"]]["camp"] = a["camp"]
+    g = groups[a["adset_id"]]
+    g["ads"].append(a); g["name"] = a["adset"]; g["camp"] = a["camp"]; g["camp_id"] = a["camp_id"]
 
 G = []
-for nm, g in groups.items():
+for _gid, g in groups.items():
+    nm = g["name"]
     s1 = sum(a["s1"] for a in g["ads"]); s3 = sum(a["s3"] for a in g["ads"]); s7 = sum(a["s7"] for a in g["ads"])
     l1 = sum(a["l1"] for a in g["ads"]); l3 = sum(a["l3"] for a in g["ads"]); l7 = sum(a["l7"] for a in g["ads"])
     q3 = sum(a["q3"] for a in g["ads"]); o3 = sum(a["o3"] for a in g["ads"])
@@ -150,20 +155,22 @@ for nm, g in groups.items():
         rec = R.decide_1_3_7(z1, z3, z7, l3, s3, s7, o3, THR, RULES, MIN_LEADS)
         if rec == "GIỮ":                       # vùng TRUNG BÌNH — wording team Thái (mult/bucket không đổi)
             rec = "GIỮ + tối ưu"
-    G.append({"name": nm, "camp": g["camp"], "ads": g["ads"], "s1": s1, "s3": s3, "s7": s7, "l1": l1, "l3": l3, "l7": l7,
+    G.append({"name": nm, "camp": g["camp"], "camp_id": g["camp_id"], "ads": g["ads"], "s1": s1, "s3": s3, "s7": s7, "l1": l1, "l3": l3, "l7": l7,
               "cpl1": cpl(s1, l1), "cpl3": cpl(s3, l3), "cpl7": cpl(s7, l7), "z1": z1, "z3": z3, "z7": z7, "rec": rec,
               "qlr3": (q3 / l3 if l3 else 0), "crdon3": (o3 / l3 if l3 else 0), "o3": o3,
               "avg_day": round(s3 / 3), "proj_day": round(s3 / 3 * R.mult(rec))})
 ZORD = {"TỐT": 0, "TRUNG BÌNH": 1, "YẾU": 2, "RẤT TỆ": 3, "CHƯA CÓ LEAD": 4, "—": 5}
 G.sort(key=lambda x: (ZORD.get(x["z3"], 9), -x["s3"]))
 
-# ---- lớp CAMPAIGN: gộp nhóm QC theo camp (3 lớp camp → adset → ad, trạng thái + hiệu quả từng cấp) ----
+# ---- lớp CAMPAIGN: gộp nhóm QC theo camp_id (3 lớp camp → adset → ad; khoá ID, tên chỉ để hiển thị) ----
 camps = {}
 for x in G:
+    ckey = x["camp_id"] or x["camp"] or ("(Ad đã tắt / 0 chi trong cửa sổ)" if x["s3"] == 0 else "(Không rõ campaign)")
     cname = x["camp"] or ("(Ad đã tắt / 0 chi trong cửa sổ)" if x["s3"] == 0 else "(Không rõ campaign)")
-    camps.setdefault(cname, []).append(x)
+    camps.setdefault(ckey, {"name": cname, "gs": []})["gs"].append(x)
 CAMPS = []
-for cname, gs in camps.items():
+for _ckey, _c in camps.items():
+    cname, gs = _c["name"], _c["gs"]
     cs1 = sum(x["s1"] for x in gs); cs3 = sum(x["s3"] for x in gs); cs7 = sum(x["s7"] for x in gs)
     cl1 = sum(x["l1"] for x in gs); cl3 = sum(x["l3"] for x in gs); cl7 = sum(x["l7"] for x in gs)
     cads = sum(len(x["ads"]) for x in gs)
