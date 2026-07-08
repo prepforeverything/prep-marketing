@@ -32,6 +32,27 @@ def tg(cfg, *args):
     return subprocess.run([PY, str(ENGINE / "notify_telegram.py"), *args], env=e).returncode == 0
 
 
+def vnd(n):
+    return f"{round(n):,}".replace(",", ".") if n else "0"
+
+
+def day_budget(macct):
+    """Ngân sách/ngày ĐANG cấu hình cuối ngày (sau tắt/scale): adset budget (non-CBO)
+    + campaign budget (CBO, dedupe theo campaign_id). Trả (tổng VND, số ad set CBO thiếu ngân sách)."""
+    total, seen_camp, cbo_missing = 0, set(), 0
+    for s in macct.get("adsets", []):
+        if s.get("cbo"):
+            cid, cb = s.get("campaign_id"), s.get("campaign_budget")
+            if cid and cb:
+                if cid not in seen_camp:
+                    seen_camp.add(cid); total += cb
+            else:
+                cbo_missing += 1
+        else:
+            total += s.get("budget") or 0
+    return total, cbo_missing
+
+
 def per_code(meta_acct):
     """Từ meta_spend của 1 tài khoản → {mã: tổng ngân sách ad set}, {mã: số ad ACTIVE}."""
     bud, ads = defaultdict(int), defaultdict(int)
@@ -103,6 +124,7 @@ def main():
              "Đối soát theo <b>từng ADS ID</b> (sáng → chiều) với checklist sáng:", ""]
     tot_off_ok = tot_off = 0      # TẮT — chấm theo từng Ad ID
     tot_bud_ok = tot_bud = 0      # SCALE/GIẢM — chấm theo ngân sách ad set
+    tot_day_budget = tot_cbo_missing = 0   # ngân sách/ngày cấu hình cuối ngày (sau tắt/scale)
     for acct, entry in baseline["accounts"].items():
         macct = meta.get("accounts", {}).get(acct)
         if macct is None:  # build_meta hụt tài khoản này → KHÔNG chấm (tránh hiểu nhầm "đã tắt hết")
@@ -112,6 +134,7 @@ def main():
         codes, kill_ads = (entry, []) if isinstance(entry, list) else (entry.get("codes", []), entry.get("kill_ads", []))
         active_ids = {a for s in macct.get("adsets", []) for a in s.get("ads", [])}  # ad ID còn CHẠY cuối ngày
         ebud, eads = per_code(macct)
+        _bd, _cbo_miss = day_budget(macct); tot_day_budget += _bd; tot_cbo_missing += _cbo_miss
         emoji = "🟦" if "3" in acct else "🟩"
         lines.append(f"{emoji} <b>{acct}</b>")
 
@@ -149,7 +172,18 @@ def main():
     if tot_bud:
         head += f" · Ngân sách ad set: {tot_bud_ok}/{tot_bud}"
     lines.append(head)
-    lines.append("ℹ️ TẮT chấm theo <b>từng Ad ID</b> (đã tắt = ad không còn chạy trên Meta). SCALE/GIẢM chấm theo ngân sách ad set.")
+    # Note nhanh về ngân sách: sau tắt/scale, ngân sách/ngày cấu hình ~bao nhiêu vs KPI/ngày.
+    kpi_day = baseline.get("kpi_day") or 0
+    if tot_day_budget:
+        bnote = f"💰 <b>Ngân sách/ngày sau tắt+scale: ~{vnd(tot_day_budget)} ₫</b>"
+        if kpi_day:
+            _over = tot_day_budget - kpi_day
+            _st = "VƯỢT" if _over > 0 else "trong ngưỡng"
+            bnote += f" vs KPI {vnd(kpi_day)} → <b>{_st} ({_over / kpi_day * 100:+.0f}%)</b>"
+        if tot_cbo_missing:
+            bnote += f" · chưa gồm {tot_cbo_missing} ad set CBO (ngân sách ở campaign)"
+        lines.append(bnote)
+    lines.append("ℹ️ TẮT chấm theo <b>từng Ad ID</b> (đã tắt = ad không còn chạy trên Meta). SCALE/GIẢM chấm theo ngân sách ad set. Ngân sách/ngày = tổng ngân sách ad set đang bật cuối ngày.")
     msg = "\n".join(lines)
 
     pct = round((tot_off_ok + tot_bud_ok) / (tot_off + tot_bud) * 100) if (tot_off + tot_bud) else 0
