@@ -137,6 +137,8 @@ def recommend(zone, lead, spend, cpl_mtd, thr, rules, min_leads, *, z7="", cpl=0
 
 def mult(rec):
     """Hệ số chiếu ngân sách/ngày từ đề xuất (run-rate × mult)."""
+    if rec.startswith("SCALE MẠNH"):        # ME/RE<60 & CPL tốt → +50% (kiểm 'MẠNH' TRƯỚC 'SCALE')
+        return 1.50
     if rec.startswith("SCALE"):
         return 1.20
     if rec.startswith("GIẢM mạnh"):
@@ -146,6 +148,59 @@ def mult(rec):
     if rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"):
         return 0.0
     return 1.0
+
+
+# ---- lớp ME/RE (chi ÷ doanh thu) cho TỪNG ad_id — thuần, test riêng ---------------------------
+# Spec chốt 2026-07-09 (PTE): content vẫn đánh giá tổng theo campaign; hành động theo ad_id.
+# ME/RE = spend(7d) ÷ revenue(7d), tính %. Chỉ áp khi ad ĐỦ CHÍN + ĐỦ MẪU, else trả None → dùng luật CPL/lead cũ.
+def mere_pct(spend7, revenue7):
+    """ME/RE (%) = chi 7 ngày ÷ doanh thu 7 ngày × 100. None nếu chưa có doanh thu (không chia 0)."""
+    if not revenue7 or revenue7 <= 0:
+        return None
+    return spend7 / revenue7 * 100.0
+
+
+def mere_applies(age, orders7, revenue7, *, min_age=4, min_orders=3):
+    """ME/RE chỉ đáng tin khi ad đã chín (tuổi ≥ min_age) VÀ đủ mẫu đơn (orders7 ≥ min_orders) VÀ có doanh thu.
+    Chưa đạt ⇒ False ⇒ engine quay về luật CPL/lead hiện hành (ad mới/ít đơn không bị chấm oan theo doanh thu)."""
+    return age is not None and age >= min_age and orders7 >= min_orders and (revenue7 or 0) > 0
+
+
+def mere_band(mere):
+    """Dải ME/RE: 'tot' <60 · 'giu' 60–80 · 'cat' ≥80. None ⇒ chưa chấm được."""
+    if mere is None:
+        return None
+    if mere < 60:
+        return "tot"
+    if mere < 80:
+        return "giu"
+    return "cat"
+
+
+def recommend_mere(cpl_zone, mere, *, hard_loss=100.0):
+    """Đề xuất theo ma trận ME/RE × vùng CPL (spec chốt) — ME/RE THẮNG khi mâu thuẫn với CPL.
+    Gọi CHỈ KHI mere_applies()==True (đã đủ chín/đủ đơn). cpl_zone từ classify() theo cửa sổ 3 ngày.
+    Trả tiền tố chuẩn cho mult()+bucket. hard_loss = trần lỗ (ME/RE ≥ ngưỡng này ⇒ cắt cứng bất kể CPL)."""
+    good_cpl = cpl_zone == "TỐT"
+    mid_cpl = cpl_zone == "TRUNG BÌNH"
+    # Trần lỗ: ME/RE ≥100% = chi > thu (đang lỗ trực tiếp) → tắt bất kể CPL (khuyến nghị, để mở qua hard_loss).
+    if mere >= hard_loss:
+        return "TẮT · ME/RE ≥100% (lỗ: chi > doanh thu)"
+    b = mere_band(mere)
+    if b == "tot":                                   # <60% — doanh thu hiệu quả tốt
+        if good_cpl:
+            return "SCALE MẠNH +50% · CPL tốt & ME/RE<60%"
+        if mid_cpl:
+            return "SCALE +20% · ME/RE<60% (CPL nhỉnh trên KPI)"
+        return "GIỮ · ME/RE<60% cứu dù CPL kém — theo dõi sát"   # YẾU/RẤT TỆ: có lãi → không tắt
+    if b == "giu":                                   # 60–80% — chấp nhận, KHÔNG scale
+        if good_cpl or mid_cpl:
+            return "GIỮ · ME/RE 60–80% (chưa scale)"
+        return "GIẢM 20% · ME/RE 60–80% + CPL kém"
+    # b == "cat": ME/RE ≥80% — cắt ngân sách; tắt hẳn hay chỉ giảm tùy CPL (tín hiệu phụ)
+    if good_cpl or mid_cpl:
+        return "GIẢM 20% · ME/RE ≥80% (doanh thu kém hiệu quả), không scale"
+    return "TẮT · ME/RE ≥80% & CPL kém"
 
 
 def decide_1_3_7(z1, z3, z7, lead3, spend3, spend7, order3, thr, rules, min_leads):

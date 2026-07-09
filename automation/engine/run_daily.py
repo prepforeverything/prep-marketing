@@ -115,6 +115,11 @@ def build_adid_message_per_ad(cfg, summary):
         return f"{x['cpl']:,}".replace(",", ".") if x.get("cpl") else ("0 lead" if not x.get("lead") else "—")
     def _own(x):
         return "camp CBO" if x.get("cbo") else "ad set"
+    def _mere(x):                            # nhãn ME/RE (chi÷doanh thu) — hiện khi ad có doanh thu; ⭐ nếu ME/RE quyết định
+        m = x.get("mere")
+        if m is None:
+            return ""
+        return f" · {'⭐' if x.get('mere_on') else ''}ME/RE {m}% ({x.get('orders7') or 0}đơn)"
     # gộp theo bucket qua các tài khoản
     buckets = {"tat": [], "xemxet": [], "scale": [], "giam": []}
     for acct, a in summary["accounts"].items():
@@ -131,7 +136,7 @@ def build_adid_message_per_ad(cfg, summary):
         L.append("\n<b>🔴 TẮT (bắt buộc — sẽ đối soát tuân thủ)</b>")
         for acct, k in tat:
             tag = " · trong content xấu" if k.get("content_off") else ""
-            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)} · {k['rec']}{tag}".rstrip())
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)}{_mere(k)} · {k['rec']}{tag}".rstrip())
             L.append(f"<code>{k['id']}</code>")
     # 2) SCALE — NV tự chọn mức (đối soát chỉ THEO DÕI mức chọn, không chấm đúng/sai)
     sc = sorted(buckets["scale"], key=lambda x: (x[1].get("cpl") or 0))
@@ -139,7 +144,7 @@ def build_adid_message_per_ad(cfg, summary):
         any_item = True
         L.append("\n<b>🟢 SCALE (NV chọn mức tăng — chỉnh ngân sách ad set/campaign)</b>")
         for acct, k in sc:
-            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)} · ngân sách ở {_own(k)}".rstrip())
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)}{_mere(k)} · {k['rec']} · ngân sách ở {_own(k)}".rstrip())
             L.append(f"<code>{k['id']}</code>")
     # 3) GIẢM / theo dõi
     gi = sorted(buckets["giam"], key=lambda x: -(x[1].get("cpl") or 0))
@@ -147,7 +152,7 @@ def build_adid_message_per_ad(cfg, summary):
         any_item = True
         L.append("\n<b>🟠 GIẢM / theo dõi</b>")
         for acct, k in gi:
-            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)} · {k['rec']}".rstrip())
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)}{_mere(k)} · {k['rec']}".rstrip())
             L.append(f"<code>{k['id']}</code>")
     # 4) GIỮ ad tốt trong content xấu — KHÔNG tắt (để NV không tắt nhầm)
     spares = [(acct, s) for acct, a in summary["accounts"].items() for s in (a.get("adid_spare") or [])]
