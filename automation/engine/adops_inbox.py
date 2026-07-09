@@ -87,12 +87,14 @@ for acct, a in cfg["accounts"].items():
     s3 = {norm(k): v for k, v in a.get("spend_by_code", {}).items()}
     s7 = {norm(k): v for k, v in a.get("spend_by_code_7d", {}).items()}
     s1 = {norm(k): v for k, v in a.get("spend_by_code_1d", {}).items()}
+    active = {norm(x) for x in (a.get("active_ad_ids") or [])}   # ad ĐANG chạy THẬT; vắng ⇒ không lọc (coi như còn chạy)
     for k in set(s3) | set(s7) | set(s1):
         m = meta.get(k, {}) or {}
         # gộp tầng theo ID (adset_id/camp_id) — TÊN adset/camp Thái đặt TRÙNG nhau giữa các camp, gộp theo tên là trộn sai tầng
         ads[k] = {"id": k, "acct": acct, "name": names.get(k, k),
                   "adset": m.get("adset") or "(nhóm chưa rõ)", "adset_id": m.get("adset_id") or (m.get("adset") or "(nhóm chưa rõ)"),
                   "camp": m.get("camp", ""), "camp_id": m.get("camp_id") or m.get("camp", ""),
+                  "active": (k in active) if active else True,
                   "s1": s1.get(k, 0), "s3": s3.get(k, 0), "s7": s7.get(k, 0),
                   "l1": 0, "l3": 0, "l7": 0, "q3": 0, "o3": 0}
 
@@ -281,7 +283,11 @@ if _summary_path:
         _k = _bucket(x["rec"])
         if not _k:
             continue
-        _ads = [a["id"] for a in sorted(x["ads"], key=lambda a: -a["s3"]) if a["s3"] > 0 and a["acct"] in ACCOUNT_IDS]
+        # Chỉ liệt kê ad ĐANG chạy (bỏ ad đã tắt sẵn còn chi trong cửa sổ). Nhóm đề xuất TẮT mà mọi ad đã tắt → bỏ hẳn.
+        _ads = [a["id"] for a in sorted(x["ads"], key=lambda a: -a["s3"])
+                if a["s3"] > 0 and a["acct"] in ACCOUNT_IDS and a.get("active", True)]
+        if _k in ("tat", "xemxet") and not _ads:
+            continue
         _items.append({"name": x["name"], "camp": x["camp"], "rec": x["rec"], "bucket": _k,
                        "spend": x["s3"], "lead": x["l3"], "cpl": x["cpl3"], "why": explain(x), "ads": _ads})
     _summary = {"mode": "inbox", "window": [WIN3[0], WIN3[-1]], "window7": [WIN7[0], WIN7[-1]], "window1": WIN1[0],
