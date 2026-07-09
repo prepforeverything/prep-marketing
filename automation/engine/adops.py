@@ -39,6 +39,9 @@ PER_AD_KILL = ADID_OVERLAY and bool((PCFG.get("report") or {}).get("per_ad_kill"
 # Bao hàm PER_AD_KILL (tắt theo ad id là một phần của "hành động theo ad id").
 PER_AD_ACTION = ADID_OVERLAY and bool((PCFG.get("report") or {}).get("per_ad_action"))
 PER_AD_KILL = PER_AD_KILL or PER_AD_ACTION
+# Đưa ME/RE (chi7d ÷ doanh thu7d, từ Prep BI qua build_meta) vào quyết định TỪNG ad_id. ME/RE THẮNG CPL khi
+# mâu thuẫn; chỉ áp khi ad đủ chín + đủ đơn (R.mere_applies), else lùi luật CPL/lead. Cần overlay ad_id.
+PER_AD_MERE = ADID_OVERLAY and bool((PCFG.get("report") or {}).get("per_ad_mere"))
 # Chế độ "tối ưu theo Ad ID": bảng 🔴 vi phạm / 🟡 theo dõi thêm cột chỉ số 7 ngày + cột trạng thái
 # (🟢 đang chạy / ⚪ đã tắt), KHÔNG lọc bỏ ad đã tắt (nêu kèm nhãn để đối chiếu), và ẨN mục "Chi tiết Ad set".
 # Tin Telegram + baseline EOD vẫn chỉ liệt kê ad ĐANG chạy (khỏi bảo tắt ad đã tắt). Mặc định tắt → SP khác giữ nguyên.
@@ -320,10 +323,18 @@ if ADID_OVERLAY:
             z3, cpl3 = classify(s3, ld["lead"])
             z7, cpl7v = classify(s7, ld["lead7"]) if HAS7 else ("", None)
             rec = recommend(z3, ld["lead"], s3, 0, z7=(z7 if HAS7 else ""), cpl=cpl3 or 0, ql=ld["ql"], age=ad.get("age"))
+            # Lớp ME/RE: doanh thu/đơn 7 ngày từ Prep BI (build_meta gắn vào overlay). Nếu đủ điều kiện chấm
+            # (ad ≥4 ngày + ≥3 đơn + có doanh thu) → ME/RE quyết định (thắng CPL). Chưa đủ → giữ rec theo CPL.
+            revenue7 = ad.get("revenue7"); orders7 = ad.get("orders7") or 0
+            mere = R.mere_pct(s7, revenue7) if PER_AD_MERE else None
+            mere_on = PER_AD_MERE and R.mere_applies(ad.get("age"), orders7, revenue7)
+            if mere_on:
+                rec = R.recommend_mere(z3, mere)
             row = {"id": ad["id"], "code": acode, "name": ad.get("name", ""),
                    "spend": s3, "lead": ld["lead"], "cpl": round(cpl3) if cpl3 else 0,
                    "spend7": s7, "lead7": ld["lead7"], "cpl7": round(cpl7v) if cpl7v else 0,
-                   "active": is_active,
+                   "active": is_active, "revenue7": revenue7 or 0, "orders7": orders7,
+                   "mere": round(mere) if mere is not None else None, "mere_on": mere_on,
                    "zone": z3, "zone7": z7, "age": ad.get("age"), "rec": rec,
                    "content_rec": cr, "content_off": content_off}
             if PER_AD_ACTION:
@@ -494,7 +505,8 @@ if _summary_path:
         def _adrow(k):
             return {"id": k["id"], "code": k["code"], "name": k["name"], "cpl": k["cpl"], "lead": k["lead"],
                     "zone": k["zone"], "zone7": k["zone7"], "age": k.get("age"), "rec": k["rec"],
-                    "content_rec": k["content_rec"]}
+                    "content_rec": k["content_rec"],
+                    "mere": k.get("mere"), "mere_on": k.get("mere_on"), "revenue7": k.get("revenue7"), "orders7": k.get("orders7")}
         # Tin Telegram chỉ liệt kê ad ĐANG chạy (adlevel_focus có thể kèm ad đã tắt trong bảng HTML để đối chiếu,
         # nhưng đừng bảo NV tắt ad đã tắt sẵn). SP khác: mọi row đều active nên không đổi.
         _kills = [_adrow(k) for k in adid_kill.get(_acct, []) if k.get("active", True)]
@@ -506,7 +518,8 @@ if _summary_path:
             return {"id": a["id"], "code": a["code"], "name": a["name"], "cpl": a["cpl"], "lead": a["lead"],
                     "zone": a["zone"], "zone7": a["zone7"], "age": a.get("age"), "rec": a["rec"],
                     "content_rec": a["content_rec"], "content_off": a.get("content_off"),
-                    "cbo": a.get("cbo"), "owner_kind": a.get("owner_kind"), "owner_budget": a.get("owner_budget")}
+                    "cbo": a.get("cbo"), "owner_kind": a.get("owner_kind"), "owner_budget": a.get("owner_budget"),
+                    "mere": a.get("mere"), "mere_on": a.get("mere_on"), "revenue7": a.get("revenue7"), "orders7": a.get("orders7")}
         _actions = {"scale": [], "giam": [], "tat": [], "xemxet": [], "hold": []}
         for a in adid_actions.get(_acct, []):
             _actions.setdefault(a["bucket"], []).append(_actrow(a))
