@@ -292,6 +292,9 @@ if ADID_OVERLAY:
         _camp_bud = {_s["campaign_id"]: _s.get("campaign_budget") or 0
                      for _s in cfg["accounts"][acct].get("adsets", [])
                      if _s.get("cbo") and _s.get("campaign_id") and _s.get("campaign_budget")}
+        # Ad ĐANG chạy THẬT (effective ACTIVE trên Meta). Ad đã tắt sẵn tuy còn chi trong cửa sổ 3 ngày
+        # KHÔNG đề xuất tắt lại (bug: NV đã off từ giữa kỳ mà báo cáo vẫn bắt tắt). Vắng danh sách ⇒ không lọc.
+        _active_ids = {norm(x) for x in (cfg["accounts"][acct].get("active_ad_ids") or [])}
         for ad in cfg["accounts"][acct].get("ads_overlay", []):
             s3 = ad.get("spend", 0); s7 = ad.get("spend7", 0)
             if ad.get("zero_gap") and s3 > 0:
@@ -300,6 +303,8 @@ if ADID_OVERLAY:
             if s3 <= 0:
                 continue
             aid = norm(ad["id"]); acode = norm(ad.get("code") or "")
+            if _active_ids and aid not in _active_ids:   # ad đã tắt sẵn (không còn ACTIVE) → không đề xuất/đối soát gì thêm
+                continue
             cr = code_rec.get(acode, "")
             content_off = _is_kill(cr)
             # Mặc định: content bị TẮT → mọi ad trong đó đã nằm ở danh sách tắt cấp content → bỏ qua.

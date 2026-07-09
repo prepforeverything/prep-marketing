@@ -329,6 +329,7 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
                         {"fields": "id,name,adset_id",
                          "filtering": json.dumps([{"field": "effective_status", "operator": "IN", "value": ["ACTIVE"]}]),
                          "limit": "500"})
+    active_ad_ids = {norm(ad["id"]) for ad in ads_active if ad.get("id")}   # ad ĐANG chạy THẬT (effective ACTIVE) — để không đề xuất tắt ad đã tắt sẵn
     adset_rows = {}
     ghost_ids = set()
     for ad in ads_active:
@@ -377,7 +378,7 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
 
     acc = {"acct_id": acct_id,
            "spend_by_code": dict(sorted(spend_by_code.items(), key=lambda kv: -kv[1])),
-           "names": names, "adsets": out_adsets}
+           "names": names, "adsets": out_adsets, "active_ad_ids": sorted(active_ad_ids)}
     if spend_by_code_7d is not None:
         acc["spend_by_code_7d"] = spend_by_code_7d
     if spend_by_code_1d is not None:
