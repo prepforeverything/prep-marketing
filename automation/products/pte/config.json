@@ -39,6 +39,9 @@
     "confirm_days": 7,
     "age_lookback_days": 30,
     "adid_overlay": true,
+    "per_ad_kill": true,
+    "per_ad_action": true,
+    "cbo_campaign_budget": true,
     "telegram_doc": "html"
   },
   "telegram": {

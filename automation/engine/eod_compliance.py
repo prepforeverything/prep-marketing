@@ -63,6 +63,20 @@ def per_code(meta_acct):
     return bud, ads
 
 
+def owner_budget_eve(macct):
+    """Ngân sách CUỐI NGÀY theo 'chủ sở hữu ngân sách': ABO → theo ad set id, CBO → theo campaign_id (dedupe).
+    Dùng để THEO DÕI mức scale — so với ngân sách sáng lưu trong scale_track. Owner vắng ⇒ không có key (đọc None)."""
+    out, seen_camp = {}, set()
+    for s in macct.get("adsets", []):
+        if s.get("cbo"):
+            cid, cb = s.get("campaign_id"), s.get("campaign_budget")
+            if cid and cb and cid not in seen_camp:
+                seen_camp.add(cid); out[cid] = cb
+        elif s.get("id"):
+            out[s["id"]] = s.get("budget") or 0
+    return out
+
+
 def assess(d, mb, eb, ea):
     """Trả ('ok'|'pending'|'wrong', nhãn ngắn). mb=ngân sách sáng, eb=chiều, ea=số ad chiều."""
     if d == "up":
@@ -120,10 +134,13 @@ def main():
         print("LỖI build_meta", file=sys.stderr); return 1
     meta = json.load(open(cfg.meta_json, encoding="utf-8"))
 
-    lines = [f"📋 <b>{cfg.display} — đối soát thực thi cuối ngày {target.strftime('%d/%m')}</b>",
-             "Đối soát theo <b>từng ADS ID</b> (sáng → chiều) với checklist sáng:", ""]
+    per_action = bool(baseline.get("per_ad_action"))   # PTE: TẮT = tuân thủ (bắt buộc); SCALE = chỉ THEO DÕI mức chọn
+    _sub = ("TẮT xác nhận tuân thủ theo <b>từng ADS ID</b>; SCALE chỉ <b>theo dõi</b> mức nhân sự chọn (không chấm đúng/sai):"
+            if per_action else "Đối soát theo <b>từng ADS ID</b> (sáng → chiều) với checklist sáng:")
+    lines = [f"📋 <b>{cfg.display} — đối soát thực thi cuối ngày {target.strftime('%d/%m')}</b>", _sub, ""]
     tot_off_ok = tot_off = 0      # TẮT — chấm theo từng Ad ID
-    tot_bud_ok = tot_bud = 0      # SCALE/GIẢM — chấm theo ngân sách ad set
+    tot_bud_ok = tot_bud = 0      # SCALE/GIẢM — chấm theo ngân sách ad set (chế độ cũ, không per_ad_action)
+    tot_sc_owner = tot_sc_up = tot_sc_delta = tot_sc_unread = 0   # SCALE theo dõi (per_ad_action)
     tot_day_budget = tot_cbo_missing = 0   # ngân sách/ngày cấu hình cuối ngày (sau tắt/scale)
     for acct, entry in baseline["accounts"].items():
         macct = meta.get("accounts", {}).get(acct)
@@ -132,6 +149,7 @@ def main():
             lines.append("")
             continue
         codes, kill_ads = (entry, []) if isinstance(entry, list) else (entry.get("codes", []), entry.get("kill_ads", []))
+        scale_track = [] if isinstance(entry, list) else entry.get("scale_track", [])
         active_ids = {a for s in macct.get("adsets", []) for a in s.get("ads", [])}  # ad ID còn CHẠY cuối ngày
         ebud, eads = per_code(macct)
         _bd, _cbo_miss = day_budget(macct); tot_day_budget += _bd; tot_cbo_missing += _cbo_miss
@@ -149,27 +167,64 @@ def main():
         else:
             lines.append("🔴 TẮT ad: sáng nay không có ad nào phải tắt")
 
-        # 2) SCALE/GIẢM — theo ad set (ngân sách); bỏ 'off' vì đã chấm theo ad ID ở trên
-        bud_ok, bud_pending, bud_wrong = [], [], []
-        for it in codes:
-            if it["dir"] not in ("up", "down"):
-                continue
-            verdict, label = assess(it["dir"], it["budget"], ebud.get(it["code"], 0), eads.get(it["code"], 0))
-            tag = f"{it['code']} ({label})"
-            (bud_ok if verdict == "ok" else bud_wrong if verdict == "wrong" else bud_pending).append(tag)
-        n_bud = len(bud_ok) + len(bud_pending) + len(bud_wrong)
-        tot_bud += n_bud; tot_bud_ok += len(bud_ok)
-        if n_bud:
-            lines.append(f"🟢🟠 Ngân sách ad set (SCALE/GIẢM): <b>{len(bud_ok)}/{n_bud} đúng hướng</b>")
-            if bud_ok: lines.append("   ✅ " + ", ".join(bud_ok))
-            if bud_pending: lines.append("   ⚠️ chưa làm: " + ", ".join(bud_pending))
-            if bud_wrong: lines.append("   ❌ ngược hướng: " + ", ".join(bud_wrong))
+        if per_action:
+            # 2) SCALE — chỉ THEO DÕI mức nhân sự chọn (KHÔNG chấm đúng/sai). Gộp theo chủ sở hữu ngân sách
+            #    (ABO=ad set, CBO=campaign); so ngân sách chủ sở hữu chiều vs sáng để xem có tăng & tăng bao nhiêu.
+            owner_eve = owner_budget_eve(macct)
+            owners = {}   # owner_id → {"morning","name","code"} (dedupe nhiều ad cùng chủ ngân sách)
+            unread = 0    # mục scale không đọc được ngân sách để theo dõi (thiếu owner_id, hoặc CBO thiếu ngân sách 2 đầu)
+            for t in scale_track:
+                oid = t.get("owner_id")
+                if oid is None:                        # thiếu id chủ sở hữu (vd CBO chưa đọc được campaign)
+                    unread += 1; continue
+                owners.setdefault(oid, {"morning": t.get("budget") or 0,
+                                        "name": t.get("name") or "", "code": t.get("code") or ""})
+            n_up = 0; up_lines = []; flat_lines = []
+            for oid, o in owners.items():
+                m = o["morning"]; e = owner_eve.get(oid)
+                tag = f"{o['code']} {o['name'][:18]}".rstrip()
+                if e is None and m == 0:               # không đọc được cả sáng lẫn chiều
+                    unread += 1; continue
+                e = e or 0
+                if m > 0 and e >= m * UP_T:
+                    n_up += 1; d = e - m; tot_sc_delta += d
+                    up_lines.append(f"{tag}: {vnd(m)}→{vnd(e)} (+{vnd(d)})")
+                else:
+                    flat_lines.append(f"{tag}: {vnd(m)}→{vnd(e)}")
+            n_track = n_up + len(flat_lines)           # số cụm THEO DÕI được (đọc được ngân sách 2 đầu)
+            tot_sc_owner += n_track; tot_sc_up += n_up; tot_sc_unread += unread
+            if n_track or unread:
+                lines.append(f"🟢 SCALE (theo dõi): <b>NV đã tăng {n_up}/{n_track} cụm được đề xuất</b>")
+                if up_lines: lines.append("   ↑ đã scale: " + "; ".join(up_lines))
+                if flat_lines: lines.append("   → chưa tăng: " + "; ".join(flat_lines))
+                if unread: lines.append(f"   ℹ️ {unread} mục scale không đọc được ngân sách để theo dõi (NV tự xác nhận)")
+        else:
+            # 2) SCALE/GIẢM — theo ad set (ngân sách); bỏ 'off' vì đã chấm theo ad ID ở trên
+            bud_ok, bud_pending, bud_wrong = [], [], []
+            for it in codes:
+                if it["dir"] not in ("up", "down"):
+                    continue
+                verdict, label = assess(it["dir"], it["budget"], ebud.get(it["code"], 0), eads.get(it["code"], 0))
+                tag = f"{it['code']} ({label})"
+                (bud_ok if verdict == "ok" else bud_wrong if verdict == "wrong" else bud_pending).append(tag)
+            n_bud = len(bud_ok) + len(bud_pending) + len(bud_wrong)
+            tot_bud += n_bud; tot_bud_ok += len(bud_ok)
+            if n_bud:
+                lines.append(f"🟢🟠 Ngân sách ad set (SCALE/GIẢM): <b>{len(bud_ok)}/{n_bud} đúng hướng</b>")
+                if bud_ok: lines.append("   ✅ " + ", ".join(bud_ok))
+                if bud_pending: lines.append("   ⚠️ chưa làm: " + ", ".join(bud_pending))
+                if bud_wrong: lines.append("   ❌ ngược hướng: " + ", ".join(bud_wrong))
         lines.append("")
 
     pct_off = round(tot_off_ok / tot_off * 100) if tot_off else None
-    head = f"📊 <b>TẮT (theo Ad ID): {tot_off_ok}/{tot_off}"
+    head = f"📊 <b>Tuân thủ TẮT (theo Ad ID): {tot_off_ok}/{tot_off}"
     head += f" = {pct_off}%</b>" if pct_off is not None else " ad</b>"
-    if tot_bud:
+    if per_action:
+        if tot_sc_owner or tot_sc_unread:
+            head += f" · SCALE (theo dõi): NV tăng {tot_sc_up}/{tot_sc_owner} cụm"
+            if tot_sc_delta:
+                head += f" (+{vnd(tot_sc_delta)} ₫/ngày)"
+    elif tot_bud:
         head += f" · Ngân sách ad set: {tot_bud_ok}/{tot_bud}"
     lines.append(head)
     # Note nhanh về ngân sách: sau tắt/scale, ngân sách/ngày cấu hình ~bao nhiêu vs KPI/ngày.
@@ -183,7 +238,11 @@ def main():
         if tot_cbo_missing:
             bnote += f" · chưa gồm {tot_cbo_missing} ad set CBO (ngân sách ở campaign)"
         lines.append(bnote)
-    lines.append("ℹ️ TẮT chấm theo <b>từng Ad ID</b> (đã tắt = ad không còn chạy trên Meta). SCALE/GIẢM chấm theo ngân sách ad set. Ngân sách/ngày = tổng ngân sách ad set đang bật cuối ngày.")
+    if per_action:
+        lines.append("ℹ️ TẮT chấm tuân thủ theo <b>từng Ad ID</b> (đã tắt = ad không còn chạy). SCALE chỉ <b>theo dõi</b> mức nhân sự chọn "
+                     "(so ngân sách ad set/campaign chiều vs sáng) — không chấm đúng/sai. Ngân sách/ngày = tổng ngân sách đang bật cuối ngày.")
+    else:
+        lines.append("ℹ️ TẮT chấm theo <b>từng Ad ID</b> (đã tắt = ad không còn chạy trên Meta). SCALE/GIẢM chấm theo ngân sách ad set. Ngân sách/ngày = tổng ngân sách ad set đang bật cuối ngày.")
     msg = "\n".join(lines)
 
     pct = round((tot_off_ok + tot_bud_ok) / (tot_off + tot_bud) * 100) if (tot_off + tot_bud) else 0

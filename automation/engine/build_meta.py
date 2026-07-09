@@ -306,8 +306,10 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
                 _src = "log" if (_log and (not _spend_start or _log >= _spend_start)) else "spend"
                 # Cờ ngày-lẻ-0-chi: chỉ khi tuổi theo spend (không có reset từ log) mà spend có lỗ trống trong phiên.
                 _gap = bool(_src == "spend" and has_zero_spend_gap(_dmap))
+                _asid, _cid = hier.get(_aid, ("", ""))       # ad → ad set / campaign THẬT (từ insights) để map chủ ngân sách
                 _entry = {"id": _aid, "code": _code, "name": names_ad.get(_aid, ""),
                           "spend": _sum_win(_dmap, window), "spend7": _sum_win(_dmap, window_7d),
+                          "adset_id": _asid or None, "campaign_id": _cid or None,
                           "reactivation": _react, "reactivation_src": _src}
                 if _gap:
                     _entry["zero_gap"] = True
@@ -327,6 +329,7 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
                         {"fields": "id,name,adset_id",
                          "filtering": json.dumps([{"field": "effective_status", "operator": "IN", "value": ["ACTIVE"]}]),
                          "limit": "500"})
+    active_ad_ids = {norm(ad["id"]) for ad in ads_active if ad.get("id")}   # ad ĐANG chạy THẬT (effective ACTIVE) — để không đề xuất tắt ad đã tắt sẵn
     adset_rows = {}
     ghost_ids = set()
     for ad in ads_active:
@@ -375,7 +378,7 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
 
     acc = {"acct_id": acct_id,
            "spend_by_code": dict(sorted(spend_by_code.items(), key=lambda kv: -kv[1])),
-           "names": names, "adsets": out_adsets}
+           "names": names, "adsets": out_adsets, "active_ad_ids": sorted(active_ad_ids)}
     if spend_by_code_7d is not None:
         acc["spend_by_code_7d"] = spend_by_code_7d
     if spend_by_code_1d is not None:
