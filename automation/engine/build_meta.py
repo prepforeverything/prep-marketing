@@ -306,8 +306,10 @@ def build_account(g, acct_id, primary_preset="last_3d", confirm_preset=None, rat
                 _src = "log" if (_log and (not _spend_start or _log >= _spend_start)) else "spend"
                 # Cờ ngày-lẻ-0-chi: chỉ khi tuổi theo spend (không có reset từ log) mà spend có lỗ trống trong phiên.
                 _gap = bool(_src == "spend" and has_zero_spend_gap(_dmap))
+                _asid, _cid = hier.get(_aid, ("", ""))       # ad → ad set / campaign THẬT (từ insights) để map chủ ngân sách
                 _entry = {"id": _aid, "code": _code, "name": names_ad.get(_aid, ""),
                           "spend": _sum_win(_dmap, window), "spend7": _sum_win(_dmap, window_7d),
+                          "adset_id": _asid or None, "campaign_id": _cid or None,
                           "reactivation": _react, "reactivation_src": _src}
                 if _gap:
                     _entry["zero_gap"] = True

@@ -63,6 +63,7 @@ def channel_tag(cfg):
 def build_caption(cfg, summary, doc_fmt="pdf"):
     w = summary["window"]
     per_ad = summary.get("per_ad_kill")            # PTE: TẮT quyết định theo TỪNG ad id, không tắt cả content
+    per_action = summary.get("per_ad_action")      # PTE: MỌI đề xuất (scale/giảm/tắt) bóc theo ad id
     L = [f"📊 <b>{cfg.display} ad-ops — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]}){channel_tag(cfg)}</b>", ""]
     for _w in summary.get("kpi_warn") or []:        # cảnh báo nếu KHÔNG đọc được KPI từ sheet (đừng âm thầm dùng số cũ)
         L.append(f"⚠️ <b>{_w}</b>")
@@ -70,6 +71,17 @@ def build_caption(cfg, summary, doc_fmt="pdf"):
         L.append("")
     for acct, a in summary["accounts"].items():
         L.append(f"• <b>{acct}</b> — chi {vnd(a['spend'])} · {a['lead']} lead · CPL {vnd(a['cpl'])}")
+        if per_action:
+            # Content đánh giá tổng theo campaign, nhưng ĐỀ XUẤT đếm theo TỪNG ad id (chi tiết ở tin Ad ID ⬇️).
+            act = a.get("adid_actions") or {}
+            n_sc, n_gi = len(act.get("scale") or []), len(act.get("giam") or [])
+            n_tat = len(act.get("tat") or []) + len(act.get("xemxet") or [])
+            n_sp = len(a.get("adid_spare") or [])
+            if n_tat: L.append(f"   🔴 TẮT {n_tat} ad (bắt buộc — theo Ad ID)")
+            if n_sc: L.append(f"   🟢 SCALE {n_sc} ad (NV chọn mức)")
+            if n_gi: L.append(f"   🟠 GIẢM/theo dõi {n_gi} ad")
+            if n_sp: L.append(f"   🟢 GIỮ {n_sp} ad tốt trong content xấu (không tắt)")
+            continue
         b = a["buckets"]
         if b["scale"]: L.append(f"   SCALE +20%: {', '.join(b['scale'])}")
         if b["giam"]: L.append(f"   GIẢM (YẾU): {', '.join(b['giam'])}")
@@ -83,7 +95,8 @@ def build_caption(cfg, summary, doc_fmt="pdf"):
         elif _k:
             L.append(f"   🔴 TẮT ad lẻ (content vẫn tốt): {len(_k)} ad — xem tin Ad ID ⬇️")
     bud = summary["budget"]
-    _any_scale = any(a["buckets"]["scale"] for a in summary["accounts"].values())
+    _any_scale = any(a["buckets"]["scale"] for a in summary["accounts"].values()) or \
+        any((a.get("adid_actions") or {}).get("scale") for a in summary["accounts"].values())
     if bud.get("kpi_day"):
         L.append(f"\n💰 Dự kiến ~{vnd(bud['proj_day'])}/ngày vs KPI {vnd(bud['kpi_day'])} → <b>{bud['kpi_status']} ({bud['kpi_pct']:+}%)</b>")
         if not _any_scale and bud.get("kpi_status") == "VƯỢT":
@@ -95,9 +108,68 @@ def build_caption(cfg, summary, doc_fmt="pdf"):
     return "\n".join(L)
 
 
+def build_adid_message_per_ad(cfg, summary):
+    """PER_AD_ACTION: MỌI đề xuất bóc theo TỪNG ad id (PTE). Content đánh giá tổng theo campaign, nhưng nhân sự
+    chỉ nhìn ad id để thao tác. TẮT = bắt buộc (đối soát tuân thủ); SCALE = NV chọn mức (đối soát chỉ theo dõi)."""
+    def _cpl(x):
+        return f"{x['cpl']:,}".replace(",", ".") if x.get("cpl") else ("0 lead" if not x.get("lead") else "—")
+    def _own(x):
+        return "camp CBO" if x.get("cbo") else "ad set"
+    # gộp theo bucket qua các tài khoản
+    buckets = {"tat": [], "xemxet": [], "scale": [], "giam": []}
+    for acct, a in summary["accounts"].items():
+        for k, items in (a.get("adid_actions") or {}).items():
+            if k in buckets:
+                buckets[k].extend((acct, it) for it in items)
+    L = [f"🎯 <b>{cfg.display} — Ad ID theo đề xuất (copy nhanh){channel_tag(cfg)}</b>",
+         "<i>Content đánh giá tổng theo campaign; thao tác thì theo TỪNG ad id dưới đây.</i>"]
+    any_item = False
+    # 1) TẮT — bắt buộc (đối soát cuối ngày sẽ xác nhận đã tắt)
+    tat = sorted(buckets["tat"] + buckets["xemxet"], key=lambda x: -(x[1].get("cpl") or 0))
+    if tat:
+        any_item = True
+        L.append("\n<b>🔴 TẮT (bắt buộc — sẽ đối soát tuân thủ)</b>")
+        for acct, k in tat:
+            tag = " · trong content xấu" if k.get("content_off") else ""
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)} · {k['rec']}{tag}".rstrip())
+            L.append(f"<code>{k['id']}</code>")
+    # 2) SCALE — NV tự chọn mức (đối soát chỉ THEO DÕI mức chọn, không chấm đúng/sai)
+    sc = sorted(buckets["scale"], key=lambda x: (x[1].get("cpl") or 0))
+    if sc:
+        any_item = True
+        L.append("\n<b>🟢 SCALE (NV chọn mức tăng — chỉnh ngân sách ad set/campaign)</b>")
+        for acct, k in sc:
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)} · ngân sách ở {_own(k)}".rstrip())
+            L.append(f"<code>{k['id']}</code>")
+    # 3) GIẢM / theo dõi
+    gi = sorted(buckets["giam"], key=lambda x: -(x[1].get("cpl") or 0))
+    if gi:
+        any_item = True
+        L.append("\n<b>🟠 GIẢM / theo dõi</b>")
+        for acct, k in gi:
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)} · {k['rec']}".rstrip())
+            L.append(f"<code>{k['id']}</code>")
+    # 4) GIỮ ad tốt trong content xấu — KHÔNG tắt (để NV không tắt nhầm)
+    spares = [(acct, s) for acct, a in summary["accounts"].items() for s in (a.get("adid_spare") or [])]
+    if spares:
+        any_item = True
+        L.append("\n<b>🟢 GIỮ (ad tốt trong content xấu — KHÔNG tắt)</b>")
+        for acct, s in sorted(spares, key=lambda x: (x[1].get("cpl") or 0)):
+            L.append(f"• [{acct}] {s['code']} {(s.get('name') or '')[:22]} · CPL {_cpl(s)} · {s['rec']}".rstrip())
+            L.append(f"<code>{s['id']}</code>")
+    L.append("\nℹ️ TẮT: tắt đúng ad id (bắt buộc). SCALE/GIẢM: chỉnh ngân sách ad set (hoặc campaign nếu CBO) chứa ad id — "
+             "NV tự chọn mức. Chỉ đề xuất — NV tự thao tác trên Meta.")
+    msg = "\n".join(L)
+    if len(msg) > 4000:                     # Telegram giới hạn 4096 — cắt ở ranh giới dòng
+        cut = msg[:3900]; msg = cut[:cut.rfind("\n")] + "\n… (dài quá — xem đủ trong file HTML)"
+    return msg if any_item else ""
+
+
 def build_adid_message(cfg, summary):
     """Danh sách Ad ID theo từng đề xuất — để NV copy thao tác trực tiếp. Rỗng nếu không có mục nào.
     Ad ID bọc trong <code> để Telegram cho tap-copy. Gửi như MỘT message (giới hạn 4096, dài hơn caption)."""
+    if summary.get("per_ad_action"):        # PTE: mọi đề xuất theo ad id
+        return build_adid_message_per_ad(cfg, summary)
     order = [("scale", "🟢 SCALE +20%"), ("giam", "🟠 GIẢM 20% (YẾU)"),
              ("tat", "🔴 TẮT (RẤT TỆ)"), ("xemxet", "🟠 XEM XÉT TẮT (0 lead, chi cao)")]
     by_bucket = {k: [] for k, _ in order}
