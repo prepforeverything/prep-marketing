@@ -49,9 +49,16 @@ def parse_date(s):
 def status(cfg, target, minrows=1):
     """Đếm lead của ngày `target` trong tab lead. Raise nếu không đọc được sheet."""
     ls = cfg["lead_sheet"]
-    url = (f"https://docs.google.com/spreadsheets/d/{ls['id']}/gviz/tq?tqx=out:csv"
-           f"&sheet={urllib.parse.quote(ls['phone_tab'])}")
-    rows = list(csv.reader(io.StringIO(fetch(url))))
+    rows = None
+    if ls.get("gid") is not None:   # ưu tiên export (tính công thức, vd cột mã IELTS 10); lỗi → gviz
+        try:
+            rows = list(csv.reader(io.StringIO(fetch(f"https://docs.google.com/spreadsheets/d/{ls['id']}/export?format=csv&gid={ls['gid']}"))))
+        except Exception:  # noqa: BLE001
+            rows = None
+    if rows is None:
+        url = (f"https://docs.google.com/spreadsheets/d/{ls['id']}/gviz/tq?tqx=out:csv"
+               f"&sheet={urllib.parse.quote(ls['phone_tab'])}")
+        rows = list(csv.reader(io.StringIO(fetch(url))))
     cd = ls["col_date"]
     if ls.get("join", "code") == "ad_id":     # IELTS Thái: dòng dùng được = có ad_id (không cần cột account)
         keycols = [ls["col_adid"]]
