@@ -60,7 +60,10 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add automation/products/toeic/state
             git commit -m "chore(adops): TOEIC đã gửi báo cáo $(date +%F) [skip ci]"
-            git push origin HEAD:main
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push origin HEAD:main && break
+              echo "push lần $i trượt (có commit mới trên main) — rebase & thử lại"; sleep 3
+            done
           else
             echo "Không gửi lần này (SKIP/alert) — không có cờ mới để commit."
           fi
