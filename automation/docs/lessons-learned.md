@@ -74,6 +74,23 @@ Mỗi run `checkout` main mới nhất → thấy cờ ngày đó → SKIP. `con
 **đừng dùng actions/cache làm "đã làm chưa"; dùng marker bền vững (git) hoặc DB.** Không để run-không-gửi
 ghi vào cờ.
 
+**6.2 Push cờ "đã gửi" bị REJECTED không retry → mất cờ → gửi 2 lần (IELTS Thái, 09/07/2026)** ⭐ —
+*Triệu chứng:* IELTS Thái gửi báo cáo 2 lần trong ngày (10:07 và ~13:52), cùng cửa sổ target `2026-07-08`.
+*Xác minh (gh run log):* run 10:07 (`28991182743`) `action: REPORT` → đã gửi, commit cờ `f0fd714`, nhưng
+`git push origin HEAD:main` trả **`! [rejected] HEAD -> main (fetch first)` / `Updates were rejected because
+the remote contains work that you do not have`** → run **failure**, **cờ không lên main**. Run ~13:52
+(`28999753234`) checkout main không thấy cờ → **gửi lại**. Run 14:09 (`29000557823`) đã thấy cờ → `SKIP`
+(dedup đúng). *Nguyên nhân gốc:* bước commit cờ chỉ `git push` **trần, không rebase/không retry**; các
+workflow ad-ops sản phẩm khác (TOEIC/PTE/VSTEP/IELTS VN) push cờ của chúng lên `main` gần cùng lúc → non-
+fast-forward → push của Thái bị từ chối và cờ **mất luôn** (không lần chạy nào cứu). `concurrency: group`
+serialize được 2 run *cùng sản phẩm* nhưng **không giúp gì** khi cờ đơn giản là không persist. *Fix* (commit
+`2cc64d1` + `bd7777a`, đã áp cho IELTS Thái + IELTS VN): vòng lặp `for i in 1 2 3; do git pull --rebase
+origin main && git push origin HEAD:main && break; sleep 3; done`. *Phòng ngừa:* **mọi** workflow ad-ops ghi
+cờ vào `main` **bắt buộc** có retry + `pull --rebase` (nhiều repo ghi chung 1 nhánh = luôn có nguy cơ non-
+fast-forward); khi thêm sản phẩm mới, copy nguyên bước "Lưu cờ" đã có retry, đừng viết lại `git push` trần.
+*Lưu ý triển khai:* bản vá landing gần trùng giờ cron chiều nên **ngày vá vẫn có thể dính** — kiểm lại
+`gh run list` ngày kế tiếp để chắc dedup đã sạch (run sau phải là `action: SKIP`).
+
 ## 7. macOS launchd (đã bỏ, nhưng lưu lại)
 - `launchctl load -w` không "arm" được `StartCalendarInterval` ổn định trên Sonoma → dùng `launchctl
   bootout` + `bootstrap gui/$UID`.
@@ -133,7 +150,8 @@ Publish. (Đã xảy ra với workflow EOD 27–28/6: chưa publish → đối s
 4. Telegram: nhóm/chat riêng → biến env `TELEGRAM_CHAT_ID_<SP>` + khai trong config.
 5. Chạy thử: `run_daily.py --product <sp> --dry-run` → đối chiếu spend khớp account total trước khi bật.
 6. Lịch: nhân thêm 1 n8n workflow (Schedule → HTTP dispatch) trỏ workflow GitHub của sản phẩm.
-7. Dedup + baseline + EOD dùng chung cơ chế (state/ trong git) — không cần code mới.
+7. Dedup + baseline + EOD dùng chung cơ chế (state/ trong git) — không cần code mới. **Bước "Lưu cờ đã gửi"
+   trong yml PHẢI có vòng retry + `git pull --rebase` (mục 6.2)** — copy nguyên bước đã có, đừng `git push` trần.
 
 ## 12. Chấm theo content-code che ad_id tệ + định nghĩa "ngày tuổi" (01/07/2026) ⭐
 - **Triệu chứng:** ad_id CPL 3 ngày 1,4–2,3tr nhưng KHÔNG bị đề xuất tắt, thậm chí nằm trong content được SCALE.
