@@ -43,6 +43,7 @@
     "confirm_days": 7,
     "age_lookback_days": 30,
     "adid_overlay": true,
+    "adlevel_focus": true,
     "telegram_doc": "html"
   },
   "telegram": {

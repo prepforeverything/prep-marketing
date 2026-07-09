@@ -39,6 +39,10 @@ PER_AD_KILL = ADID_OVERLAY and bool((PCFG.get("report") or {}).get("per_ad_kill"
 # Bao hàm PER_AD_KILL (tắt theo ad id là một phần của "hành động theo ad id").
 PER_AD_ACTION = ADID_OVERLAY and bool((PCFG.get("report") or {}).get("per_ad_action"))
 PER_AD_KILL = PER_AD_KILL or PER_AD_ACTION
+# Chế độ "tối ưu theo Ad ID": bảng 🔴 vi phạm / 🟡 theo dõi thêm cột chỉ số 7 ngày + cột trạng thái
+# (🟢 đang chạy / ⚪ đã tắt), KHÔNG lọc bỏ ad đã tắt (nêu kèm nhãn để đối chiếu), và ẨN mục "Chi tiết Ad set".
+# Tin Telegram + baseline EOD vẫn chỉ liệt kê ad ĐANG chạy (khỏi bảo tắt ad đã tắt). Mặc định tắt → SP khác giữ nguyên.
+ADLEVEL_FOCUS = ADID_OVERLAY and bool((PCFG.get("report") or {}).get("adlevel_focus"))
 ACCOUNTS = PCFG["meta"]["accounts"]     # tên tài khoản (khớp cột Account qua R.match_account — chặn tiền tố số)
 MIN_LEADS = PCFG.get("min_leads", 3)
 RULES = PCFG.get("rules", {}) or {}     # luật tùy chọn theo sản phẩm (0-lead 2 ngưỡng, CR…)
@@ -303,7 +307,8 @@ if ADID_OVERLAY:
             if s3 <= 0:
                 continue
             aid = norm(ad["id"]); acode = norm(ad.get("code") or "")
-            if _active_ids and aid not in _active_ids:   # ad đã tắt sẵn (không còn ACTIVE) → không đề xuất/đối soát gì thêm
+            is_active = (not _active_ids) or (aid in _active_ids)   # còn ACTIVE trên Meta lúc dựng báo cáo?
+            if not is_active and not ADLEVEL_FOCUS:   # ad đã tắt sẵn → bỏ (trừ chế độ adlevel_focus: vẫn nêu kèm nhãn ⚪ đã tắt)
                 continue
             cr = code_rec.get(acode, "")
             content_off = _is_kill(cr)
@@ -313,10 +318,12 @@ if ADID_OVERLAY:
                 continue
             ld = leads_ad[acct].get(aid, {"lead": 0, "ql": 0, "lead7": 0, "ql7": 0})
             z3, cpl3 = classify(s3, ld["lead"])
-            z7, _ = classify(s7, ld["lead7"]) if HAS7 else ("", None)
+            z7, cpl7v = classify(s7, ld["lead7"]) if HAS7 else ("", None)
             rec = recommend(z3, ld["lead"], s3, 0, z7=(z7 if HAS7 else ""), cpl=cpl3 or 0, ql=ld["ql"], age=ad.get("age"))
             row = {"id": ad["id"], "code": acode, "name": ad.get("name", ""),
                    "spend": s3, "lead": ld["lead"], "cpl": round(cpl3) if cpl3 else 0,
+                   "spend7": s7, "lead7": ld["lead7"], "cpl7": round(cpl7v) if cpl7v else 0,
+                   "active": is_active,
                    "zone": z3, "zone7": z7, "age": ad.get("age"), "rec": rec,
                    "content_rec": cr, "content_off": content_off}
             if PER_AD_ACTION:
@@ -488,8 +495,10 @@ if _summary_path:
             return {"id": k["id"], "code": k["code"], "name": k["name"], "cpl": k["cpl"], "lead": k["lead"],
                     "zone": k["zone"], "zone7": k["zone7"], "age": k.get("age"), "rec": k["rec"],
                     "content_rec": k["content_rec"]}
-        _kills = [_adrow(k) for k in adid_kill.get(_acct, [])]
-        _warns = [_adrow(k) for k in adid_warn.get(_acct, [])]
+        # Tin Telegram chỉ liệt kê ad ĐANG chạy (adlevel_focus có thể kèm ad đã tắt trong bảng HTML để đối chiếu,
+        # nhưng đừng bảo NV tắt ad đã tắt sẵn). SP khác: mọi row đều active nên không đổi.
+        _kills = [_adrow(k) for k in adid_kill.get(_acct, []) if k.get("active", True)]
+        _warns = [_adrow(k) for k in adid_warn.get(_acct, []) if k.get("active", True)]
         _spares = [_adrow(k) for k in adid_spare.get(_acct, [])]
         # PER_AD_ACTION: danh sách hành động theo TỪNG ad id, gộp theo bucket (scale/giam/tat/xemxet/hold).
         # Đây là nguồn cho tin "Ad ID theo đề xuất" — nhân sự chỉ nhìn ad id để thao tác.
@@ -537,7 +546,7 @@ if _baseline_path:
             _off_codes -= per_ad_evaluated.get(_acct, set())
         _seen = set(); _kill_ads = []
         for _k in (adid_kill.get(_acct, []) if ADID_OVERLAY else []):
-            if _k["id"] not in _seen:
+            if _k["id"] not in _seen and _k.get("active", True):   # đối soát EOD chỉ tính ad còn chạy sáng nay
                 _seen.add(_k["id"])
                 _src = "ad tệ" if _k.get("content_off") else "ad lẻ"
                 _kill_ads.append({"id": _k["id"], "code": _k["code"], "name": (_k.get("name") or "")[:30], "rec": _k["rec"], "src": _src})
@@ -770,7 +779,26 @@ def adset_section(acct):
     n60 = f'<div class="note">{info["note_60226"]}</div>' if info.get("note_60226") else ""
     nt = f'<div class="note warn">{info["note"]}</div>' if info.get("note") else ""
     return f'<h3 class="h3">Prep {acct}</h3><div class="scroll"><table><thead><tr><th>Content</th><th>Đề xuất</th><th>Ad set (ngân sách/ngày) · Ad ID</th></tr></thead><tbody>{rh}</tbody></table></div>{gn}{n60}{nt}'
-addetail = '<h2><span class="bar"></span>Chi tiết Ad set / Ad ID để thao tác</h2>' + "".join(adset_section(a) for a in cfg["accounts"])
+addetail = '' if ADLEVEL_FOCUS else ('<h2><span class="bar"></span>Chi tiết Ad set / Ad ID để thao tác</h2>' + "".join(adset_section(a) for a in cfg["accounts"]))
+
+# adlevel_focus: cột chỉ số 7 ngày + cột trạng thái cho bảng ad lẻ (rỗng nếu tắt chế độ → SP khác giữ nguyên).
+def _ad7_head():
+    return '<th class="num">Chi 7d</th><th class="num">Lead 7d</th><th class="num">CPL 7d</th>' if ADLEVEL_FOCUS else ''
+def _ad7_cells(k):
+    if not ADLEVEL_FOCUS:
+        return ''
+    c7 = f'{vnd(k["cpl7"])} ₫' if k.get("cpl7") else ("0 lead" if k.get("spend7") else "—")
+    return f'<td class="num">{vnd(k.get("spend7", 0))}</td><td class="num">{k.get("lead7", 0)}</td><td class="num">{c7}</td>'
+def _adstatus_head():
+    return '<th>Trạng thái</th>' if ADLEVEL_FOCUS else ''
+def _adstatus_cell(k):
+    if not ADLEVEL_FOCUS:
+        return ''
+    return '<td>🟢 Đang chạy</td>' if k.get("active", True) else '<td>⚪ Đã tắt</td>'
+# Nhãn cột 3 ngày: chỉ đổi rõ "3d" khi có thêm cột 7d (adlevel_focus) → SP khác giữ nguyên "Lead"/"CPL/ad".
+_L3 = "Lead 3d" if ADLEVEL_FOCUS else "Lead"
+_C3 = "CPL 3d" if ADLEVEL_FOCUS else "CPL/ad"
+
 
 # Ad lẻ vi phạm quy tắc (R3×R7) nằm trong content vẫn tốt → tắt riêng ad này.
 adkill = ""
@@ -781,7 +809,7 @@ if ADID_OVERLAY and any(adid_kill.values()):
             cpl = f'{vnd(k["cpl"])} ₫' if k["cpl"] else ("0 lead" if k["spend"] else "—")
             ag = f'{k["age"]}d' if k.get("age") is not None else "—"
             _kr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
-                    f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
+                    f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>{_ad7_cells(k)}{_adstatus_cell(k)}'
                     f'<td><span class="badge act-off">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k)}</td></tr>')
     _kill_head = ("🔴 TẮT theo từng Ad ID — chỉ tắt ad tệ" if PER_AD_KILL
                   else "🔴 Ad lẻ vi phạm — tắt riêng ad này (content vẫn tốt)")
@@ -793,7 +821,7 @@ if ADID_OVERLAY and any(adid_kill.values()):
     adkill = (f'<h2><span class="bar"></span>{_kill_head}</h2>'
               f'<div class="note warn">{_kill_note}</div>'
               f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>Tuổi</th><th class="num">Chi 3d</th>'
-              f'<th class="num">Lead</th><th class="num">CPL/ad</th><th>Đề xuất</th></tr></thead><tbody>{_kr}</tbody></table></div>')
+              f'<th class="num">{_L3}</th><th class="num">{_C3}</th>{_ad7_head()}{_adstatus_head()}<th>Đề xuất</th></tr></thead><tbody>{_kr}</tbody></table></div>')
 
 # Ad lẻ mức GIẢM/theo dõi (chưa tới ngưỡng tắt) mà content tổng vẫn tốt — nêu để soi sớm, ví dụ 3d tụt nhưng 7d còn tốt.
 adwarn = ""
@@ -805,14 +833,14 @@ if ADID_OVERLAY and any(adid_warn.values()):
             ag = f'{k["age"]}d' if k.get("age") is not None else "—"
             z = f'{k["zone"]}/{k["zone7"]}' if HAS7 else k["zone"]
             _wr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
-                    f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
-                    f'<td><span class="pct">{z}</span></td>'
+                    f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>{_ad7_cells(k)}'
+                    f'<td><span class="pct">{z}</span></td>{_adstatus_cell(k)}'
                     f'<td><span class="badge act-warn">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k)}</td></tr>')
     adwarn = (f'<h2><span class="bar"></span>🟡 Ad lẻ cần theo dõi — giảm/theo dõi (content vẫn tốt)</h2>'
               f'<div class="note">Chưa tới ngưỡng tắt nhưng <b>từng Ad ID</b> đang yếu (vd 3 ngày tụt nhưng 7 ngày còn tốt) '
               f'trong khi content tổng vẫn GIỮ/SCALE → giảm ~20% &amp; theo dõi sát, chưa tắt.</div>'
               f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>Tuổi</th><th class="num">Chi 3d</th>'
-              f'<th class="num">Lead</th><th class="num">CPL/ad</th><th>Vùng 3d/7d</th><th>Đề xuất</th></tr></thead><tbody>{_wr}</tbody></table></div>')
+              f'<th class="num">{_L3}</th><th class="num">{_C3}</th>{_ad7_head()}<th>Vùng 3d/7d</th>{_adstatus_head()}<th>Đề xuất</th></tr></thead><tbody>{_wr}</tbody></table></div>')
 
 # PER_AD_KILL: ad TỐT/GIỮ nằm trong content bị đánh giá xấu → KHÔNG tắt, để chạy tiếp (giữ ad tốt trong content tệ).
 adspare = ""
