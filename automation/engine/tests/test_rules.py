@@ -198,6 +198,31 @@ eq(R.recommend_mere("TỐT", 85)[:8], "GIẢM 20%", "CPL tốt + ME/RE≥80 → 
 eq(R.recommend_mere("YẾU", 85)[:5], "TẮT ·", "CPL yếu + ME/RE≥80 → tắt")
 eq(R.recommend_mere("RẤT TỆ", 85)[:5], "TẮT ·", "CPL rất tệ + ME/RE≥80 → tắt")
 eq(R.recommend_mere("TỐT", 120)[:5], "TẮT ·", "ME/RE ≥100% (lỗ) → tắt bất kể CPL tốt")
+# recommend_mere theo VÙNG CPL 7 NGÀY (khung 7d dùng zone7c) — cùng ma trận, chỉ khác nguồn zone
+eq(R.recommend_mere("TỐT", 45)[:10], "SCALE MẠNH", "7d: CPL7 tốt + ME/RE<60 → scale mạnh")
+eq(R.recommend_mere("RẤT TỆ", 45)[:5], "GIỮ ·", "7d: CPL7 rất tệ + ME/RE<60 → giữ (ME/RE cứu)")
+
+# ---- merge_final: gộp 3d CPL × 7d ME/RE (ME/RE thắng khi đủ gate) ----------------------------
+# ME/RE thắng: đủ gate (mere_on) → final = mere_rec bất kể cpl3_rec
+_f, _sp = R.merge_final("SCALE +20%", "GIẢM 20% · ME/RE ≥80%", 85, True)
+eq(_f[:8], "GIẢM 20%", "merge: ME/RE thắng CPL 3 ngày khi đủ gate")
+eq(_sp, False, "merge: không special (3d không đòi tắt)")
+# chưa đủ gate → theo CPL 3 ngày
+_f, _sp = R.merge_final("SCALE +20%", None, None, False)
+eq(_f, "SCALE +20%", "merge: chưa đủ gate → theo CPL 3 ngày")
+eq(_sp, False, "merge: chưa gate → không special")
+# special_keep: 3 ngày đòi TẮT + ME/RE đủ gate & <60 → GIỮ (ME/RE cứu), cờ đặc biệt bật
+_f, _sp = R.merge_final("TẮT · Phiên 1", "GIỮ · ME/RE<60% cứu dù CPL kém", 42, True)
+eq(_sp, True, "special_keep: 3d TẮT + mere<60 & đủ gate → cứu")
+eq(_f[:5], "GIỮ ·", "special_keep: final = giữ theo ME/RE, không tắt")
+# 3 ngày đòi tắt nhưng ME/RE ≥60 (không cứu) → không special (ME/RE vẫn thắng nếu đủ gate)
+_f, _sp = R.merge_final("XEM XÉT TẮT · 0 lead", "GIẢM 20% · ME/RE 60–80% + CPL kém", 72, True)
+eq(_sp, False, "không special: ME/RE 72% ≥60 → không cứu (không nằm ngoài lệnh tắt EOD)")
+# 3d TẮT nhưng ME/RE chưa đủ gate → final vẫn TẮT theo CPL 3 ngày, không special
+_f, _sp = R.merge_final("TẮT · Phiên 1", None, None, False)
+eq(_f[:5], "TẮT ·", "3d TẮT + chưa gate → final TẮT theo CPL")
+eq(_sp, False, "3d TẮT chưa gate → không special")
+
 # mult: SCALE MẠNH = 1.5 (kiểm tra không bị 'SCALE' nuốt)
 eq(R.mult("SCALE MẠNH +50% · x"), 1.50, "mult SCALE MẠNH = 1.5")
 eq(R.mult("SCALE +20%"), 1.20, "mult SCALE thường = 1.2")

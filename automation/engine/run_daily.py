@@ -170,10 +170,56 @@ def build_adid_message_per_ad(cfg, summary):
     return msg if any_item else ""
 
 
+def build_adid_message_checklist(cfg, summary):
+    """PER_AD_MERE (PTE): tin Ad ID = CHECKLIST tổng hợp (adid_final). Gộp khung 3 ngày (CPL) + 7 ngày (ME/RE),
+    ME/RE thắng khi đủ gate. Nhóm theo bucket của final_rec; mục ⚠️ ĐẶC BIỆT (special_keep) nêu riêng ở đầu.
+    Mỗi ad kèm '· ME/RE {mere}% ({orders7}đơn)' khi có doanh thu. Cắt < 4096 ký tự ở ranh giới dòng."""
+    def _sfx(f):
+        return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn)" if f.get("mere") is not None else ""
+    finals = [(acct, f) for acct, a in summary["accounts"].items() for f in (a.get("adid_final") or [])]
+    L = [f"🎯 <b>{cfg.display} — Checklist tổng hợp theo Ad ID (3 ngày CPL × 7 ngày ME/RE){channel_tag(cfg)}</b>",
+         "<i>ME/RE thắng khi ad đủ chín &amp; đủ đơn; else theo CPL 3 ngày. Thao tác theo TỪNG ad id.</i>"]
+    any_item = False
+    # 1) ⚠️ ĐẶC BIỆT — special_keep (3 ngày đòi tắt nhưng ME/RE 7 ngày tốt → GIỮ, để người quyết)
+    sp = [(acct, f) for acct, f in finals if f.get("special_keep")]
+    if sp:
+        any_item = True
+        L.append("\n<b>⚠️ ĐẶC BIỆT — cân nhắc, ĐỪNG tắt vội (ME/RE 7 ngày cứu ad mà 3 ngày đòi tắt)</b>")
+        for acct, f in sorted(sp, key=lambda x: (x[1].get("mere") or 0)):
+            L.append(f"• [{acct}] {f['code']} {(f.get('name') or '')[:22]} · 3 ngày đòi tắt nhưng ME/RE 7 ngày tốt "
+                     f"(lời {f.get('mere')}%, {f.get('orders7') or 0}đơn)".rstrip())
+            L.append(f"<code>{f['id']}</code>")
+    # 2) Nhóm theo bucket của final_rec
+    order = [("tat", "🔴 TẮT"), ("xemxet", "🔴 XEM XÉT TẮT"), ("giam", "🟠 GIẢM"),
+             ("scale", "🟢 SCALE"), ("hold", "⚪ GIỮ · theo dõi")]
+    by_bucket = {k: [] for k, _ in order}
+    for acct, f in finals:
+        if f.get("special_keep"):
+            continue                                        # đã nêu ở mục ĐẶC BIỆT
+        by_bucket.setdefault(f["bucket"], []).append((acct, f))
+    for k, label in order:
+        items = by_bucket.get(k) or []
+        if not items:
+            continue
+        any_item = True
+        L.append(f"\n<b>{label} — {len(items)} ad</b>")
+        for acct, f in items:
+            L.append(f"• [{acct}] {f['code']} {(f.get('name') or '')[:22]} · {f['final_rec']}{_sfx(f)}".rstrip())
+            L.append(f"<code>{f['id']}</code>")
+    L.append("\nℹ️ Đây là quyết định cuối. TẮT: tắt ad id (bắt buộc). SCALE/GIẢM: chỉnh ngân sách ad set/campaign. "
+             "⚠️ ĐẶC BIỆT: người phụ trách tự quyết. Chỉ đề xuất — NV tự thao tác trên Meta.")
+    msg = "\n".join(L)
+    if len(msg) > 4000:                     # Telegram giới hạn 4096 — cắt ở ranh giới dòng
+        cut = msg[:3900]; msg = cut[:cut.rfind("\n")] + "\n… (dài quá — xem đủ trong file HTML)"
+    return msg if any_item else ""
+
+
 def build_adid_message(cfg, summary):
     """Danh sách Ad ID theo từng đề xuất — để NV copy thao tác trực tiếp. Rỗng nếu không có mục nào.
     Ad ID bọc trong <code> để Telegram cho tap-copy. Gửi như MỘT message (giới hạn 4096, dài hơn caption)."""
-    if summary.get("per_ad_action"):        # PTE: mọi đề xuất theo ad id
+    if summary.get("per_ad_mere"):          # PTE: tin Ad ID = CHECKLIST tổng hợp (3d CPL × 7d ME/RE, ME/RE thắng)
+        return build_adid_message_checklist(cfg, summary)
+    if summary.get("per_ad_action"):        # PTE (không ME/RE): mọi đề xuất theo ad id
         return build_adid_message_per_ad(cfg, summary)
     order = [("scale", "🟢 SCALE +20%"), ("giam", "🟠 GIẢM 20% (YẾU)"),
              ("tat", "🔴 TẮT (RẤT TỆ)"), ("xemxet", "🟠 XEM XÉT TẮT (0 lead, chi cao)")]
