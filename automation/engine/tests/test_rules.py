@@ -176,4 +176,55 @@ _TO = {"TOEIC 3": "x", "TOEIC 5": "y"}
 eq(R.match_account("Facebook/TOEIC 3 - Inbox", _TO), "TOEIC 3", "TOEIC 3 nhúng giữa chuỗi vẫn khớp")
 eq(R.match_account("TOEIC 5", _TO), "TOEIC 5", "TOEIC khớp chính xác")
 
+# ---- lớp ME/RE (chi ÷ doanh thu) per ad_id — spec PTE 2026-07-09 ------------------------------
+eq(R.mere_pct(600_000, 1_200_000), 50.0, "ME/RE = 50%")
+eq(R.mere_pct(1_000_000, 0), None, "0 doanh thu → None (không chia 0)")
+eq(R.mere_band(59.9), "tot", "band <60")
+eq(R.mere_band(70), "giu", "band 60–80")
+eq(R.mere_band(80), "cat", "band ≥80")
+# gate: đủ chín (≥4 ngày) + đủ đơn (≥3) + có doanh thu
+eq(R.mere_applies(6, 3, 5_000_000), True, "áp: 6 ngày, 3 đơn")
+eq(R.mere_applies(3, 9, 5_000_000), False, "chưa áp: ad <4 ngày (chấm theo lead)")
+eq(R.mere_applies(9, 2, 5_000_000), False, "chưa áp: <3 đơn")
+eq(R.mere_applies(9, 5, 0), False, "chưa áp: chưa có doanh thu")
+# ma trận ME/RE × CPL (ME/RE thắng)
+eq(R.recommend_mere("TỐT", 40), "SCALE MẠNH +50% · CPL tốt & ME/RE<60%", "CPL tốt + ME/RE<60 → scale mạnh")
+eq(R.recommend_mere("TRUNG BÌNH", 40)[:9], "SCALE +20", "CPL TB + ME/RE<60 → scale nhẹ")
+eq(R.recommend_mere("YẾU", 40)[:5], "GIỮ ·", "CPL yếu + ME/RE<60 → giữ (ME/RE cứu)")
+eq(R.recommend_mere("RẤT TỆ", 40)[:5], "GIỮ ·", "CPL rất tệ + ME/RE<60 → giữ, không tắt")
+eq(R.recommend_mere("TỐT", 70)[:5], "GIỮ ·", "CPL tốt + ME/RE 60–80 → giữ, không scale")
+eq(R.recommend_mere("YẾU", 70)[:8], "GIẢM 20%", "CPL yếu + ME/RE 60–80 → giảm")
+eq(R.recommend_mere("TỐT", 85)[:8], "GIẢM 20%", "CPL tốt + ME/RE≥80 → giảm (không tắt vì lead rẻ)")
+eq(R.recommend_mere("YẾU", 85)[:5], "TẮT ·", "CPL yếu + ME/RE≥80 → tắt")
+eq(R.recommend_mere("RẤT TỆ", 85)[:5], "TẮT ·", "CPL rất tệ + ME/RE≥80 → tắt")
+eq(R.recommend_mere("TỐT", 120)[:5], "TẮT ·", "ME/RE ≥100% (lỗ) → tắt bất kể CPL tốt")
+# recommend_mere theo VÙNG CPL 7 NGÀY (khung 7d dùng zone7c) — cùng ma trận, chỉ khác nguồn zone
+eq(R.recommend_mere("TỐT", 45)[:10], "SCALE MẠNH", "7d: CPL7 tốt + ME/RE<60 → scale mạnh")
+eq(R.recommend_mere("RẤT TỆ", 45)[:5], "GIỮ ·", "7d: CPL7 rất tệ + ME/RE<60 → giữ (ME/RE cứu)")
+
+# ---- merge_final: gộp 3d CPL × 7d ME/RE (ME/RE thắng khi đủ gate) ----------------------------
+# ME/RE thắng: đủ gate (mere_on) → final = mere_rec bất kể cpl3_rec
+_f, _sp = R.merge_final("SCALE +20%", "GIẢM 20% · ME/RE ≥80%", 85, True)
+eq(_f[:8], "GIẢM 20%", "merge: ME/RE thắng CPL 3 ngày khi đủ gate")
+eq(_sp, False, "merge: không special (3d không đòi tắt)")
+# chưa đủ gate → theo CPL 3 ngày
+_f, _sp = R.merge_final("SCALE +20%", None, None, False)
+eq(_f, "SCALE +20%", "merge: chưa đủ gate → theo CPL 3 ngày")
+eq(_sp, False, "merge: chưa gate → không special")
+# special_keep: 3 ngày đòi TẮT + ME/RE đủ gate & <60 → GIỮ (ME/RE cứu), cờ đặc biệt bật
+_f, _sp = R.merge_final("TẮT · Phiên 1", "GIỮ · ME/RE<60% cứu dù CPL kém", 42, True)
+eq(_sp, True, "special_keep: 3d TẮT + mere<60 & đủ gate → cứu")
+eq(_f[:5], "GIỮ ·", "special_keep: final = giữ theo ME/RE, không tắt")
+# 3 ngày đòi tắt nhưng ME/RE ≥60 (không cứu) → không special (ME/RE vẫn thắng nếu đủ gate)
+_f, _sp = R.merge_final("XEM XÉT TẮT · 0 lead", "GIẢM 20% · ME/RE 60–80% + CPL kém", 72, True)
+eq(_sp, False, "không special: ME/RE 72% ≥60 → không cứu (không nằm ngoài lệnh tắt EOD)")
+# 3d TẮT nhưng ME/RE chưa đủ gate → final vẫn TẮT theo CPL 3 ngày, không special
+_f, _sp = R.merge_final("TẮT · Phiên 1", None, None, False)
+eq(_f[:5], "TẮT ·", "3d TẮT + chưa gate → final TẮT theo CPL")
+eq(_sp, False, "3d TẮT chưa gate → không special")
+
+# mult: SCALE MẠNH = 1.5 (kiểm tra không bị 'SCALE' nuốt)
+eq(R.mult("SCALE MẠNH +50% · x"), 1.50, "mult SCALE MẠNH = 1.5")
+eq(R.mult("SCALE +20%"), 1.20, "mult SCALE thường = 1.2")
+
 print(f"OK — {n} assertions passed")

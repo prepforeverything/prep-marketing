@@ -42,6 +42,8 @@
     "per_ad_kill": true,
     "per_ad_action": true,
     "cbo_campaign_budget": true,
+    "per_ad_mere": true,
+    "bi_product": 10,
     "telegram_doc": "html"
   },
   "telegram": {

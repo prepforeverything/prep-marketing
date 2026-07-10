@@ -429,6 +429,9 @@ def main():
     age_preset = f"last_{_ald}d" if _ald else None
     adid_overlay = bool(rep.get("adid_overlay"))  # lớp phủ chấm quy tắc theo TỪNG ad_id (opt-in/sản phẩm)
     cbo_budget = bool(rep.get("cbo_campaign_budget"))     # lấy ngân sách CBO cấp campaign (opt-in/sản phẩm)
+    per_ad_mere = bool(rep.get("per_ad_mere"))            # nạp doanh thu/đơn theo ad_id (ME/RE) từ Prep BI (opt-in)
+    bi_product = rep.get("bi_product")                    # product key trên Prep BI (PTE → 10 PrepTalk English)
+    bi_market = rep.get("bi_market")                      # (tuỳ chọn) market key BI để thu hẹp phạm vi đơn
     join = (cfg.get("lead_sheet") or {}).get("join", "code")  # 'code' (TOEIC) | 'ad_id' (IELTS Thái)
     objectives = cfg["meta"].get("objectives")            # vd ["OUTCOME_ENGAGEMENT","OUTCOME_LEADS"] (lọc theo objective)
     name_include = cfg["meta"].get("campaign_name_include")  # vd "Inbox" → chỉ camp có 'Inbox' trong tên (rule team Thái)
@@ -533,6 +536,20 @@ def main():
             for _ad in _a.get("ads_overlay", []):        # ad_id: reactivation date → age (số ngày)
                 _r = _ad.pop("reactivation", None)
                 _ad["age"] = _age(_r) if _r else None
+
+    # Doanh thu/đơn theo ad_id (ME/RE) từ Prep BI — cửa sổ 7 ngày (khớp spend7). Gắn vào ads_overlay.
+    # Thiếu key / lỗi API ⇒ ad_revenue trả {} → không gắn gì → engine tự lùi về luật CPL/lead (gate ME/RE tắt).
+    if per_ad_mere and bi_product is not None and win7_dates:
+        import prep_bi
+        rev = prep_bi.ad_revenue([bi_product], win7_dates[0], win7_dates[-1],
+                                 markets=([bi_market] if bi_market is not None else None))
+        _hit = 0
+        for _a in out_accounts.values():
+            for _ad in _a.get("ads_overlay", []):
+                r = rev.get(norm(_ad.get("id") or ""))
+                if r:
+                    _ad["revenue7"] = r["revenue"]; _ad["orders7"] = r["orders"]; _hit += 1
+        print(f"  Prep BI ME/RE: {'không có key/API lỗi → bỏ qua (lùi CPL)' if not rev else f'gắn doanh thu cho {_hit} ad (7 ngày {win7_dates[0]}→{win7_dates[-1]}, product={bi_product})'}")
     doc = {"anchor": anchor, "window": win_dates,
            "note": f"Dựng tự động bằng build_meta.py (Graph API {ver}, ad-level KHÔNG lọc trạng thái).",
            "accounts": out_accounts}
