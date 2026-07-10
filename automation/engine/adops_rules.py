@@ -203,6 +203,23 @@ def recommend_mere(cpl_zone, mere, *, hard_loss=100.0):
     return "TẮT · ME/RE ≥80% & CPL kém"
 
 
+def _is_kill_rec(rec):
+    """Đề xuất mang nghĩa TẮT (tắt hẳn hoặc xem xét tắt) — dùng cho merge final + baseline EOD."""
+    return bool(rec) and (rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"))
+
+
+def merge_final(cpl3_rec, mere_rec, mere, mere_on, *, keep_loss_pct=60.0):
+    """Gộp quyết định TỪNG ad_id từ 2 khung: CPL 3 ngày (cpl3_rec) + ME/RE 7 ngày (mere_rec).
+    Spec chốt: ME/RE THẮNG khi đủ gate (mere_on) → final = mere_rec; else theo CPL 3 ngày.
+    CỜ ĐẶC BIỆT special_keep: CPL 3 ngày đòi TẮT nhưng ME/RE 7 ngày còn tốt (mere_on & mere < keep_loss_pct)
+    ⇒ KHÔNG tắt (ME/RE cứu), final = mere_rec (không phải lệnh tắt). Trả (final_rec, special_keep)."""
+    kill3 = _is_kill_rec(cpl3_rec)
+    special_keep = kill3 and mere_on and mere is not None and mere < keep_loss_pct
+    if mere_on and mere_rec:
+        return mere_rec, special_keep
+    return (cpl3_rec or "—"), special_keep
+
+
 def decide_1_3_7(z1, z3, z7, lead3, spend3, spend7, order3, thr, rules, min_leads):
     """Đề xuất cho 1 nhóm/ad dựa hiệu quả 1 ngày × 3 ngày × 7 ngày (SOP IELTS Thái — Ads Report).
     Nghiêng 3 ngày (quyết định chính), 7 ngày = nền xác nhận, 1 ngày = tín hiệu sớm phản ứng nhanh.
