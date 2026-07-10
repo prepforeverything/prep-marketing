@@ -27,6 +27,7 @@ jobs:
     env:
       TZ: Asia/Ho_Chi_Minh
       META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      PREP_BI_API_KEY: ${{ secrets.PREP_BI_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_PTE_CHAT_ID: ${{ secrets.TELEGRAM_PTE_CHAT_ID }}
     steps:
