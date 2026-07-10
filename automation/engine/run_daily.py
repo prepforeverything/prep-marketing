@@ -13,7 +13,12 @@ Cách dùng:
   python3 run_daily.py [--product toeic]            # chạy thật theo lịch
   python3 run_daily.py --product toeic --dry-run    # ép REPORT, tạo PDF, KHÔNG gửi/không mark-sent
 """
-import sys, os, json, subprocess, datetime
+import sys, os, json, subprocess, datetime, html
+
+
+def _esc(s):
+    """Escape ký tự động cho tin Telegram parse_mode=HTML (đề xuất chứa '<'/'&', vd 'ME/RE<60%', '3d & 7d')."""
+    return html.escape(str(s), quote=False)
 from pathlib import Path
 
 import prepcfg
@@ -136,7 +141,7 @@ def build_adid_message_per_ad(cfg, summary):
         L.append("\n<b>🔴 TẮT (bắt buộc — sẽ đối soát tuân thủ)</b>")
         for acct, k in tat:
             tag = " · trong content xấu" if k.get("content_off") else ""
-            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)}{_mere(k)} · {k['rec']}{tag}".rstrip())
+            L.append(f"• [{acct}] {k['code']} {_esc((k.get('name') or '')[:22])} · CPL {_cpl(k)}{_mere(k)} · {_esc(k['rec'])}{tag}".rstrip())
             L.append(f"<code>{k['id']}</code>")
     # 2) SCALE — NV tự chọn mức (đối soát chỉ THEO DÕI mức chọn, không chấm đúng/sai)
     sc = sorted(buckets["scale"], key=lambda x: (x[1].get("cpl") or 0))
@@ -144,7 +149,7 @@ def build_adid_message_per_ad(cfg, summary):
         any_item = True
         L.append("\n<b>🟢 SCALE (NV chọn mức tăng — chỉnh ngân sách ad set/campaign)</b>")
         for acct, k in sc:
-            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)}{_mere(k)} · {k['rec']} · ngân sách ở {_own(k)}".rstrip())
+            L.append(f"• [{acct}] {k['code']} {_esc((k.get('name') or '')[:22])} · CPL {_cpl(k)}{_mere(k)} · {_esc(k['rec'])} · ngân sách ở {_own(k)}".rstrip())
             L.append(f"<code>{k['id']}</code>")
     # 3) GIẢM / theo dõi
     gi = sorted(buckets["giam"], key=lambda x: -(x[1].get("cpl") or 0))
@@ -152,7 +157,7 @@ def build_adid_message_per_ad(cfg, summary):
         any_item = True
         L.append("\n<b>🟠 GIẢM / theo dõi</b>")
         for acct, k in gi:
-            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:22]} · CPL {_cpl(k)}{_mere(k)} · {k['rec']}".rstrip())
+            L.append(f"• [{acct}] {k['code']} {_esc((k.get('name') or '')[:22])} · CPL {_cpl(k)}{_mere(k)} · {_esc(k['rec'])}".rstrip())
             L.append(f"<code>{k['id']}</code>")
     # 4) GIỮ ad tốt trong content xấu — KHÔNG tắt (để NV không tắt nhầm)
     spares = [(acct, s) for acct, a in summary["accounts"].items() for s in (a.get("adid_spare") or [])]
@@ -160,7 +165,7 @@ def build_adid_message_per_ad(cfg, summary):
         any_item = True
         L.append("\n<b>🟢 GIỮ (ad tốt trong content xấu — KHÔNG tắt)</b>")
         for acct, s in sorted(spares, key=lambda x: (x[1].get("cpl") or 0)):
-            L.append(f"• [{acct}] {s['code']} {(s.get('name') or '')[:22]} · CPL {_cpl(s)} · {s['rec']}".rstrip())
+            L.append(f"• [{acct}] {s['code']} {_esc((s.get('name') or '')[:22])} · CPL {_cpl(s)} · {_esc(s['rec'])}".rstrip())
             L.append(f"<code>{s['id']}</code>")
     L.append("\nℹ️ TẮT: tắt đúng ad id (bắt buộc). SCALE/GIẢM: chỉnh ngân sách ad set (hoặc campaign nếu CBO) chứa ad id — "
              "NV tự chọn mức. Chỉ đề xuất — NV tự thao tác trên Meta.")
@@ -186,7 +191,7 @@ def build_adid_message_checklist(cfg, summary):
         any_item = True
         L.append("\n<b>⚠️ ĐẶC BIỆT — cân nhắc, ĐỪNG tắt vội (ME/RE 7 ngày cứu ad mà 3 ngày đòi tắt)</b>")
         for acct, f in sorted(sp, key=lambda x: (x[1].get("mere") or 0)):
-            L.append(f"• [{acct}] {f['code']} {(f.get('name') or '')[:22]} · 3 ngày đòi tắt nhưng ME/RE 7 ngày tốt "
+            L.append(f"• [{acct}] {f['code']} {_esc((f.get('name') or '')[:22])} · 3 ngày đòi tắt nhưng ME/RE 7 ngày tốt "
                      f"(lời {f.get('mere')}%, {f.get('orders7') or 0}đơn)".rstrip())
             L.append(f"<code>{f['id']}</code>")
     # 2) Nhóm theo bucket của final_rec
@@ -204,7 +209,7 @@ def build_adid_message_checklist(cfg, summary):
         any_item = True
         L.append(f"\n<b>{label} — {len(items)} ad</b>")
         for acct, f in items:
-            L.append(f"• [{acct}] {f['code']} {(f.get('name') or '')[:22]} · {f['final_rec']}{_sfx(f)}".rstrip())
+            L.append(f"• [{acct}] {f['code']} {_esc((f.get('name') or '')[:22])} · {_esc(f['final_rec'])}{_sfx(f)}".rstrip())
             L.append(f"<code>{f['id']}</code>")
     L.append("\nℹ️ Đây là quyết định cuối. TẮT: tắt ad id (bắt buộc). SCALE/GIẢM: chỉnh ngân sách ad set/campaign. "
              "⚠️ ĐẶC BIỆT: người phụ trách tự quyết. Chỉ đề xuất — NV tự thao tác trên Meta.")
@@ -248,7 +253,7 @@ def build_adid_message(cfg, summary):
                  else "\n<b>🔴 TẮT AD LẺ (content vẫn tốt — chỉ tắt ad này)</b>")
         for acct, k in sorted(kills, key=lambda x: -(x[1].get("cpl") or 0)):
             cpl = f"{k['cpl']:,}".replace(",", ".") if k.get("cpl") else ("0 lead" if not k.get("lead") else "—")
-            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:24]} · CPL {cpl} · {k['rec']}".rstrip())
+            L.append(f"• [{acct}] {k['code']} {(k.get('name') or '')[:24]} · CPL {cpl} · {_esc(k['rec'])}".rstrip())
             L.append(f"<code>{k['id']}</code>")
     # PER_AD_KILL: nêu ad tốt được GIỮ trong content xấu — để NV biết KHÔNG tắt nhầm (đối soát cũng chỉ soi ad tệ).
     if per_ad:
@@ -258,7 +263,7 @@ def build_adid_message(cfg, summary):
             L.append("\n<b>🟢 GIỮ (ad tốt trong content xấu — KHÔNG tắt)</b>")
             for acct, s in sorted(spares, key=lambda x: (x[1].get("cpl") or 0)):
                 cpl = f"{s['cpl']:,}".replace(",", ".") if s.get("cpl") else ("0 lead" if not s.get("lead") else "—")
-                L.append(f"• [{acct}] {s['code']} {(s.get('name') or '')[:24]} · CPL {cpl} · {s['rec']}".rstrip())
+                L.append(f"• [{acct}] {s['code']} {(s.get('name') or '')[:24]} · CPL {cpl} · {_esc(s['rec'])}".rstrip())
                 L.append(f"<code>{s['id']}</code>")
     L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách ad set chứa ad ID. TẮT: tắt ad ID. Chỉ đề xuất — NV tự thao tác trên Meta.")
     return "\n".join(L) if any_item else ""
