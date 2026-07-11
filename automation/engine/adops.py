@@ -624,7 +624,7 @@ if _baseline_path:
             if _k["id"] not in _seen and _k.get("active", True):   # đối soát EOD chỉ tính ad còn chạy sáng nay
                 _seen.add(_k["id"])
                 _src = "ad tệ" if _k.get("content_off") else "ad lẻ"
-                _kill_ads.append({"id": _k["id"], "code": _k["code"], "name": (_k.get("name") or "")[:30], "rec": _k["rec"], "src": _src})
+                _kill_ads.append({"id": _k["id"], "code": _k["code"], "name": clean_name(_k.get("name")), "rec": _k["rec"], "src": _src})
         for _s in cfg["accounts"][_acct].get("adsets", []):
             _sc = next((norm(_c) for _c in _s.get("codes", []) if norm(_c) in _off_codes), None)
             if not _sc:
@@ -641,7 +641,7 @@ if _baseline_path:
         if PER_AD_ACTION:
             for a in adid_actions.get(_acct, []):
                 if a["bucket"] == "scale":
-                    _scale_track.append({"id": a["id"], "code": a["code"], "name": (a.get("name") or "")[:30],
+                    _scale_track.append({"id": a["id"], "code": a["code"], "name": clean_name(a.get("name")),
                                          "adset_id": a.get("adset_id"), "cbo": a.get("cbo"),
                                          "owner_kind": a.get("owner_kind"), "owner_id": a.get("owner_id"),
                                          "budget": a.get("owner_budget") or 0, "cpl": a.get("cpl")})
@@ -739,7 +739,12 @@ def ads_link(acct, ad_id, label="Mở Meta Ads Manager ↗"):
     return (f'<a class="ads-link" target="_blank" rel="noopener" '
             f'href="https://adsmanager.facebook.com/adsmanager/manage/ads?{q}">{label}</a>')
 
+def clean_name(s, n=44):
+    """Tên ad Meta có đuôi hash số dài (_122183…) vô nghĩa → cắt bỏ; giới hạn mềm n ký tự cho gọn bảng."""
+    return re.sub(r"_\d{6,}$", "", (s or "").strip())[:n]
+
 def section(acct, rows):
+    rows = [r for r in rows if r["spend"] or r["lead"]]  # tab 3 ngày: chỉ content có chi HOẶC lead trong 3 ngày (bỏ code chết/chỉ có lead-7d cho đỡ rối)
     ts, tl = sum(r["spend"] for r in rows), sum(r["lead"] for r in rows)
     acpl = round(ts / tl) if tl else 0
     body = ""
@@ -883,7 +888,7 @@ if ADID_OVERLAY and any(adid_kill.values()):
         for k in sorted(adid_kill.get(acct, []), key=lambda x: -(x["cpl"] or 0)):
             cpl = f'{vnd(k["cpl"])} ₫' if k["cpl"] else ("0 lead" if k["spend"] else "—")
             ag = f'{k["age"]}d' if k.get("age") is not None else "—"
-            _kr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
+            _kr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{clean_name(k["name"])}</div></td>'
                     f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>{_ad7_cells(k)}{_adstatus_cell(k)}'
                     f'<td><span class="badge act-off">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k)}</td></tr>')
     _kill_head = ("🔴 TẮT theo từng Ad ID — chỉ tắt ad tệ" if PER_AD_KILL
@@ -907,7 +912,7 @@ if ADID_OVERLAY and any(adid_warn.values()):
             cpl = f'{vnd(k["cpl"])} ₫' if k["cpl"] else ("0 lead" if k["spend"] else "—")
             ag = f'{k["age"]}d' if k.get("age") is not None else "—"
             z = f'{k["zone"]}/{k["zone7"]}' if HAS7 else k["zone"]
-            _wr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
+            _wr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{clean_name(k["name"])}</div></td>'
                     f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>{_ad7_cells(k)}'
                     f'<td><span class="pct">{z}</span></td>{_adstatus_cell(k)}'
                     f'<td><span class="badge act-warn">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div>{why_cell(k)}</td></tr>')
@@ -926,7 +931,7 @@ if PER_AD_KILL and any(adid_spare.values()):
             cpl = f'{vnd(k["cpl"])} ₫' if k["cpl"] else ("0 lead" if k["spend"] else "—")
             ag = f'{k["age"]}d' if k.get("age") is not None else "—"
             z = f'{k["zone"]}/{k["zone7"]}' if HAS7 else k["zone"]
-            _sr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
+            _sr += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td><td>{acct} · {k["code"]}<div class="code">{clean_name(k["name"])}</div></td>'
                     f'<td>{ag}</td><td class="num">{vnd(k["spend"])}</td><td class="num">{k["lead"]}</td><td class="num">{cpl}</td>'
                     f'<td><span class="pct">{z}</span></td>'
                     f'<td><span class="badge act-hold">{k["rec"]}</span><div class="pct">content: {k["content_rec"]}</div></td></tr>')
@@ -947,7 +952,7 @@ if PER_AD_ACTION:
             z = f'{a["zone"]}/{a["zone7"]}' if HAS7 else a["zone"]
             own = ("campaign (CBO — dùng chung)" if a.get("cbo") else "ad set")
             bud = f'{vnd(a.get("owner_budget") or 0)} ₫' if a.get("owner_budget") else "—"
-            _scr += (f'<tr><td><code>{a["id"]}</code><div>{ads_link(acct, a["id"])}</div></td><td>{acct} · {a["code"]}<div class="code">{(a["name"] or "")[:30]}</div></td>'
+            _scr += (f'<tr><td><code>{a["id"]}</code><div>{ads_link(acct, a["id"])}</div></td><td>{acct} · {a["code"]}<div class="code">{clean_name(a["name"])}</div></td>'
                      f'<td>{ag}</td><td class="num">{vnd(a["spend"])}</td><td class="num">{a["lead"]}</td><td class="num">{cpl}</td>'
                      f'<td><span class="pct">{z}</span></td><td>{own}<div class="code">{bud}/ngày</div></td>'
                      f'<td><span class="badge act-scale">{a["rec"]}</span></td></tr>')
@@ -972,7 +977,7 @@ if PER_AD_MERE and any(adid_7d.values()):
             mrec = k["rec"] if k["rec"] else (f"chưa đủ đơn ({k['orders7']}<3)" if (k["revenue7"] and not k["mere_on"]) else "—")
             mcls = actb(k["rec"]) if k["rec"] else "act-hold"
             _7r += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td>'
-                    f'<td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
+                    f'<td>{acct} · {k["code"]}<div class="code">{clean_name(k["name"])}</div></td>'
                     f'<td class="num">{vnd(k["spend7"])}</td><td class="num">{k["lead7"]}</td><td class="num">{cpl7}</td>'
                     f'<td class="num">{k["orders7"]}</td><td class="num">{rev}</td><td class="num">{mere}</td>'
                     f'<td><span class="badge {mcls}">{mrec}</span></td></tr>')
@@ -998,7 +1003,7 @@ if PER_AD_MERE and any(adid_final.values()):
             if not f.get("special_keep"):
                 continue
             _sp += (f'<tr><td><code>{f["id"]}</code><div>{ads_link(acct, f["id"])}</div></td>'
-                    f'<td>{acct} · {f["code"]}<div class="code">{(f["name"] or "")[:30]}</div></td>'
+                    f'<td>{acct} · {f["code"]}<div class="code">{clean_name(f["name"])}</div></td>'
                     f'<td><span class="badge act-warn">⚠️ ĐẶC BIỆT: 3 ngày đòi tắt nhưng ME/RE 7 ngày tốt '
                     f'(lời {f["mere"]}%, {f.get("orders7") or 0} đơn) — cân nhắc, đừng tắt vội</span>'
                     f'<div class="pct">3 ngày: {f.get("cpl3_rec") or "—"} → giữ theo ME/RE</div></td></tr>')
@@ -1022,7 +1027,7 @@ if PER_AD_MERE and any(adid_final.values()):
         _rows_html += f'<tr><td colspan="3" style="background:#f1f5f9;font-weight:700">{lbl} · {len(items)} ad</td></tr>'
         for acct, f in items:
             _rows_html += (f'<tr><td><code>{f["id"]}</code><div>{ads_link(acct, f["id"])}</div></td>'
-                           f'<td>{acct} · {f["code"]}<div class="code">{(f["name"] or "")[:30]}</div></td>'
+                           f'<td>{acct} · {f["code"]}<div class="code">{clean_name(f["name"])}</div></td>'
                            f'<td><span class="badge {actb(f["final_rec"])}">{f["final_rec"]}</span>{_mere_sfx(f)}</td></tr>')
     checklist_html = (f'<h2><span class="bar"></span>✅ Checklist tổng hợp — quyết định cuối theo từng Ad ID</h2>'
                       f'<div class="note">Gộp khung 3 ngày (CPL) + khung 7 ngày (ME/RE). <b>ME/RE thắng</b> khi ad đủ chín &amp; đủ đơn; '
@@ -1037,7 +1042,7 @@ if ADID_OVERLAY and any(adid_gap.values()):
     _items = "".join(
         f'<li>{acct} · <code>{g["id"]}</code> {g["code"]}'
         + (f' · {g["age"]}d' if g.get("age") is not None else "")
-        + (f' — {(g["name"] or "")[:30]}' if g.get("name") else "") + '</li>'
+        + (f' — {clean_name(g["name"])}' if g.get("name") else "") + '</li>'
         for acct in cfg["accounts"] for g in adid_gap.get(acct, []))
     gapnote = (f'<div class="note warn"><b>⚠️ Ad có ngày lẻ 0-chi — kiểm tra tình hình</b>'
                f'<div class="pct">Các ad dưới đây vẫn tính CÙNG phiên (ngày tuổi giữ nguyên), nhưng có ngày không tiêu tiền xen giữa. '
