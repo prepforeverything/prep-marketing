@@ -844,8 +844,8 @@ def adset_section(acct):
     rh = ""
     for r in sorted(data[acct], key=lambda r: (ZORD.get(r["zone"], 9), -r["spend"])):
         sets = by_code.get(r["code"], [])
-        if not sets and r["spend"] == 0:
-            continue                                       # content chết hẳn (0 chi, không ad set) → bỏ
+        if not (r["spend"] or r["lead"]):
+            continue                                       # 0 chi & 0 lead trong 3 ngày → không có gì thao tác, bỏ cho đỡ nhiễu
         if sets:
             items = ""
             for s in sets:
