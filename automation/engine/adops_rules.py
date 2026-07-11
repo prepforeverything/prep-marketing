@@ -160,10 +160,11 @@ def mere_pct(spend7, revenue7):
     return spend7 / revenue7 * 100.0
 
 
-def mere_applies(age, orders7, revenue7, *, min_age=4, min_orders=3):
-    """ME/RE chỉ đáng tin khi ad đã chín (tuổi ≥ min_age) VÀ đủ mẫu đơn (orders7 ≥ min_orders) VÀ có doanh thu.
-    Chưa đạt ⇒ False ⇒ engine quay về luật CPL/lead hiện hành (ad mới/ít đơn không bị chấm oan theo doanh thu)."""
-    return age is not None and age >= min_age and orders7 >= min_orders and (revenue7 or 0) > 0
+def mere_applies(orders7, revenue7, *, min_orders=3):
+    """ME/RE đáng tin khi đủ mẫu đơn (orders7 ≥ min_orders) VÀ có doanh thu — KHÔNG phụ thuộc ngày tuổi.
+    Chi 7d và doanh thu 7d đều tính CẢ 7 ngày (không reset theo age), nên ad vừa BẬT LẠI (age nhỏ) mà đã ≥3 đơn
+    vẫn chấm ME/RE bình thường. age chỉ để canh pha ở khung CPL 3 ngày. Chưa đạt ⇒ False ⇒ về luật CPL/lead."""
+    return orders7 >= min_orders and (revenue7 or 0) > 0
 
 
 def mere_band(mere):

@@ -341,7 +341,7 @@ if ADID_OVERLAY:
             # KHÔNG dùng để quyết ở khung 3 ngày; quyết định ME/RE nằm ở adid_7d + adid_final (checklist).
             revenue7 = ad.get("revenue7"); orders7 = ad.get("orders7") or 0
             mere = R.mere_pct(s7, revenue7) if PER_AD_MERE else None
-            mere_on = PER_AD_MERE and R.mere_applies(ad.get("age"), orders7, revenue7)
+            mere_on = PER_AD_MERE and R.mere_applies(orders7, revenue7)
             row = {"id": ad["id"], "code": acode, "name": ad.get("name", ""),
                    "spend": s3, "lead": ld["lead"], "cpl": round(cpl3) if cpl3 else 0,
                    "spend7": s7, "lead7": ld["lead7"], "cpl7": round(cpl7v) if cpl7v else 0,
@@ -370,7 +370,7 @@ if ADID_OVERLAY:
 
 # ---- KHUNG 7 NGÀY (ME/RE theo vùng CPL 7 ngày) — chỉ PER_AD_MERE. Tập ad RỘNG hơn 3d ----------
 # Mỗi ad có s7>0 & đang active: dùng VÙNG CPL 7 NGÀY (zone7c) làm trục CPL của ma trận ME/RE.
-# mere_rec = recommend_mere(zone7c, mere) khi đủ gate (age≥4 & ≥3 đơn & có doanh thu); else None.
+# mere_rec = recommend_mere(zone7c, mere) khi đủ gate (≥3 đơn & có doanh thu; KHÔNG theo age); else None.
 if PER_AD_MERE:
     for acct in cfg["accounts"]:
         _active_ids = {norm(x) for x in (cfg["accounts"][acct].get("active_ad_ids") or [])}
@@ -389,7 +389,7 @@ if PER_AD_MERE:
             revenue7 = ad.get("revenue7"); orders7 = ad.get("orders7") or 0
             age = ad.get("age")
             mere = R.mere_pct(s7, revenue7)
-            mere_on = R.mere_applies(age, orders7, revenue7)
+            mere_on = R.mere_applies(orders7, revenue7)
             mere_rec = R.recommend_mere(zone7c, mere) if mere_on else None
             adid_7d[acct].append({"id": ad["id"], "code": acode,
                                   "name": ad.get("name") or names7.get(acode, ""),
@@ -979,7 +979,7 @@ if PER_AD_MERE and any(adid_7d.values()):
             rev = f'{vnd(k["revenue7"])} ₫' if k["revenue7"] else "—"
             # ME/RE% hiện cho MỌI ad có doanh thu (kể cả chưa đủ 3 đơn — chỉ là chưa dùng để quyết).
             mere = f'{k["mere"]}%' if k["mere"] is not None else "—"
-            mrec = k["rec"] if k["rec"] else ("chưa đủ đơn (N/A)" if (k["revenue7"] and not k["mere_on"]) else "—")
+            mrec = k["rec"] if k["rec"] else (f"chưa đủ đơn ({k['orders7']}<3)" if (k["revenue7"] and not k["mere_on"]) else "—")
             mcls = actb(k["rec"]) if k["rec"] else "act-hold"
             _7r += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td>'
                     f'<td>{acct} · {k["code"]}<div class="code">{(k["name"] or "")[:30]}</div></td>'
@@ -988,8 +988,8 @@ if PER_AD_MERE and any(adid_7d.values()):
                     f'<td><span class="badge {mcls}">{mrec}</span></td></tr>')
     ad7d_html = (f'<h2><span class="bar"></span>📈 Khung 7 ngày — ME/RE (chi ÷ doanh thu) theo từng Ad ID</h2>'
                  f'<div class="note">ME/RE = chi 7 ngày ÷ doanh thu 7 ngày (Prep BI). Vùng CPL ở đây là <b>CPL 7 ngày</b>. '
-                 f'ME/RE% hiện cho mọi ad có doanh thu; chỉ QUYẾT (đề xuất ME/RE) khi ad đủ chín (≥4 ngày) &amp; đủ đơn (≥3) — '
-                 f'chưa đủ ghi "chưa đủ đơn (N/A)".</div>'
+                 f'ME/RE% hiện cho mọi ad có doanh thu; chỉ QUYẾT (đề xuất ME/RE) khi đủ đơn (≥3 đơn) &amp; có doanh thu — '
+                 f'chưa đủ đơn thì để "N/A" (theo dõi tiếp). KHÔNG phụ thuộc ngày tuổi (ad vừa bật lại vẫn chấm nếu đủ đơn).</div>'
                  f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th class="num">Chi 7d</th>'
                  f'<th class="num">Lead7</th><th class="num">CPL7</th><th class="num">Đơn7</th><th class="num">Doanh thu7</th>'
                  f'<th class="num">ME/RE%</th><th>Đề xuất ME/RE</th></tr></thead><tbody>{_7r}</tbody></table></div>')
