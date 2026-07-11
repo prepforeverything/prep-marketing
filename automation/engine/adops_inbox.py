@@ -56,6 +56,11 @@ def vnd(n):
     return f"{round(n):,}".replace(",", ".") if n else "0"
 def norm(c):
     x = re.sub(r"\D", "", c or ""); return x.lstrip("0") or x
+
+
+def clean_name(s, n=48):
+    """Bỏ đuôi hash số dài của tên ad Meta cho gọn bảng."""
+    return __import__('re').sub(r'_\d{6,}$', '', (s or '').strip())[:n]
 def cpl(s, l):
     return round(s / l) if l else 0
 def zone(s, l):
@@ -321,7 +326,7 @@ def grp_block(x):
     kids = ""
     for a in sorted(x["ads"], key=lambda a: -a["s3"]):
         link = ads_link(a["acct"], a["id"])
-        kids += (f'<tr><td><div class="content-name">{a["name"]}</div><div class="code"><code>{a["id"]}</code>{(" " + link) if link else ""}</div></td>'
+        kids += (f'<tr><td><div class="content-name">{clean_name(a["name"])}</div><div class="code"><code>{a["id"]}</code>{(" " + link) if link else ""}</div></td>'
                  f'<td class="cpl-wrap">{adcell(a["s1"], a["l1"])}</td>'
                  f'<td class="cpl-wrap">{adcell(a["s3"], a["l3"])}</td>'
                  f'<td class="cpl-wrap">{adcell(a["s7"], a["l7"])}</td>'
