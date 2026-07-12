@@ -95,6 +95,10 @@ def bnum(s):  # budget cells use comma thousands ("114,040,403 ₫"); strip all 
     d = re.sub(r"[^\d]", "", s or ""); return int(d) if d else 0
 def norm(code):
     d = re.sub(r"\D", "", code or ""); return d.lstrip("0") or d
+def clean_name(s, n=44):
+    """Tên ad Meta có đuôi hash số dài (_122183…) vô nghĩa → cắt bỏ; giới hạn mềm n ký tự cho gọn bảng.
+    ĐỊNH NGHĨA Ở ĐẦU FILE: baseline/summary (chạy ở module-level) dùng nó trước khi tới phần HTML."""
+    return re.sub(r"_\d{6,}$", "", (s or "").strip())[:n]
 def _datetok(s):
     # lấy token cuối (bỏ tiền tố giờ "HH:MM " nếu là timestamp); rỗng → ""
     s = (s or "").strip()
@@ -748,10 +752,6 @@ def ads_link(acct, ad_id, label="Mở Meta Ads Manager ↗"):
     q = urllib.parse.urlencode({"act": aid, "selected_ad_ids": ad_id, "filter_set": filt})
     return (f'<a class="ads-link" target="_blank" rel="noopener" '
             f'href="https://adsmanager.facebook.com/adsmanager/manage/ads?{q}">{label}</a>')
-
-def clean_name(s, n=44):
-    """Tên ad Meta có đuôi hash số dài (_122183…) vô nghĩa → cắt bỏ; giới hạn mềm n ký tự cho gọn bảng."""
-    return re.sub(r"_\d{6,}$", "", (s or "").strip())[:n]
 
 def section(acct, rows):
     rows = [r for r in rows if r["spend"] or r["lead"]]  # tab 3 ngày: chỉ content có chi HOẶC lead trong 3 ngày (bỏ code chết/chỉ có lead-7d cho đỡ rối)
