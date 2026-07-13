@@ -1,0 +1,86 @@
+{
+  "product": "ielts-thai-conv",
+  "display": "IELTS Thái · FB Conversion",
+  "brand": {
+    "primary": "#4a86e8",
+    "dark": "#3b6bba",
+    "tint": "#e8f0fe"
+  },
+  "currency": "VND",
+  "meta": {
+    "accounts": {
+      "IELTS Thái 1": "553262224077942",
+      "IELTS Thái 2": "2863366577353491"
+    },
+    "api_versions": [
+      "v23.0",
+      "v22.0",
+      "v21.0",
+      "v20.0"
+    ],
+    "campaign_name_include": "Conversion"
+  },
+  "lead_sheet": {
+    "mode": "conv",
+    "id": "1x9ECLngi-5JFdlJHrArit-SB7sQR_0xkICmDhi-ojWE",
+    "tab": "",
+    "sources": ["fb", "ig", "th"],
+    "test_email_contains": ["test", "prepedu.com", "anhnguyendigital"],
+    "special_dedup_groups": [["iethai.050925", "iethai.050925-cmt1"]],
+    "ql_status_prefixes": ["l3", "l4", "l5", "success"],
+    "header_cols": {
+      "time": "Time",
+      "phone": "Phone",
+      "email": "Email",
+      "source": "Source",
+      "utm": "UTM Content",
+      "status": "Status"
+    }
+  },
+  "mapping_sheet": {
+    "id": "1Sl71XmF_MO7BP06NWKeE1Bw-mFrNAw_NBiKpkWRTL-w"
+  },
+  "kpi_sheet": {
+    "id": "15UxgFO0ui2Qwl8banNpYsTr_1YzvSHslhdUGvDRmSNU",
+    "channel": "FB Conv",
+    "kpi_channel_index": 1,
+    "fallback": {
+      "kpi_cpl": 380000,
+      "kpi_cpql": 1000000
+    }
+  },
+  "min_lead_rows": 3,
+  "min_leads": 3,
+  "rules": {
+    "tb_pct": 1.2,
+    "tby_pct": 1.25,
+    "zero_lead_kill": 900000,
+    "new_age_days": 4,
+    "new_zero_kill": 900000,
+    "new_test_cap": 1800000,
+    "underspend_3d": 2000000,
+    "cheap_cpl": 250000,
+    "big_spend_3d": 5000000,
+    "freq_warn": 2.0,
+    "freq_high": 3.0,
+    "bad_share_warn": 0.4,
+    "day_under_pct": 0.8,
+    "day_over_pct": 1.2
+  },
+  "report": {
+    "primary_days": 3,
+    "confirm_days": 7,
+    "short_days": 1,
+    "age_lookback_days": 30,
+    "engine": "conv",
+    "telegram_doc": "html"
+  },
+  "gate_labels": {
+    "morning": "10h",
+    "recheck": "14h"
+  },
+  "telegram": {
+    "token_env": "TELEGRAM_BOT_TOKEN",
+    "chat_env": "TELEGRAM_THAI_CHAT_ID"
+  }
+}

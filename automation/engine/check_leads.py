@@ -49,6 +49,9 @@ def parse_date(s):
 def status(cfg, target, minrows=1):
     """Đếm lead của ngày `target` trong tab lead. Raise nếu không đọc được sheet."""
     ls = cfg["lead_sheet"]
+    if ls.get("mode") == "conv":   # kênh FB Conversion: sheet web-form, parser dò header riêng
+        import conv_leads
+        return conv_leads.status_for_gate(ls, target, minrows)
     url = (f"https://docs.google.com/spreadsheets/d/{ls['id']}/gviz/tq?tqx=out:csv"
            f"&sheet={urllib.parse.quote(ls['phone_tab'])}")
     rows = list(csv.reader(io.StringIO(fetch(url))))

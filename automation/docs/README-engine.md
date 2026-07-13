@@ -97,6 +97,20 @@ Luật phân loại/đề xuất tách ra `automation/engine/adops_rules.py` (th
 - **Bền với nhiều BM:** tài khoản token thiếu/không có quyền (HTTP 403) bị **bỏ qua kèm cảnh báo** (ghi `account_errors`),
   không làm hỏng cả lần chạy; chỉ lỗi khi KHÔNG truy cập được tài khoản nào.
 
+## Engine "conv" — kênh FB Conversion (IELTS Thái)
+
+`report.engine: "conv"` (sản phẩm `ielts-thai-conv`) — engine hoá skill `fb-conv-report` của team Digital Thái.
+Khác 2 engine kia: grain = **CAMPAIGN** (1 camp = 1 content), lead join bằng **utm_content** (sheet web-form,
+lọc source fb/ig/th + dedup ngày+phone+utm + nhóm dedup đặc biệt) qua **sheet mapping utm→camp** (đọc mới mỗi lần
+chạy — đội chỉ update Sheet). KHÔNG đi qua `build_meta.py`: `adops_conv.py` tự kéo Meta level=campaign theo NGÀY
+(30d → cửa sổ 1/3/7d + tuổi content + spent-tuần) + status camp + **frequency cấp adset 7d** (cảnh báo bão hoà >2/>3).
+Chấm theo **% KPI CPL/CPQL tháng** (sheet KPI tab `MM/YYYY`, kênh "FB Conv"): TỐT ≤100% · TB ≤120% · TBY ≤125% ·
+TỆ >125%; QL = Status L3+/Success (chỉ tin 3d/7d). Tổng kênh header = MỌI camp + MỌI lead (kể cả camp tắt/UTM chưa
+map — tiền thực chi); đề xuất CHỈ cho camp ACTIVE, thao tác ở cấp campaign. Kèm KPI spent tuần/ngày (under/over-spend,
+cờ <70% tuần) + section phân tích chiến lược (phân bổ budget theo vùng, under-spend, tín hiệu 1d xấu, gợi ý nhân bản).
+Luật thuần: `adops_conv_rules.py` (test: `tests/test_conv_rules.py`); parser lead: `conv_leads.py` (gate dùng chung
+qua `lead_sheet.mode: "conv"`). Chi tiết onboarding + blocker: `products/ielts-thai-conv/SETUP.md`.
+
 ## TODO (hardening sau)
 - Feed Mess/inbox tươi để bật luật "0 inbox → tắt" tự động (hiện ĐỌC INBOX/XEM XÉT TẮT là cờ cho người mở Pancake).
 - Lead→tài khoản khi nhiều TK chung 1 page (IELTS Thái 1 + IEThai 01): xác định join lead theo mã ad, không theo cột nguồn.
