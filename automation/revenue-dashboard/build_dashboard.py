@@ -30,13 +30,24 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "engine"))
+sys.path.insert(0, str(HERE))
 import prep_bi  # noqa: E402
+import spend  # noqa: E402
 
 VN_TZ = dt.timezone(dt.timedelta(hours=7))
 
 
 def cfg():
     return json.loads((HERE / "config.json").read_text(encoding="utf-8"))
+
+
+def accounts():
+    """Sổ tài khoản quảng cáo (accounts.json) — thiếu/hỏng thì coi như không có nguồn spend."""
+    try:
+        return json.loads((HERE / "accounts.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        print("[WARN] accounts.json thiếu/hỏng — bỏ qua chi phí", file=sys.stderr)
+        return {}
 
 
 def month_range(start_month, today):
@@ -52,11 +63,14 @@ def month_range(start_month, today):
 
 
 def series_from_payload(payload):
-    """points lũy kế → {'daily': [VND từng ngày], 'as_of_day': n}. Chỉ lấy điểm revenue≠null."""
-    pts = [p for p in (payload or {}).get("points", []) if p.get("revenue") is not None]
-    cum = [round(p["revenue"]) for p in sorted(pts, key=lambda p: p["offset"])]
-    daily = [c - (cum[i - 1] if i else 0) for i, c in enumerate(cum)]
-    return {"daily": daily, "as_of_day": len(daily)}
+    """points lũy kế → doanh thu + số đơn TỪNG ngày. Chỉ lấy điểm revenue≠null."""
+    pts = sorted([p for p in (payload or {}).get("points", []) if p.get("revenue") is not None],
+                 key=lambda p: p["offset"])
+    cum = [round(p["revenue"]) for p in pts]
+    ocum = [int(p.get("orders") or 0) for p in pts]
+    return {"daily": [c - (cum[i - 1] if i else 0) for i, c in enumerate(cum)],
+            "orders": [o - (ocum[i - 1] if i else 0) for i, o in enumerate(ocum)],
+            "as_of_day": len(cum)}
 
 
 def fetch_month(c, month, fixture_dir=None):
@@ -82,12 +96,32 @@ def fetch_month(c, month, fixture_dir=None):
             days_in_month = payload.get("total_days") or days_in_month
             s = series_from_payload(payload)
             per[short] = s["daily"][:cut] if cut is not None else s["daily"]
+            per["o_" + short] = s["orders"][:cut] if cut is not None else s["orders"]
             as_of = max(as_of, len(per[short]))
         # 2 bucket có thể lệch độ dài (null khác nhau) → đệm 0 cho bằng nhau
         n = max(len(per["a1"]), len(per["b1"]))
         for k in per:
             per[k] = per[k] + [0] * (n - len(per[k]))
         lines[line["code"]] = per
+
+    # Chi phí theo ngày (Meta + Google) — lớp phủ: nguồn lỗi/chưa cấu hình → 0, không hỏng run
+    n_days = as_of
+    since = f"{month[:4]}-{month[4:]}-01"
+    if fixture_dir:
+        f = Path(fixture_dir) / f"{month}-SPEND.json"
+        sp = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        for line in c["lines"]:
+            got = sp.get(line["code"], {})
+            for key, src in (("sp_meta", "meta"), ("sp_g", "google")):
+                arr = (got.get(src) or [])[:n_days]
+                lines[line["code"]][key] = arr + [0] * (n_days - len(arr))
+    else:
+        acc = accounts()
+        until = (dt.date(int(month[:4]), int(month[4:6]), 1) + dt.timedelta(days=max(n_days - 1, 0))).isoformat()
+        for line in c["lines"]:
+            meta_arr, g_arr = spend.month_spend(acc, line["code"], since, until, n_days)
+            lines[line["code"]]["sp_meta"] = meta_arr
+            lines[line["code"]]["sp_g"] = g_arr
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
@@ -105,9 +139,14 @@ def build_data(c, publish_dir, fixture_dir=None):
         except (json.JSONDecodeError, OSError):
             old = {}
     refetch = set(months[-2:])  # tháng hiện tại + tháng trước: số còn được điều chỉnh
+
+    def complete(mm):  # cache cũ thiếu trường mới (orders/spend) → refetch 1 lần để backfill
+        ls = (mm or {}).get("lines") or {}
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v for v in ls.values())
+
     out_months = {}
     for m in months:
-        if m in old and m not in refetch:
+        if m in old and m not in refetch and complete(old[m]):
             out_months[m] = old[m]
             continue
         got = fetch_month(c, m, fixture_dir)
@@ -123,6 +162,7 @@ def build_data(c, publish_dir, fixture_dir=None):
         "currency": c["currency"],
         "market": c["market_label"],
         "lines": [{"code": l["code"], "label": l["label"]} for l in c["lines"]],
+        "spend_sources": {"meta": True, "google": False} if fixture_dir else spend.sources_active(accounts()),
         "months": out_months,
     }
 
