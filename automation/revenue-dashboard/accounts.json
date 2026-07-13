@@ -1,0 +1,46 @@
+{
+  "_huong_dan": [
+    "Sổ đăng ký tài khoản quảng cáo cho dashboard chi phí — pipeline spend đọc file này mỗi sáng.",
+    "Mỗi sản phẩm (key trùng 'code' trong config.json): meta = list account ID Meta (chuỗi số, không có 'act_');",
+    "google = list customer ID Google Ads (dạng '123-456-7890' hoặc '1234567890' đều được).",
+    "Thêm/tắt tài khoản: sửa list tương ứng rồi commit — lần chạy 08:10 hôm sau tự nhận.",
+    "Tài khoản đã ngừng chạy nhưng có chi trong quá khứ: cứ GIỮ trong list để xem lại lịch sử.",
+    "Ghi chú tên tài khoản để người sau đọc hiểu — dùng '_ghi_chu' của từng sản phẩm.",
+    "File này chỉ chứa ID định danh (không phải secret, không phải số liệu). Token nằm trong GitHub Secrets;",
+    "số liệu chi phí nằm bên repo private prepedu-landing."
+  ],
+  "IELTS": {
+    "meta": ["1633973340244951", "628869139580440", "2315420118859218"],
+    "google": [],
+    "_ghi_chu": "Meta: Prep - IELTS 1 / IELTS 9 / IELTS 10 (theo config ad-ops IELTS VN, chờ user xác nhận)"
+  },
+  "TOEIC": {
+    "meta": ["829372215242475", "555686623359807"],
+    "google": [],
+    "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (theo config ad-ops TOEIC)"
+  },
+  "HSK": {
+    "meta": [],
+    "google": [],
+    "_ghi_chu": "Chưa có ID — chờ user bổ sung"
+  },
+  "VSTEP": {
+    "meta": ["750272838130772"],
+    "google": [],
+    "_ghi_chu": "Meta: VSTEP - 01 (theo config ad-ops VSTEP)"
+  },
+  "IELTS_TEENS": {
+    "meta": [],
+    "google": [],
+    "_ghi_chu": "IELTS Junior — chưa có ID, chờ user bổ sung"
+  },
+  "PREPTALK": {
+    "meta": ["1352348895443641"],
+    "google": [],
+    "_ghi_chu": "PrepTalk/PTE — Meta: PrepTalk 1 (theo config ad-ops PTE)"
+  },
+  "google_ads": {
+    "login_customer_id": "",
+    "_ghi_chu": "MCC ID (login customer id) điền vào đây khi có credentials Google Ads API; token/secret KHÔNG để ở đây — dùng GitHub Secrets: GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN"
+  }
+}
