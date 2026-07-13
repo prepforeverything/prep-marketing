@@ -10,32 +10,48 @@
     "số liệu chi phí nằm bên repo private prepedu-landing."
   ],
   "IELTS": {
-    "meta": ["1633973340244951", "628869139580440", "2315420118859218"],
+    "meta": [
+      "1633973340244951",
+      "628869139580440",
+      "2315420118859218"
+    ],
     "google": [],
     "_ghi_chu": "Meta: Prep - IELTS 1 / IELTS 9 / IELTS 10 (theo config ad-ops IELTS VN, chờ user xác nhận)"
   },
   "TOEIC": {
-    "meta": ["829372215242475", "555686623359807"],
+    "meta": [
+      "829372215242475",
+      "555686623359807"
+    ],
     "google": [],
     "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (theo config ad-ops TOEIC)"
   },
   "HSK": {
-    "meta": [],
+    "meta": [
+      "2747619145410625",
+      "467960226273623"
+    ],
     "google": [],
-    "_ghi_chu": "Chưa có ID — chờ user bổ sung"
+    "_ghi_chu": "Meta: HSK - 01 / HSK - 02 (user xác nhận 2026-07-13, ID tra qua Meta API)"
   },
   "VSTEP": {
-    "meta": ["750272838130772"],
+    "meta": [
+      "750272838130772"
+    ],
     "google": [],
     "_ghi_chu": "Meta: VSTEP - 01 (theo config ad-ops VSTEP)"
   },
   "IELTS_TEENS": {
-    "meta": [],
+    "meta": [
+      "910251738121692"
+    ],
     "google": [],
-    "_ghi_chu": "IELTS Junior — chưa có ID, chờ user bổ sung"
+    "_ghi_chu": "IELTS Junior — Meta: IE Junior 2 (user xác nhận). Còn IE Junior 1 (1287659302293724) đang ACTIVE nhưng user không dùng — thêm nếu cần lịch sử."
   },
   "PREPTALK": {
-    "meta": ["1352348895443641"],
+    "meta": [
+      "1352348895443641"
+    ],
     "google": [],
     "_ghi_chu": "PrepTalk/PTE — Meta: PrepTalk 1 (theo config ad-ops PTE)"
   },
