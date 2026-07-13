@@ -11,11 +11,17 @@
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f3f4f6;color:#1f2937}
   .container{max-width:1200px;margin:0 auto;padding:24px}
-  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:18px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:18px}
   h1{font-size:1.6rem;font-weight:700}
   .subtitle{color:#6b7280;font-size:.9rem}
-  header select{margin-left:auto;font:inherit;font-size:.85rem;font-weight:500;color:#4b5563;
-    padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer}
+  .timebar{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .mode{display:flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden}
+  .mode div{padding:8px 14px;font-size:.82rem;font-weight:600;color:#4b5563;background:#fff;cursor:pointer;transition:all .2s}
+  .mode div:hover{background:#f9fafb}
+  .mode div.on{background:#2563eb;color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+  header select,header input[type=date]{font:inherit;font-size:.85rem;font-weight:500;color:#4b5563;
+    padding:7px 12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer}
+  #rangebox{display:none;align-items:center;gap:6px;color:#6b7280;font-size:.85rem}
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:16px;margin-bottom:20px}
   .kpi{border-radius:12px;padding:18px;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.1)}
   .kpi-label{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;opacity:.85}
@@ -52,7 +58,7 @@
   #tip{position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:7px 10px;
     border-radius:8px;font-size:.75rem;line-height:1.45;opacity:0;transition:opacity .08s;z-index:9;max-width:260px}
   .footer{text-align:center;color:#9ca3af;font-size:.72rem;margin-top:32px;padding:16px 0;line-height:1.6}
-  @media(max-width:640px){.container{padding:14px}.kpi-value{font-size:1.3rem}}
+  @media(max-width:640px){.container{padding:14px}.kpi-value{font-size:1.3rem}.timebar{margin-left:0}}
 </style>
 </head>
 <body>
@@ -60,13 +66,20 @@
   <header>
     <h1>Doanh thu A1+B1 — Việt Nam</h1>
     <span class="subtitle" id="updated"></span>
-    <select id="month"></select>
+    <div class="timebar">
+      <div class="mode" id="mode">
+        <div data-m="month" class="on">Theo tháng</div>
+        <div data-m="range">Theo ngày</div>
+      </div>
+      <select id="month"></select>
+      <span id="rangebox"><input type="date" id="from"> – <input type="date" id="to"></span>
+    </div>
   </header>
   <div id="kpiwarn" class="insight warning" style="display:none"></div>
   <div class="kpi-grid" id="summary"></div>
   <div class="chips" id="chips"></div>
   <div class="card">
-    <h3>Lũy kế trong tháng so với KPI</h3>
+    <h3>Lũy kế so với KPI</h3>
     <div class="note" id="cum-note"></div>
     <div id="cumchart"></div>
     <div class="legend" id="cum-legend"></div>
@@ -78,7 +91,8 @@
   </div>
   <div class="card">
     <h3>Chi tiết theo sản phẩm</h3>
-    <div class="note">A1 = paid → chốt trong kỳ · B1 = paid → chốt từ lead kỳ trước · KPI = A1+B1 gộp</div>
+    <div class="note">A1 = paid → chốt trong kỳ · B1 = paid → chốt từ lead kỳ trước · KPI = A1+B1 gộp
+      (kỳ tùy chọn: KPI tháng rải đều theo ngày)</div>
     <div style="overflow-x:auto"><table id="tbl"></table></div>
   </div>
   <div class="footer">Prep Education — Dashboard doanh thu A1+B1 (Prep BI, bucket paid-a1/paid-b1, attribution first-paid)<br>
@@ -93,12 +107,14 @@ const COLORS={IELTS:"#3b82f6",TOEIC:"#10b981",HSK:"#f59e0b",VSTEP:"#0891b2",
 const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(135deg,#8b5cf6,#7c3aed)",
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
             proj:"linear-gradient(135deg,#06b6d4,#0891b2)"};
-let DATA=null,KPI=null,state={month:null,scope:"ALL"};
+let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
+let state={mode:"month",month:null,from:null,to:null,scope:"ALL"};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
 const sum=a=>a.reduce((x,y)=>x+y,0);
 const nf=new Intl.NumberFormat("vi-VN");
+const pad2=n=>String(n).padStart(2,"0");
 function vnd(n){return nf.format(Math.round(n));}
 function short(n){
   const s=n<0?"-":"";n=Math.abs(n);
@@ -111,75 +127,108 @@ function cumsum(a){let c=0;return a.map(v=>(c+=v));}
 
 function lineCodes(){return DATA.lines.map(l=>l.code);}
 function lineLabel(code){const l=DATA.lines.find(l=>l.code===code);return l?l.label:code;}
-function mdata(){return DATA.months[state.month];}
 function scopeCodes(){return state.scope==="ALL"?lineCodes():[state.scope];}
-function seriesFor(codes,bucket){ // mảng daily cộng dồn các dòng trong scope
-  const m=mdata(),n=m.as_of_day,out=Array(n).fill(0);
-  for(const c of codes){const a=(m.lines[c]||{})[bucket]||[];
-    for(let i=0;i<n;i++)out[i]+=a[i]||0;}
-  return out;
+
+// ---------- chọn ngày ----------
+function selDays(){ // mảng ngày đang chọn (mode tháng = trọn tháng; mode ngày = [from,to])
+  if(state.mode==="month")return DAYS.filter(d=>d.m===state.month);
+  return DAYS.filter(d=>d.iso>=state.from&&d.iso<=state.to);
 }
-function kpiFor(codes){ // {value, missing:[codes]} — cộng KPI các dòng, null = chưa điền
-  const k=(KPI&&KPI[state.month])||{};let v=0,any=false,missing=[];
-  for(const c of codes){const x=k[c];
-    if(x==null)missing.push(c);else{v+=x;any=true;}}
-  return {value:any?v:null,missing};
+function dayVal(d,code,bucket){const a=(DATA.months[d.m].lines[code]||{})[bucket]||[];return a[d.i]||0;}
+function seriesDays(days,codes,bucket){return days.map(d=>sum(codes.map(c=>dayVal(d,c,bucket))));}
+function kpiDay(d,code){ // KPI 1 ngày của 1 dòng = KPI tháng / số ngày tháng đó (null nếu chưa điền)
+  const v=((KPI&&KPI[d.m])||{})[code];
+  return v==null?null:v/DATA.months[d.m].days_in_month;
+}
+function kpiOfDays(days,codes){ // {total, daily[], missing:[«tháng·dòng»]} — pro-rata theo ngày
+  const missing=new Set();let total=0,any=false;
+  const daily=days.map(d=>{let s=0;
+    for(const c of codes){const v=kpiDay(d,c);
+      if(v==null)missing.add(monthLabel(d.m)+" · "+lineLabel(c));else{s+=v;any=true;}}
+    return s;});
+  total=sum(daily);
+  return {total:any?total:null,daily,missing:[...missing]};
 }
 function isCurrentMonth(){
   const months=Object.keys(DATA.months).sort();
-  return state.month===months[months.length-1]&&mdata().as_of_day<mdata().days_in_month;
+  return state.mode==="month"&&state.month===months[months.length-1]
+    &&DATA.months[state.month].as_of_day<DATA.months[state.month].days_in_month;
 }
 
 function render(){
-  const m=mdata(),codes=scopeCodes();
-  const a1=seriesFor(codes,"a1"),b1=seriesFor(codes,"b1");
+  const days=selDays(),codes=scopeCodes();
+  if(!days.length){$("summary").innerHTML="";$("kpiwarn").style.display="";
+    $("kpiwarn").innerHTML="⚠️ Khoảng ngày không có dữ liệu.";return;}
+  const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1");
   const tot=sum(a1)+sum(b1);
-  const kpi=kpiFor(codes);
-  const elapsed=isCurrentMonth()?m.as_of_day:m.days_in_month;
-  const timePct=elapsed/m.days_in_month*100;
-  const attain=kpi.value?tot/kpi.value*100:null;
-  const proj=elapsed?tot/elapsed*m.days_in_month:0;
+  const kpi=kpiOfDays(days,codes);
+  const scopeName=state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope);
+  const rangeLabel=state.mode==="month"?monthLabel(state.month)
+    :days[0].label+" – "+days[days.length-1].label+" · "+days.length+" ngày";
 
-  const missAll=kpiFor(lineCodes()).missing;
+  // cảnh báo KPI thiếu (theo mọi dòng, đúng kỳ đang chọn)
+  const missAll=kpiOfDays(days,lineCodes()).missing;
   if(missAll.length){
     $("kpiwarn").style.display="";
-    $("kpiwarn").innerHTML="⚠️ <strong>Chưa có KPI "+esc(monthLabel(state.month))+"</strong> cho: "
-      +esc(missAll.map(lineLabel).join(", "))+" — điền vào kpi.json để so sánh % đạt.";
+    $("kpiwarn").innerHTML="⚠️ <strong>Chưa có KPI</strong> cho: "+esc(missAll.join(", "))
+      +" — điền vào kpi.json để so sánh % đạt.";
   } else $("kpiwarn").style.display="none";
 
-  const scopeName=state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope);
-  const pace=attain!=null?attain-timePct:null;
-  $("summary").innerHTML=[
-    card("Doanh thu A1+B1",short(tot),esc(scopeName)+" · "+vnd(tot)+" đ",GRAD.rev),
-    card("KPI tháng",kpi.value!=null?short(kpi.value):"—",
-         kpi.missing.length&&kpi.value!=null?"thiếu KPI "+kpi.missing.length+" dòng":"A1+B1 gộp",GRAD.kpi),
-    card("% đạt KPI",attain!=null?attain.toFixed(1)+"%":"—",
-         "thời gian trôi qua "+timePct.toFixed(0)+"%",GRAD.att),
-    card("Pacing",pace!=null?(pace>=0?"▲ vượt ":"▼ chậm ")+Math.abs(pace).toFixed(1)+" điểm":"—",
-         "so với tiến độ thời gian",GRAD.pace,pace!=null&&pace<0),
-    card(isCurrentMonth()?"Dự phóng cuối tháng":"Kết quả cuối tháng",short(isCurrentMonth()?proj:tot),
-         kpi.value?((isCurrentMonth()?proj:tot)/kpi.value*100).toFixed(0)+"% KPI":"",GRAD.proj)
-  ].join("");
+  const attain=kpi.total?tot/kpi.total*100:null;
+  let cards;
+  if(state.mode==="month"){
+    const m=DATA.months[state.month];
+    const elapsed=isCurrentMonth()?m.as_of_day:m.days_in_month;
+    const timePct=elapsed/m.days_in_month*100;
+    const kpiMonth=kpiOfDays(DAYS.filter(d=>d.m===state.month),codes); // pro-rata phần đã trôi
+    const kpiFull=(()=>{const k=(KPI&&KPI[state.month])||{};let v=0,any=false;
+      for(const c of codes){if(k[c]!=null){v+=k[c];any=true;}}return any?v:null;})();
+    const attMonth=kpiFull?tot/kpiFull*100:null;
+    const pace=attMonth!=null?attMonth-timePct:null;
+    const proj=elapsed?tot/elapsed*m.days_in_month:0;
+    cards=[
+      card("Doanh thu A1+B1",short(tot),esc(scopeName)+" · "+vnd(tot)+" đ",GRAD.rev),
+      card("KPI tháng",kpiFull!=null?short(kpiFull):"—","A1+B1 gộp",GRAD.kpi),
+      card("% đạt KPI",attMonth!=null?attMonth.toFixed(1)+"%":"—",
+           "thời gian trôi qua "+timePct.toFixed(0)+"%",GRAD.att),
+      card("Pacing",pace!=null?(pace>=0?"▲ vượt ":"▼ chậm ")+Math.abs(pace).toFixed(1)+" điểm":"—",
+           "so với tiến độ thời gian",GRAD.pace,pace!=null&&pace<0),
+      card(isCurrentMonth()?"Dự phóng cuối tháng":"Kết quả cuối tháng",short(isCurrentMonth()?proj:tot),
+           kpiFull?((isCurrentMonth()?proj:tot)/kpiFull*100).toFixed(0)+"% KPI":"",GRAD.proj)
+    ];
+  } else {
+    cards=[
+      card("Doanh thu A1+B1",short(tot),esc(scopeName)+" · "+vnd(tot)+" đ",GRAD.rev),
+      card("KPI kỳ chọn",kpi.total!=null?short(kpi.total):"—","KPI tháng rải đều "+days.length+" ngày",GRAD.kpi),
+      card("% đạt",attain!=null?attain.toFixed(1)+"%":"—","so với KPI rải đều",GRAD.att,attain!=null&&attain<100),
+      card("Trung bình/ngày",short(tot/days.length),"A1 "+short(sum(a1)/days.length)+" · B1 "+short(sum(b1)/days.length),GRAD.proj)
+    ];
+  }
+  $("summary").innerHTML=cards.join("");
 
-  renderChips();
-  renderCum(a1,b1,kpi.value,m);
-  renderDaily(m,codes);
-  renderTable(m);
-  $("cum-note").textContent="Lũy kế "+scopeName+" đến ngày "+elapsed+"/"+m.days_in_month
-    +(kpi.value?", KPI rải đều theo ngày.":".");
-  $("daily-note").textContent=state.scope==="ALL"
-    ?"Cột chồng theo sản phẩm — bấm chip sản phẩm để xem riêng.":"Sản phẩm: "+lineLabel(state.scope);
+  renderChips(days);
+  renderCum(days,a1,b1,kpi);
+  renderDaily(days,codes);
+  renderTable(days);
+  $("cum-note").textContent="Lũy kế "+scopeName+" · "+rangeLabel
+    +(kpi.total?" — KPI rải đều theo ngày.":".");
+  $("daily-note").textContent=(state.scope==="ALL"
+    ?"Cột chồng theo sản phẩm — bấm chip sản phẩm để xem riêng. ":"Sản phẩm: "+lineLabel(state.scope)+". ")
+    +(state.mode==="range"?"Kỳ: "+rangeLabel+".":"");
 }
 function card(t,v,d,grad,down){return '<div class="kpi" style="background:'+grad+'">'
   +'<div class="kpi-label">'+esc(t)+'</div><div class="kpi-value'+(down?" down":"")+'">'+esc(v)+'</div>'
   +(d?'<div class="kpi-sub">'+d+'</div>':"")+'</div>';}
 
-function renderChips(){
+function renderChips(days){
   const items=[{code:"ALL",label:"Tất cả"}].concat(DATA.lines);
   $("chips").innerHTML=items.map(it=>{
     const codes=it.code==="ALL"?lineCodes():[it.code];
-    const t=sum(seriesFor(codes,"a1"))+sum(seriesFor(codes,"b1"));
-    const k=kpiFor(codes).value;
+    const t=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"));
+    const k=state.mode==="month"
+      ?(()=>{const kk=(KPI&&KPI[state.month])||{};let v=0,any=false;
+        for(const c of codes){if(kk[c]!=null){v+=kk[c];any=true;}}return any?v:null;})()
+      :kpiOfDays(days,codes).total;
     const on=state.scope===it.code;
     return '<div class="chip'+(on?" on":"")+'" data-c="'+it.code+'"'
       +(on?' style="background:'+COLORS[it.code]+'"':"")+'>'
@@ -201,6 +250,18 @@ function grid(max,H,fmt){
       +'<text x="'+(PAD.l-8)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#9ca3af">'+fmt(v)+'</text>';}
   return g;
 }
+function xLabels(days,H,posf,axisN){ // nhãn trục ngày: thưa dần khi kỳ dài; mode tháng giữ mốc 1/5/10…
+  let g="";const n=axisN||days.length;
+  const step=state.mode==="month"?5:Math.max(1,Math.ceil(days.length/10));
+  for(let j=0;j<days.length;j++){
+    const dnum=state.mode==="month"?j+1:j;
+    const show=state.mode==="month"?(j===0||j===days.length-1||(j+1)%5===0)
+      :(j===0||j===days.length-1||j%step===0);
+    if(show)g+='<text x="'+posf(j)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" fill="#9ca3af">'
+      +esc(state.mode==="month"?String(j+1):days[j].label)+'</text>';
+  }
+  return g;
+}
 function tip(html,ev){const t=$("tip");
   if(!html){t.style.opacity=0;return;}
   t.innerHTML=html;t.style.opacity=1;
@@ -208,95 +269,108 @@ function tip(html,ev){const t=$("tip");
   t.style.left=x+"px";t.style.top=(ev.clientY+14)+"px";
 }
 
-function renderCum(a1,b1,kpiV,m){
-  const H=300,days=m.days_in_month;
+function renderCum(days,a1,b1,kpi){
+  const H=300;
+  const axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
   const cum=cumsum(a1.map((v,i)=>v+(b1[i]||0)));
-  const max=Math.max(kpiV||0,cum[cum.length-1]||0,1)*1.08;
-  const ys=yScale(max,H),xf=d=>PAD.l+(d-1)/(days-1)*(W-PAD.l-PAD.r);
+  const kpiEnd=state.mode==="month"
+    ?(()=>{const k=(KPI&&KPI[state.month])||{};let v=0,any=false;
+      for(const c of scopeCodes()){if(k[c]!=null){v+=k[c];any=true;}}return any?v:null;})()
+    :kpi.total;
+  const max=Math.max(kpiEnd||0,cum[cum.length-1]||0,1)*1.08;
+  const ys=yScale(max,H),xf=j=>PAD.l+(axisN===1?0:j/(axisN-1))*(W-PAD.l-PAD.r);
   const color=COLORS[state.scope];
-  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short);
-  for(let d=1;d<=days;d++){
-    if(d!==1&&d!==days&&d%5!==0)continue;
-    s+='<text x="'+xf(d)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" fill="#9ca3af">'+d+'</text>';}
-  if(kpiV)s+='<line x1="'+xf(1)+'" y1="'+ys(kpiV/days)+'" x2="'+xf(days)+'" y2="'+ys(kpiV)
-    +'" stroke="#9ca3af" stroke-dasharray="6 5" stroke-width="1.6"/>'
-    +'<text x="'+(W-PAD.r)+'" y="'+(ys(kpiV)-6)+'" text-anchor="end" font-size="11" fill="#6b7280">KPI '+short(kpiV)+'</text>';
-  const pts=cum.map((v,i)=>xf(i+1)+","+ys(v)).join(" ");
-  s+='<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2.6" stroke-linejoin="round"/>';
-  if(isCurrentMonth()&&cum.length>=2){ // dự phóng tuyến tính phần còn lại
+  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short)+xLabels(days,H,xf,axisN);
+  if(kpiEnd){
+    if(state.mode==="month"){ // KPI thẳng từ ngày 1 → cuối tháng
+      s+='<line x1="'+xf(0)+'" y1="'+ys(kpiEnd/axisN)+'" x2="'+xf(axisN-1)+'" y2="'+ys(kpiEnd)
+        +'" stroke="#9ca3af" stroke-dasharray="6 5" stroke-width="1.6"/>';
+    } else { // KPI lũy kế pro-rata (gãy khúc nếu vắt qua tháng có KPI khác nhau)
+      const kcum=cumsum(kpi.daily);
+      s+='<polyline points="'+kcum.map((v,j)=>xf(j)+","+ys(v)).join(" ")
+        +'" fill="none" stroke="#9ca3af" stroke-dasharray="6 5" stroke-width="1.6"/>';
+    }
+    s+='<text x="'+(W-PAD.r)+'" y="'+(ys(kpiEnd)-6)+'" text-anchor="end" font-size="11" fill="#6b7280">KPI '+short(kpiEnd)+'</text>';
+  }
+  s+='<polyline points="'+cum.map((v,j)=>xf(j)+","+ys(v)).join(" ")
+    +'" fill="none" stroke="'+color+'" stroke-width="2.6" stroke-linejoin="round"/>';
+  if(isCurrentMonth()&&cum.length>=2){ // dự phóng tuyến tính (chỉ mode tháng hiện tại)
     const last=cum[cum.length-1],rate=last/cum.length;
-    s+='<line x1="'+xf(cum.length)+'" y1="'+ys(last)+'" x2="'+xf(days)+'" y2="'+ys(rate*days)
+    s+='<line x1="'+xf(cum.length-1)+'" y1="'+ys(last)+'" x2="'+xf(axisN-1)+'" y2="'+ys(rate*axisN)
       +'" stroke="'+color+'" stroke-width="1.6" stroke-dasharray="2 5" opacity=".7"/>';
   }
-  if(cum.length)s+='<circle cx="'+xf(cum.length)+'" cy="'+ys(cum[cum.length-1])+'" r="4" fill="'+color+'"/>';
-  for(let i=0;i<cum.length;i++)
-    s+='<rect x="'+(xf(i+1)-(W-PAD.l-PAD.r)/days/2)+'" y="0" width="'+((W-PAD.l-PAD.r)/days)
-      +'" height="'+H+'" fill="transparent" data-i="'+i+'"/>';
+  if(cum.length)s+='<circle cx="'+xf(cum.length-1)+'" cy="'+ys(cum[cum.length-1])+'" r="4" fill="'+color+'"/>';
+  const bw=(W-PAD.l-PAD.r)/axisN;
+  for(let j=0;j<cum.length;j++)
+    s+='<rect x="'+(xf(j)-bw/2)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
   s+='</svg>';
   $("cumchart").innerHTML=s;
   $("cum-legend").innerHTML='<span><i style="background:'+color+'"></i>Lũy kế thực tế</span>'
-    +(kpiV?'<span><i style="background:#9ca3af"></i>Đường KPI</span>':"")
+    +(kpiEnd?'<span><i style="background:#9ca3af"></i>Đường KPI</span>':"")
     +(isCurrentMonth()?'<span><i style="background:'+color+';opacity:.4"></i>Dự phóng tuyến tính</span>':"");
   $("cumchart").querySelectorAll("rect[data-i]").forEach(r=>{
-    r.onmousemove=ev=>{const i=+r.dataset.i;
-      const pct=kpiV?" · "+(cum[i]/kpiV*100).toFixed(1)+"% KPI":"";
-      tip("<b>Ngày "+(i+1)+"</b><br>Lũy kế: "+vnd(cum[i])+" đ"+pct,ev);};
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      const kc=state.mode==="month"?kpiEnd:sum(kpi.daily.slice(0,j+1));
+      const pct=kc?" · "+(cum[j]/(state.mode==="month"?kpiEnd:kc)*100).toFixed(1)+"% KPI":"";
+      tip("<b>"+esc(days[j].label)+"</b><br>Lũy kế: "+vnd(cum[j])+" đ"+pct,ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
 
-function renderDaily(m,codes){
-  const H=300,days=m.days_in_month,n=m.as_of_day;
-  const perLine=codes.map(c=>({code:c,
-    a1:(m.lines[c]||{}).a1||[],b1:(m.lines[c]||{}).b1||[]}));
-  const dayTot=[];
-  for(let i=0;i<n;i++)dayTot.push(sum(perLine.map(p=>(p.a1[i]||0)+(p.b1[i]||0))));
+function renderDaily(days,codes){
+  const H=300;
+  const axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
+  const dayTot=days.map(d=>sum(codes.map(c=>dayVal(d,c,"a1")+dayVal(d,c,"b1"))));
   const max=Math.max(...dayTot,1)*1.12;
-  const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/days;
-  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short);
-  for(let d=1;d<=days;d++){
-    if(d===1||d===days||d%5===0)
-      s+='<text x="'+(PAD.l+(d-.5)*bw)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" fill="#9ca3af">'+d+'</text>';}
+  const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN;
+  const posf=j=>PAD.l+(j+.5)*bw;
+  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short)+xLabels(days,H,posf,axisN);
   const rowsBy={};
-  for(let i=0;i<n;i++){
+  for(let j=0;j<days.length;j++){
     let y=H-PAD.b,rows=[];
-    const x=PAD.l+i*bw+bw*0.14,w=bw*0.72;
-    for(const p of perLine){
+    const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
+    for(const c of codes){
       for(const[b,op]of[["a1",1],["b1",.42]]){
-        const v=p[b][i]||0;if(v<=0)continue;
+        const v=dayVal(days[j],c,b);if(v<=0)continue;
         const h=(H-PAD.t-PAD.b)*(v/max);y-=h;
         s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(h,0)
-          +'" rx="2" fill="'+COLORS[p.code]+'" opacity="'+op+'"/>';
-        rows.push(lineLabel(p.code)+" "+b.toUpperCase()+": "+vnd(v)+" đ");
+          +'" rx="2" fill="'+COLORS[c]+'" opacity="'+op+'"/>';
+        rows.push(lineLabel(c)+" "+b.toUpperCase()+": "+vnd(v)+" đ");
       }
     }
-    s+='<rect x="'+(PAD.l+i*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+i+'"/>';
-    rowsBy[i]=rows;
+    s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+    rowsBy[j]=rows;
   }
   s+='</svg>';
   $("dailychart").innerHTML=s;
   $("dailychart").querySelectorAll("rect[data-i]").forEach(r=>{
-    r.onmousemove=ev=>{const i=+r.dataset.i;
-      tip("<b>Ngày "+(i+1)+" · "+vnd(dayTot[i])+" đ</b><br>"+(rowsBy[i]||[]).join("<br>"),ev);};
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      tip("<b>"+esc(days[j].label)+" · "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
 
-function renderTable(m){
-  const elapsed=isCurrentMonth()?m.as_of_day:m.days_in_month;
-  const left=m.days_in_month-elapsed;
-  const timePct=elapsed/m.days_in_month*100;
-  const k=(KPI&&KPI[state.month])||{};
+function renderTable(days){
+  const isM=state.mode==="month";
+  const m=isM?DATA.months[state.month]:null;
+  const elapsed=isM?(isCurrentMonth()?m.as_of_day:m.days_in_month):days.length;
+  const left=isM?m.days_in_month-elapsed:0;
+  const timePct=isM?elapsed/m.days_in_month*100:100;
   const rows=DATA.lines.map(l=>{
-    const a=sum((m.lines[l.code]||{}).a1||[]),b=sum((m.lines[l.code]||{}).b1||[]);
-    const t=a+b,kp=k[l.code];
+    const a=sum(seriesDays(days,[l.code],"a1")),b=sum(seriesDays(days,[l.code],"b1"));
+    const t=a+b;
+    const kp=isM?((KPI&&KPI[state.month])||{})[l.code]:kpiOfDays(days,[l.code]).total;
     return {code:l.code,label:l.label,a,b,t,kp,
-      att:kp?t/kp*100:null,need:kp&&left>0?Math.max(0,(kp-t)/left):null};
+      att:kp?t/kp*100:null,
+      need:isM?(kp&&left>0?Math.max(0,(kp-t)/left):null):t/days.length};
   }).sort((x,y)=>y.t-x.t);
-  const head="<thead><tr><th>Sản phẩm</th><th>A1</th><th>B1</th><th>Tổng A1+B1</th><th>KPI</th><th>% đạt</th>"
-    +"<th>Cần TB/ngày còn lại</th></tr></thead>";
+  const lastCol=isM?"Cần TB/ngày còn lại":"TB/ngày";
+  const kpiCol=isM?"KPI":"KPI kỳ chọn";
+  const head="<thead><tr><th>Sản phẩm</th><th>A1</th><th>B1</th><th>Tổng A1+B1</th><th>"+kpiCol
+    +"</th><th>% đạt</th><th>"+lastCol+"</th></tr></thead>";
+  const refPct=isM?timePct:100; // mode ngày: kỳ đã trôi trọn vẹn → so thẳng 100%
   const body=rows.map(r=>{
-    const attCls=r.att==null?"":r.att>=timePct?"text-green":r.att>=timePct*0.8?"text-amber":"text-red";
+    const attCls=r.att==null?"":r.att>=refPct?"text-green":r.att>=refPct*0.8?"text-amber":"text-red";
     return "<tr><td><span style='display:inline-block;width:9px;height:9px;"
     +"border-radius:50%;background:"+COLORS[r.code]+";margin-right:7px'></span>"
     +"<span style='color:"+COLORS[r.code]+"'>"+esc(r.label)+"</span></td>"
@@ -309,8 +383,22 @@ function renderTable(m){
   const foot="<tr class='total-row'><td>TỔNG</td><td>"+vnd(T("a"))+"</td><td>"+vnd(T("b"))+"</td>"
     +"<td>"+vnd(T("t"))+"</td><td>"+(kAll!=null?vnd(kAll):"—")+"</td>"
     +"<td>"+(kAll?(T("t")/kAll*100).toFixed(1)+"%":"—")+"</td>"
-    +"<td>"+(kAll&&left>0?vnd(Math.max(0,(kAll-T("t"))/left)):"—")+"</td></tr>";
+    +"<td>"+(isM?(kAll&&left>0?vnd(Math.max(0,(kAll-T("t"))/left)):"—"):vnd(T("t")/days.length))+"</td></tr>";
   $("tbl").innerHTML=head+"<tbody>"+body+foot+"</tbody>";
+}
+
+// ---------- chọn thời gian ----------
+function setMode(mode){
+  state.mode=mode;
+  $("month").style.display=mode==="month"?"":"none";
+  $("rangebox").style.display=mode==="range"?"flex":"none";
+  for(const el of $("mode").children)el.classList.toggle("on",el.dataset.m===mode);
+  if(mode==="range"&&(!state.from||!state.to)){ // mặc định: 14 ngày dữ liệu gần nhất
+    const last=DAYS[DAYS.length-1],first=DAYS[Math.max(0,DAYS.length-14)];
+    state.from=first.iso;state.to=last.iso;
+    $("from").value=state.from;$("to").value=state.to;
+  }
+  render();
 }
 
 async function boot(){
@@ -319,10 +407,23 @@ async function boot(){
     fetch("./kpi.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>({}))
   ]);
   DATA=d;KPI=k;
-  const months=Object.keys(d.months).sort().reverse();
-  state.month=months[0];
-  $("month").innerHTML=months.map(m=>'<option value="'+m+'">'+monthLabel(m)+'</option>').join("");
+  const months=Object.keys(d.months).sort();
+  for(const m of months){
+    const md=d.months[m];
+    for(let i=0;i<md.as_of_day;i++)
+      DAYS.push({iso:m.slice(0,4)+"-"+m.slice(4)+"-"+pad2(i+1),m:m,i:i,
+                 label:(i+1)+"/"+parseInt(m.slice(4),10)});
+  }
+  state.month=months[months.length-1];
+  $("month").innerHTML=months.slice().reverse().map(m=>'<option value="'+m+'">'+monthLabel(m)+'</option>').join("");
   $("month").onchange=e=>{state.month=e.target.value;render();};
+  const lo=DAYS[0].iso,hi=DAYS[DAYS.length-1].iso;
+  $("from").min=lo;$("from").max=hi;$("to").min=lo;$("to").max=hi;
+  $("from").onchange=e=>{if(e.target.value){state.from=e.target.value;
+    if(state.to<state.from){state.to=state.from;$("to").value=state.to;}render();}};
+  $("to").onchange=e=>{if(e.target.value){state.to=e.target.value;
+    if(state.to<state.from){state.from=state.to;$("from").value=state.from;}render();}};
+  $("mode").onclick=e=>{const t=e.target.closest("[data-m]");if(t)setMode(t.dataset.m);};
   $("updated").textContent="Cập nhật: "+d.generated_at+" · "+d.market;
   render();
 }
