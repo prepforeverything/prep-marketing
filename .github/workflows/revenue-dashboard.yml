@@ -1,0 +1,52 @@
+name: Dashboard doanh thu A1+B1 hằng ngày
+
+# Fetch Prep BI → build dashboard → push repo PRIVATE prepedu-landing (Cloudflare tự deploy).
+# Cron theo UTC: 08:10 VN = 01:10 UTC. Số liệu KHÔNG được ghi vào repo này (public) —
+# data.json/kpi.json/HTML nằm hết bên prepedu-landing. Secrets: PREP_BI_API_KEY, PUBLISH_REPO_TOKEN.
+# ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
+on:
+  schedule:
+    - cron: "10 1 * * *"   # 08:10 giờ VN
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — build ra artifact, KHÔNG push repo publish"
+        type: boolean
+        default: false
+
+concurrency:
+  group: revenue-dashboard
+  cancel-in-progress: false
+
+permissions:
+  contents: read           # KHÔNG cần write ở repo này — push sang repo khác bằng PUBLISH_REPO_TOKEN
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      PREP_BI_API_KEY: ${{ secrets.PREP_BI_API_KEY }}
+      PUBLISH_REPO_TOKEN: ${{ secrets.PUBLISH_REPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build & publish dashboard
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/revenue-dashboard/build_dashboard.py --dry-run --out out
+          else
+            python3 automation/revenue-dashboard/build_dashboard.py
+          fi
+
+      - name: Upload artifact (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: revenue-dashboard-dry-run
+          path: out/
+          retention-days: 3

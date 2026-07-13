@@ -65,5 +65,24 @@ def ad_revenue(products, date_from, date_to, *, markets=None, currency="VND", at
     return out
 
 
+def revenue_series(products, month, bucket, *, markets=None, currency="VND", key=None):
+    """Raw payload revenue_series của 1 tháng (lũy kế theo ngày + so sánh LM/LY) cho 1 nhóm product
+    × 1 nhóm bucket (vd ["paid-a1"]). Trả None nếu thiếu key/API lỗi — caller tự quyết fallback.
+
+    Dùng cho dashboard doanh thu A1/B1 (automation/revenue-dashboard): điểm nào revenue=null là
+    ngày chưa có số; doanh thu TỪNG ngày = hiệu 2 điểm lũy kế liền nhau."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "month": str(month), "bucket": list(bucket),
+            "currency": currency, "grain": "m"}
+    if markets:
+        body["markets"] = list(markets)
+    try:
+        return _post("revenue_series", body, key)
+    except Exception:  # noqa: BLE001 — lỗi mạng/timeout/HTTP: trả None, caller lùi an toàn
+        return None
+
+
 def available():
     return _key() is not None
