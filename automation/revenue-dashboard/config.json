@@ -1,0 +1,23 @@
+{
+  "_note": "Dashboard doanh thu A1+B1 thị trường VN. Code (repo public) KHÔNG chứa số liệu — data.json/kpi.json/HTML build nằm bên repo private prepedu-landing (publish.repo). KPI mỗi tháng điền vào kpi.json bên repo đó.",
+  "market_keys": [1],
+  "market_label": "Việt Nam",
+  "currency": "VND",
+  "start_month": "202601",
+  "buckets": {"a1": "paid-a1", "b1": "paid-b1"},
+  "lines": [
+    {"code": "IELTS", "label": "IELTS", "products": [1]},
+    {"code": "TOEIC", "label": "TOEIC", "products": [4]},
+    {"code": "HSK", "label": "HSK", "products": [5, 13], "_note": "gộp HSK (5) + HSK 3.0 (13)"},
+    {"code": "VSTEP", "label": "VSTEP", "products": [7]},
+    {"code": "IELTS_TEENS", "label": "IELTS Junior", "products": [8], "_note": "BI gọi là IELTS Teens"},
+    {"code": "PREPTALK", "label": "PrepTalk", "products": [10], "_note": "PrepTalk English 2 — không gồm PrepTalk Chinese (12)"}
+  ],
+  "publish": {
+    "repo": "https://github.com/prepforeverything/prepedu-landing.git",
+    "branch": "main",
+    "base_url": "https://lp.prepedu.com",
+    "dir_prefix": "bi-",
+    "marker": "revenue-dashboard"
+  }
+}
