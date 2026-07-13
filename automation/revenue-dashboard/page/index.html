@@ -22,6 +22,11 @@
   header select,header input[type=date]{font:inherit;font-size:.85rem;font-weight:500;color:#4b5563;
     padding:7px 12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer}
   #rangebox{display:none;align-items:center;gap:6px;color:#6b7280;font-size:.85rem}
+  .tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+  .tab{padding:8px 18px;border-radius:8px;border:1px solid #d1d5db;background:#fff;cursor:pointer;
+    font-size:.85rem;font-weight:500;color:#4b5563;transition:all .2s}
+  .tab:hover{background:#f9fafb}
+  .tab.on{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.3)}
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:16px;margin-bottom:20px}
   .kpi{border-radius:12px;padding:18px;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.1)}
   .kpi-label{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;opacity:.85}
@@ -75,25 +80,49 @@
       <span id="rangebox"><input type="date" id="from"> – <input type="date" id="to"></span>
     </div>
   </header>
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-t="rev">Doanh thu vs KPI</div>
+    <div class="tab" data-t="eff">Chi phí &amp; hiệu quả</div>
+  </div>
   <div id="kpiwarn" class="insight warning" style="display:none"></div>
-  <div class="kpi-grid" id="summary"></div>
   <div class="chips" id="chips"></div>
-  <div class="card">
-    <h3>Lũy kế so với KPI</h3>
-    <div class="note" id="cum-note"></div>
-    <div id="cumchart"></div>
-    <div class="legend" id="cum-legend"></div>
+  <div id="tab-rev">
+    <div class="kpi-grid" id="summary"></div>
+    <div class="card">
+      <h3>Lũy kế so với KPI</h3>
+      <div class="note" id="cum-note"></div>
+      <div id="cumchart"></div>
+      <div class="legend" id="cum-legend"></div>
+    </div>
+    <div class="card">
+      <h3>Doanh thu từng ngày (A1 đậm · B1 nhạt)</h3>
+      <div class="note" id="daily-note"></div>
+      <div id="dailychart"></div>
+    </div>
+    <div class="card">
+      <h3>Chi tiết theo sản phẩm</h3>
+      <div class="note">A1 = paid → chốt trong kỳ · B1 = paid → chốt từ lead kỳ trước · KPI = A1+B1 gộp
+        (kỳ tùy chọn: KPI tháng rải đều theo ngày)</div>
+      <div style="overflow-x:auto"><table id="tbl"></table></div>
+    </div>
   </div>
-  <div class="card">
-    <h3>Doanh thu từng ngày (A1 đậm · B1 nhạt)</h3>
-    <div class="note" id="daily-note"></div>
-    <div id="dailychart"></div>
-  </div>
-  <div class="card">
-    <h3>Chi tiết theo sản phẩm</h3>
-    <div class="note">A1 = paid → chốt trong kỳ · B1 = paid → chốt từ lead kỳ trước · KPI = A1+B1 gộp
-      (kỳ tùy chọn: KPI tháng rải đều theo ngày)</div>
-    <div style="overflow-x:auto"><table id="tbl"></table></div>
+  <div id="tab-eff" style="display:none">
+    <div class="kpi-grid" id="eff-summary"></div>
+    <div class="card">
+      <h3>Chi phí từng ngày</h3>
+      <div class="note" id="sp-note"></div>
+      <div id="spendchart"></div>
+    </div>
+    <div class="card">
+      <h3>ME/RE lũy kế trong kỳ</h3>
+      <div class="note">ME/RE = chi phí ÷ doanh thu A1+B1, cộng dồn từ đầu kỳ — đường đi xuống nghĩa là hiệu quả cải thiện.</div>
+      <div id="merechart"></div>
+    </div>
+    <div class="card">
+      <h3>Hiệu quả theo sản phẩm</h3>
+      <div class="note" id="eff-note"></div>
+      <div style="overflow-x:auto"><table id="efftbl"></table></div>
+    </div>
   </div>
   <div class="footer">Prep Education — Dashboard doanh thu A1+B1 (Prep BI, bucket paid-a1/paid-b1, attribution first-paid)<br>
     Trang nội bộ — không chia sẻ link ra ngoài. Ngày gần nhất có thể chưa chốt đủ số; hệ thống tự điều chỉnh ở lần cập nhật sau.</div>
@@ -106,9 +135,9 @@ const COLORS={IELTS:"#3b82f6",TOEIC:"#10b981",HSK:"#f59e0b",VSTEP:"#0891b2",
               IELTS_TEENS:"#ec4899",PREPTALK:"#8b5cf6",ALL:"#1f2937"};
 const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(135deg,#8b5cf6,#7c3aed)",
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
-            proj:"linear-gradient(135deg,#06b6d4,#0891b2)"};
+            proj:"linear-gradient(135deg,#06b6d4,#0891b2)",sp:"linear-gradient(135deg,#64748b,#475569)"};
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
-let state={mode:"month",month:null,from:null,to:null,scope:"ALL"};
+let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
@@ -121,6 +150,11 @@ function short(n){
   if(n>=1e9)return s+(n/1e9).toLocaleString("vi-VN",{maximumFractionDigits:2})+" tỷ";
   if(n>=1e6)return s+(n/1e6).toLocaleString("vi-VN",{maximumFractionDigits:0})+" tr";
   return s+nf.format(Math.round(n));
+}
+function short2(n){ // như short() nhưng giữ 2 số lẻ ở bậc triệu — cho CPO/AOV (giá trị nhỏ, cần chi tiết)
+  if(n>=1e9)return (n/1e9).toLocaleString("vi-VN",{maximumFractionDigits:2})+" tỷ";
+  if(n>=1e6)return (n/1e6).toLocaleString("vi-VN",{maximumFractionDigits:2})+" tr";
+  return nf.format(Math.round(n));
 }
 function monthLabel(m){return "Tháng "+parseInt(m.slice(4),10)+"/"+m.slice(0,4);}
 function cumsum(a){let c=0;return a.map(v=>(c+=v));}
@@ -155,10 +189,24 @@ function isCurrentMonth(){
     &&DATA.months[state.month].as_of_day<DATA.months[state.month].days_in_month;
 }
 
+function spendSeries(days,codes){return days.map(d=>sum(codes.map(c=>dayVal(d,c,"sp_meta")+dayVal(d,c,"sp_g"))));}
+function orderSeries(days,codes){return days.map(d=>sum(codes.map(c=>dayVal(d,c,"o_a1")+dayVal(d,c,"o_b1"))));}
+function spendOn(){const s=DATA.spend_sources||{};return !!(s.meta||s.google);}
+function srcLabel(){const s=DATA.spend_sources||{};
+  return s.meta&&s.google?"Meta + Google":s.meta?"Meta (Google chờ setup)":s.google?"Google":"chưa có nguồn";}
+
 function render(){
   const days=selDays(),codes=scopeCodes();
-  if(!days.length){$("summary").innerHTML="";$("kpiwarn").style.display="";
+  $("tab-rev").style.display=state.tab==="rev"?"":"none";
+  $("tab-eff").style.display=state.tab==="eff"?"":"none";
+  if(!days.length){$("summary").innerHTML="";$("eff-summary").innerHTML="";$("kpiwarn").style.display="";
     $("kpiwarn").innerHTML="⚠️ Khoảng ngày không có dữ liệu.";return;}
+  renderChips(days);
+  if(state.tab==="eff"){$("kpiwarn").style.display="none";renderEff(days,codes);return;}
+  renderRev(days,codes);
+}
+
+function renderRev(days,codes){
   const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1");
   const tot=sum(a1)+sum(b1);
   const kpi=kpiOfDays(days,codes);
@@ -206,7 +254,6 @@ function render(){
   }
   $("summary").innerHTML=cards.join("");
 
-  renderChips(days);
   renderCum(days,a1,b1,kpi);
   renderDaily(days,codes);
   renderTable(days);
@@ -387,6 +434,118 @@ function renderTable(days){
   $("tbl").innerHTML=head+"<tbody>"+body+foot+"</tbody>";
 }
 
+// ---------- tab Chi phí & hiệu quả ----------
+function renderEff(days,codes){
+  const sp=spendSeries(days,codes);
+  const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1");
+  const rev=a1.map((v,i)=>v+(b1[i]||0));
+  const ord=orderSeries(days,codes);
+  const totSp=sum(sp),totRev=sum(rev),totOrd=sum(ord);
+  const mere=totRev?totSp/totRev*100:null;
+  const scopeName=state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope);
+  const rangeLabel=state.mode==="month"?monthLabel(state.month)
+    :days[0].label+" – "+days[days.length-1].label+" · "+days.length+" ngày";
+  $("eff-summary").innerHTML=[
+    card("Chi phí (Spent)",short(totSp),esc(srcLabel())+" · "+vnd(totSp)+" đ",GRAD.sp),
+    card("Doanh thu A1+B1",short(totRev),vnd(totRev)+" đ",GRAD.rev),
+    card("ME/RE",mere!=null?mere.toFixed(1)+"%":"—","chi phí ÷ doanh thu",GRAD.pace),
+    card("Đơn (Order)",nf.format(totOrd),"đơn A1+B1",GRAD.att),
+    card("Chi phí / đơn",totOrd?short2(totSp/totOrd):"—","Spent ÷ Order",GRAD.kpi),
+    card("AOV",totOrd?short2(totRev/totOrd):"—","Doanh thu ÷ Order",GRAD.proj)
+  ].join("");
+  renderSpendDaily(days,codes);
+  renderMere(days,sp,rev);
+  renderEffTable(days);
+  $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
+    +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
+  $("eff-note").textContent="Kỳ: "+rangeLabel+" · Order = đơn A1+B1 · ME/RE = chi phí ÷ doanh thu.";
+  if(!spendOn())$("sp-note").textContent="Chưa có nguồn chi phí nào chạy (META_ACCESS_TOKEN/Google Ads chưa cấu hình) — các số chi phí đang là 0.";
+}
+
+function renderSpendDaily(days,codes){
+  const H=300;
+  const axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
+  const dayTot=days.map(d=>sum(codes.map(c=>dayVal(d,c,"sp_meta")+dayVal(d,c,"sp_g"))));
+  const max=Math.max(...dayTot,1)*1.12;
+  const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN;
+  const posf=j=>PAD.l+(j+.5)*bw;
+  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short)+xLabels(days,H,posf,axisN);
+  const rowsBy={};
+  for(let j=0;j<days.length;j++){
+    let y=H-PAD.b,rows=[];
+    const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
+    for(const c of codes){
+      const m=dayVal(days[j],c,"sp_meta"),g=dayVal(days[j],c,"sp_g"),v=m+g;
+      if(v<=0)continue;
+      const h=(H-PAD.t-PAD.b)*(v/max);y-=h;
+      s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(h,0)
+        +'" rx="2" fill="'+COLORS[c]+'"/>';
+      rows.push(lineLabel(c)+": "+vnd(v)+" đ"+(g>0?" (Meta "+vnd(m)+" · Google "+vnd(g)+")":""));
+    }
+    s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+    rowsBy[j]=rows;
+  }
+  s+='</svg>';
+  $("spendchart").innerHTML=s;
+  $("spendchart").querySelectorAll("rect[data-i]").forEach(r=>{
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
+    r.onmouseleave=()=>tip(null);
+  });
+}
+
+function renderMere(days,sp,rev){
+  const H=260;
+  const cumSp=cumsum(sp),cumRev=cumsum(rev);
+  const mere=cumSp.map((v,i)=>cumRev[i]>0?v/cumRev[i]*100:null);
+  const vals=mere.filter(v=>v!=null);
+  if(!vals.length){$("merechart").innerHTML='<div class="note">Chưa có dữ liệu để tính ME/RE trong kỳ này.</div>';return;}
+  const max=Math.max(...vals,1)*1.2;
+  const ys=yScale(max,H),xf=j=>PAD.l+(days.length===1?0:j/(days.length-1))*(W-PAD.l-PAD.r);
+  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,v=>v.toFixed(0)+"%")+xLabels(days,H,xf,days.length);
+  const pts=mere.map((v,j)=>v==null?null:xf(j)+","+ys(v)).filter(Boolean).join(" ");
+  s+='<polyline points="'+pts+'" fill="none" stroke="#d97706" stroke-width="2.6" stroke-linejoin="round"/>';
+  const lastIdx=mere.length-1;
+  if(mere[lastIdx]!=null)s+='<circle cx="'+xf(lastIdx)+'" cy="'+ys(mere[lastIdx])+'" r="4" fill="#d97706"/>'
+    +'<text x="'+(W-PAD.r)+'" y="'+(ys(mere[lastIdx])-8)+'" text-anchor="end" font-size="11" fill="#92400e">ME/RE '+mere[lastIdx].toFixed(1)+'%</text>';
+  const bw=(W-PAD.l-PAD.r)/days.length;
+  for(let j=0;j<days.length;j++)
+    s+='<rect x="'+(xf(j)-bw/2)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+  s+='</svg>';
+  $("merechart").innerHTML=s;
+  $("merechart").querySelectorAll("rect[data-i]").forEach(r=>{
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      tip("<b>"+esc(days[j].label)+"</b><br>ME/RE lũy kế: "+(mere[j]!=null?mere[j].toFixed(1)+"%":"—")
+        +"<br>Chi lũy kế: "+vnd(cumSp[j])+" đ<br>DT lũy kế: "+vnd(cumRev[j])+" đ",ev);};
+    r.onmouseleave=()=>tip(null);
+  });
+}
+
+function renderEffTable(days){
+  const rows=DATA.lines.map(l=>{
+    const sp=sum(spendSeries(days,[l.code]));
+    const a=sum(seriesDays(days,[l.code],"a1")),b=sum(seriesDays(days,[l.code],"b1"));
+    const rev=a+b,ord=sum(orderSeries(days,[l.code]));
+    return {code:l.code,label:l.label,sp,rev,ord,
+      mere:rev?sp/rev*100:null,cpo:ord?sp/ord:null,aov:ord?rev/ord:null};
+  }).sort((x,y)=>y.sp-x.sp);
+  const head="<thead><tr><th>Sản phẩm</th><th>Chi phí (Spent)</th><th>Doanh thu A1+B1</th><th>ME/RE</th>"
+    +"<th>Order</th><th>Chi phí/đơn</th><th>AOV</th></tr></thead>";
+  const body=rows.map(r=>"<tr><td><span style='display:inline-block;width:9px;height:9px;"
+    +"border-radius:50%;background:"+COLORS[r.code]+";margin-right:7px'></span>"
+    +"<span style='color:"+COLORS[r.code]+"'>"+esc(r.label)+"</span></td>"
+    +"<td>"+vnd(r.sp)+"</td><td>"+vnd(r.rev)+"</td>"
+    +"<td style='font-weight:700'>"+(r.mere!=null?r.mere.toFixed(1)+"%":"—")+"</td>"
+    +"<td>"+nf.format(r.ord)+"</td><td>"+(r.cpo!=null?vnd(r.cpo):"—")+"</td>"
+    +"<td>"+(r.aov!=null?vnd(r.aov):"—")+"</td></tr>").join("");
+  const T=x=>sum(rows.map(r=>r[x]||0));
+  const tSp=T("sp"),tRev=T("rev"),tOrd=T("ord");
+  const foot="<tr class='total-row'><td>TỔNG</td><td>"+vnd(tSp)+"</td><td>"+vnd(tRev)+"</td>"
+    +"<td>"+(tRev?(tSp/tRev*100).toFixed(1)+"%":"—")+"</td><td>"+nf.format(tOrd)+"</td>"
+    +"<td>"+(tOrd?vnd(tSp/tOrd):"—")+"</td><td>"+(tOrd?vnd(tRev/tOrd):"—")+"</td></tr>";
+  $("efftbl").innerHTML=head+"<tbody>"+body+foot+"</tbody>";
+}
+
 // ---------- chọn thời gian ----------
 function setMode(mode){
   state.mode=mode;
@@ -424,6 +583,10 @@ async function boot(){
   $("to").onchange=e=>{if(e.target.value){state.to=e.target.value;
     if(state.to<state.from){state.from=state.to;$("from").value=state.from;}render();}};
   $("mode").onclick=e=>{const t=e.target.closest("[data-m]");if(t)setMode(t.dataset.m);};
+  $("tabs").onclick=e=>{const t=e.target.closest(".tab");if(!t)return;
+    state.tab=t.dataset.t;
+    for(const el of $("tabs").children)el.classList.toggle("on",el.dataset.t===state.tab);
+    render();};
   $("updated").textContent="Cập nhật: "+d.generated_at+" · "+d.market;
   render();
 }
