@@ -73,6 +73,25 @@ def series_from_payload(payload):
             "as_of_day": len(cum)}
 
 
+def distribute(total, weights):
+    """Chia `total` (int ≥ 0) theo trọng số từng ngày (âm coi như 0), làm tròn nguyên sao cho
+    TỔNG ra đúng total (largest remainder). Dùng phân bổ A3+B3 tháng về ngày theo nhịp nhóm self."""
+    w = [max(0, x) for x in weights]
+    if total <= 0 or not w:
+        return [0] * len(weights)
+    s = sum(w)
+    if s <= 0:  # nhóm self không có đồng nào cả kỳ → rải đều
+        base = total // len(w)
+        out = [base] * len(w)
+        out[-1] += total - base * len(w)
+        return out
+    raw = [total * x / s for x in w]
+    out = [int(x) for x in raw]
+    for i in sorted(range(len(raw)), key=lambda i: raw[i] - out[i], reverse=True)[: total - sum(out)]:
+        out[i] += 1
+    return out
+
+
 def fetch_month(c, month, fixture_dir=None):
     """{'days_in_month': n, 'as_of_day': n, 'lines': {code: {'a1': [...], 'b1': [...]}}} hoặc None nếu API hỏng.
 
@@ -107,6 +126,40 @@ def fetch_month(c, month, fixture_dir=None):
     # Chi phí theo ngày (Meta + Google) — lớp phủ: nguồn lỗi/chưa cấu hình → 0, không hỏng run
     n_days = as_of
     since = f"{month[:4]}-{month[4:]}-01"
+
+    # A3+B3 (paid TỰ CHỐT — cho doanh thu Paid đầy đủ ở tab hiệu quả): revenue_series không tách
+    # được bucket lẻ → lấy TỔNG kỳ chính xác từ conversion_overview rồi phân bổ về ngày theo nhịp
+    # nhóm "self" (daily có sẵn). Tổng tháng luôn khớp số thật; mức ngày là ước lượng.
+    for line in c["lines"]:
+        per = lines[line["code"]]
+        n = len(per["a1"])
+        if fixture_dir:
+            fs = Path(fixture_dir) / f"{month}-{line['code']}-self.json"
+            fc = Path(fixture_dir) / f"{month}-{line['code']}-CONV.json"
+            selfp = json.loads(fs.read_text(encoding="utf-8")) if fs.exists() else None
+            conv = json.loads(fc.read_text(encoding="utf-8")) if fc.exists() else None
+        elif n:
+            selfp = prep_bi.revenue_series(line["products"], month, ["self"],
+                                           markets=c["market_keys"], currency=c["currency"])
+            until_conv = (dt.date(int(month[:4]), int(month[4:6]), 1) + dt.timedelta(days=n - 1)).isoformat()
+            conv = prep_bi.conversion_overview(line["products"], since, until_conv,
+                                               markets=c["market_keys"], currency=c["currency"])
+            if conv is None:
+                print(f"[WARN] {month} {line['code']}: không lấy được A3+B3 — tạm tính 0", file=sys.stderr)
+        else:
+            selfp = conv = None
+        rev = ords = 0
+        for mo in (conv or {}).get("months", []):
+            if str(mo.get("month")) == month:
+                b = mo.get("buckets", {})
+                rev = round((b.get("A3", {}).get("revenue") or 0) + (b.get("B3", {}).get("revenue") or 0))
+                ords = int((b.get("A3", {}).get("orders") or 0) + (b.get("B3", {}).get("orders") or 0))
+        s = series_from_payload(selfp) if selfp else {"daily": [], "orders": []}
+        sd = (s["daily"][:cut] if cut is not None else s["daily"])[:n]
+        so = (s["orders"][:cut] if cut is not None else s["orders"])[:n]
+        sd, so = sd + [0] * (n - len(sd)), so + [0] * (n - len(so))
+        per["a3b3"] = distribute(rev, sd)
+        per["o_a3b3"] = distribute(ords, so)
     if fixture_dir:
         f = Path(fixture_dir) / f"{month}-SPEND.json"
         sp = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
@@ -141,9 +194,9 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
             old = {}
     refetch = set(months) if force else set(months[-2:])  # mặc định: tháng hiện tại + tháng trước
 
-    def complete(mm):  # cache cũ thiếu trường mới (orders/spend) → refetch 1 lần để backfill
+    def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v for v in ls.values())
 
     out_months = {}
     for m in months:
@@ -277,7 +330,7 @@ def main():
             yd = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=1)
             mm = cur.get("months", {}).get(yd.strftime("%Y%m"), {})
             ls = mm.get("lines") or {}
-            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v for v in ls.values()):
+            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v for v in ls.values()):
                 print(f"Đã có số đến hết {yd.isoformat()} — bỏ qua lượt này.")
                 if tmp:
                     shutil.rmtree(tmp, ignore_errors=True)
