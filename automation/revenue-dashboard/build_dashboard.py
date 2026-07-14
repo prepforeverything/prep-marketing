@@ -241,6 +241,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="build nhưng KHÔNG push repo publish")
     ap.add_argument("--out", help="thư mục output cục bộ (bắt buộc khi không push)")
     ap.add_argument("--from-fixture", help="đọc payload từ thư mục fixture thay vì gọi API")
+    ap.add_argument("--skip-if-fresh", action="store_true",
+                    help="đã có số đến hết hôm qua thì thoát ngay (dùng cho các lượt cron dự phòng)")
     a = ap.parse_args()
     c = cfg()
 
@@ -264,6 +266,21 @@ def main():
         repo_root = Path(a.out or "out").resolve()
         dash_dir = repo_root / "bi-local-test"
         dash_dir.mkdir(parents=True, exist_ok=True)
+
+    if a.skip_if_fresh and (dash_dir / "data.json").exists():
+        # Lượt cron dự phòng: hôm qua đã có số (kể cả đủ trường spend/orders) thì khỏi chạy lại
+        try:
+            cur = json.loads((dash_dir / "data.json").read_text(encoding="utf-8"))
+            yd = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=1)
+            mm = cur.get("months", {}).get(yd.strftime("%Y%m"), {})
+            ls = mm.get("lines") or {}
+            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v for v in ls.values()):
+                print(f"Đã có số đến hết {yd.isoformat()} — bỏ qua lượt này.")
+                if tmp:
+                    shutil.rmtree(tmp, ignore_errors=True)
+                return
+        except (json.JSONDecodeError, OSError):
+            pass  # data.json hỏng → cứ build lại như thường
 
     data = build_data(c, dash_dir, a.from_fixture)
     (dash_dir / "data.json").write_text(json.dumps(data, ensure_ascii=False) + "\n", encoding="utf-8")

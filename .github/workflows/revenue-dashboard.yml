@@ -1,12 +1,15 @@
 name: Dashboard doanh thu A1+B1 hằng ngày
 
 # Fetch Prep BI → build dashboard → push repo PRIVATE prepedu-landing (Cloudflare tự deploy).
-# Cron theo UTC: 08:10 VN = 01:10 UTC. Số liệu KHÔNG được ghi vào repo này (public) —
-# data.json/kpi.json/HTML nằm hết bên prepedu-landing. Secrets: PREP_BI_API_KEY, PUBLISH_REPO_TOKEN.
+# Số liệu KHÔNG được ghi vào repo này (public) — data.json/kpi.json/HTML nằm hết bên prepedu-landing.
+# GH cron hay trễ/bỏ lượt (đã dính 14/07) → đặt 3 lượt dự phòng; lượt schedule chạy với
+# --skip-if-fresh nên đã có số hôm qua thì thoát ngay, không chạy thừa. n8n 08:10 (nếu bật) vớt sớm nhất.
 # ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
 on:
   schedule:
-    - cron: "10 1 * * *"   # 08:10 giờ VN
+    - cron: "50 0 * * *"   # 07:50 VN
+    - cron: "20 1 * * *"   # 08:20 VN
+    - cron: "50 1 * * *"   # 08:50 VN
   workflow_dispatch:
     inputs:
       dry_run:
@@ -45,6 +48,8 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python3 automation/revenue-dashboard/build_dashboard.py --dry-run --out out
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            python3 automation/revenue-dashboard/build_dashboard.py --skip-if-fresh
           else
             python3 automation/revenue-dashboard/build_dashboard.py
           fi
