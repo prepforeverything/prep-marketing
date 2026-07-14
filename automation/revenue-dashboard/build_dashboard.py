@@ -125,8 +125,9 @@ def fetch_month(c, month, fixture_dir=None):
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
-def build_data(c, publish_dir, fixture_dir=None):
-    """Ghép data.json: cache tháng cũ từ bản sẵn có, refetch tháng hiện tại + tháng trước."""
+def build_data(c, publish_dir, fixture_dir=None, force=False):
+    """Ghép data.json: cache tháng cũ từ bản sẵn có, refetch tháng hiện tại + tháng trước.
+    force=True: bỏ cache, kéo lại TOÀN BỘ lịch sử (khi BI điều chỉnh số tháng đã đóng băng)."""
     now = dt.datetime.now(VN_TZ)
     months = month_range(c["start_month"], now)
     if fixture_dir:  # test offline: chỉ những tháng có fixture
@@ -138,7 +139,7 @@ def build_data(c, publish_dir, fixture_dir=None):
             old = json.loads(prev_file.read_text(encoding="utf-8")).get("months", {})
         except (json.JSONDecodeError, OSError):
             old = {}
-    refetch = set(months[-2:])  # tháng hiện tại + tháng trước: số còn được điều chỉnh
+    refetch = set(months) if force else set(months[-2:])  # mặc định: tháng hiện tại + tháng trước
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
@@ -241,6 +242,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="build nhưng KHÔNG push repo publish")
     ap.add_argument("--out", help="thư mục output cục bộ (bắt buộc khi không push)")
     ap.add_argument("--from-fixture", help="đọc payload từ thư mục fixture thay vì gọi API")
+    ap.add_argument("--force-backfill", action="store_true",
+                    help="bỏ cache, kéo lại toàn bộ lịch sử từ start_month (khi BI điều chỉnh số cũ)")
     ap.add_argument("--skip-if-fresh", action="store_true",
                     help="đã có số đến hết hôm qua thì thoát ngay (dùng cho các lượt cron dự phòng)")
     a = ap.parse_args()
@@ -282,7 +285,7 @@ def main():
         except (json.JSONDecodeError, OSError):
             pass  # data.json hỏng → cứ build lại như thường
 
-    data = build_data(c, dash_dir, a.from_fixture)
+    data = build_data(c, dash_dir, a.from_fixture, force=a.force_backfill)
     (dash_dir / "data.json").write_text(json.dumps(data, ensure_ascii=False) + "\n", encoding="utf-8")
     ensure_kpi(c, dash_dir, list(data["months"].keys()))
     write_static(c, dash_dir)

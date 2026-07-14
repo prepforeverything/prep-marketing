@@ -16,6 +16,10 @@ on:
         description: "Chạy thử — build ra artifact, KHÔNG push repo publish"
         type: boolean
         default: false
+      force_backfill:
+        description: "Kéo lại TOÀN BỘ lịch sử (khi BI điều chỉnh số tháng cũ đã đóng băng)"
+        type: boolean
+        default: false
 
 concurrency:
   group: revenue-dashboard
@@ -48,6 +52,8 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python3 automation/revenue-dashboard/build_dashboard.py --dry-run --out out
+          elif [ "${{ github.event.inputs.force_backfill }}" = "true" ]; then
+            python3 automation/revenue-dashboard/build_dashboard.py --force-backfill
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             python3 automation/revenue-dashboard/build_dashboard.py --skip-if-fresh
           else
