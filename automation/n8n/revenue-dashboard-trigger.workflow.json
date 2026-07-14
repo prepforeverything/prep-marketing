@@ -1,0 +1,57 @@
+{
+  "name": "Dashboard doanh thu — bấm giờ gọi GitHub",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "10 8 * * *" }
+          ]
+        }
+      },
+      "id": "schedule-0810",
+      "name": "Lịch 08:10 (VN)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [380, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/prepforeverything/prep-marketing/actions/workflows/revenue-dashboard.yml/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Accept", "value": "application/vnd.github+json" },
+            { "name": "X-GitHub-Api-Version", "value": "2022-11-28" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"ref\": \"main\",\n  \"inputs\": { \"dry_run\": \"false\" }\n}",
+        "options": {}
+      },
+      "id": "github-dispatch",
+      "name": "Gọi GitHub chạy dashboard doanh thu",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300],
+      "credentials": {
+        "httpHeaderAuth": { "id": "REPLACE_ME", "name": "GitHub dispatch token" }
+      }
+    }
+  ],
+  "connections": {
+    "Lịch 08:10 (VN)": {
+      "main": [
+        [ { "node": "Gọi GitHub chạy dashboard doanh thu", "type": "main", "index": 0 } ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "active": false
+}

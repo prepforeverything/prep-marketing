@@ -217,12 +217,19 @@ def write_static(c, dash_dir):
 
 
 def ensure_headers(repo_root, dirname):
-    """_headers: chặn index hoá đường dẫn dashboard (noindex, nofollow)."""
+    """_headers: noindex + no-cache cho đường dẫn dashboard — số mới phải hiện NGAY sau khi push,
+    không đợi cache biên Cloudflare (asset nhỏ, revalidate bằng ETag rẻ; cache biên từng giữ
+    bản cũ nhiều phút khiến người xem tưởng chưa cập nhật)."""
     f = repo_root / "_headers"
-    block = f"/{dirname}/*\n  X-Robots-Tag: noindex, nofollow\n"
+    block = (f"/{dirname}/*\n"
+             "  X-Robots-Tag: noindex, nofollow\n"
+             "  Cache-Control: no-cache, must-revalidate\n")
+    old_block = f"/{dirname}/*\n  X-Robots-Tag: noindex, nofollow\n"
     text = f.read_text(encoding="utf-8") if f.exists() else ""
     if f"/{dirname}/" not in text:
         f.write_text(text.rstrip("\n") + "\n\n" + block, encoding="utf-8")
+    elif old_block in text and "Cache-Control" not in text:
+        f.write_text(text.replace(old_block, block), encoding="utf-8")  # nâng cấp block cũ 1 lần
 
 
 def run(cmd, cwd):
