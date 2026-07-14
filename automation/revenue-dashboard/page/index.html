@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Doanh thu A1+B1 · VN</title>
+<title>VN1 Paid Marketing Performance</title>
 <style>
   /* Hệ màu/font đồng bộ bộ báo cáo "Digital Performance" của team (Segoe UI, nền #f3f4f6,
      KPI card gradient chữ trắng, palette sản phẩm cố định IELTS xanh dương / HSK cam / TOEIC xanh lá). */
@@ -69,7 +69,7 @@
 <body>
 <div class="container">
   <header>
-    <h1>Doanh thu A1+B1 — Việt Nam</h1>
+    <h1>VN1 Paid Marketing Performance</h1>
     <span class="subtitle" id="updated"></span>
     <div class="timebar">
       <div class="mode" id="mode">
@@ -437,9 +437,12 @@ function renderTable(days){
 // ---------- tab Chi phí & hiệu quả ----------
 function renderEff(days,codes){
   const sp=spendSeries(days,codes);
-  const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1");
-  const rev=a1.map((v,i)=>v+(b1[i]||0));
-  const ord=orderSeries(days,codes);
+  // Doanh thu Paid ĐẦY ĐỦ = A1+B1 (sales chốt) + A3+B3 (khách tự chốt từ lead paid).
+  // Tab "Doanh thu vs KPI" vẫn chỉ A1+B1 vì KPI được set trên A1+B1.
+  const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1"),a3b3=seriesDays(days,codes,"a3b3");
+  const rev=a1.map((v,i)=>v+(b1[i]||0)+(a3b3[i]||0));
+  const oX=seriesDays(days,codes,"o_a3b3");
+  const ord=orderSeries(days,codes).map((v,i)=>v+(oX[i]||0));
   const totSp=sum(sp),totRev=sum(rev),totOrd=sum(ord);
   const mere=totRev?totSp/totRev*100:null;
   const scopeName=state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope);
@@ -447,9 +450,9 @@ function renderEff(days,codes){
     :days[0].label+" – "+days[days.length-1].label+" · "+days.length+" ngày";
   $("eff-summary").innerHTML=[
     card("Chi phí (Spent)",short(totSp),esc(srcLabel())+" · "+vnd(totSp)+" đ",GRAD.sp),
-    card("Doanh thu A1+B1",short(totRev),vnd(totRev)+" đ",GRAD.rev),
-    card("ME/RE",mere!=null?mere.toFixed(1)+"%":"—","chi phí ÷ doanh thu",GRAD.pace),
-    card("Đơn (Order)",nf.format(totOrd),"đơn A1+B1",GRAD.att),
+    card("Doanh thu Paid",short(totRev),"A1+B1+A3+B3 · "+vnd(totRev)+" đ",GRAD.rev),
+    card("ME/RE",mere!=null?mere.toFixed(1)+"%":"—","chi phí ÷ doanh thu Paid",GRAD.pace),
+    card("Đơn (Order)",nf.format(totOrd),"đơn A1+B1+A3+B3",GRAD.att),
     card("Chi phí / đơn",totOrd?short2(totSp/totOrd):"—","Spent ÷ Order",GRAD.kpi),
     card("AOV",totOrd?short2(totRev/totOrd):"—","Doanh thu ÷ Order",GRAD.proj)
   ].join("");
@@ -458,7 +461,8 @@ function renderEff(days,codes){
   renderEffTable(days);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
-  $("eff-note").textContent="Kỳ: "+rangeLabel+" · Order = đơn A1+B1 · ME/RE = chi phí ÷ doanh thu.";
+  $("eff-note").textContent="Kỳ: "+rangeLabel+" · Doanh thu Paid = A1+B1 (sales chốt) + A3+B3 (tự chốt từ lead paid) "
+    +"— A3+B3 tổng kỳ chính xác, phân bổ theo ngày là ước lượng · ME/RE = chi phí ÷ doanh thu Paid.";
   if(!spendOn())$("sp-note").textContent="Chưa có nguồn chi phí nào chạy (META_ACCESS_TOKEN/Google Ads chưa cấu hình) — các số chi phí đang là 0.";
 }
 
@@ -524,12 +528,13 @@ function renderMere(days,sp,rev){
 function renderEffTable(days){
   const rows=DATA.lines.map(l=>{
     const sp=sum(spendSeries(days,[l.code]));
-    const a=sum(seriesDays(days,[l.code],"a1")),b=sum(seriesDays(days,[l.code],"b1"));
-    const rev=a+b,ord=sum(orderSeries(days,[l.code]));
+    const a=sum(seriesDays(days,[l.code],"a1")),b=sum(seriesDays(days,[l.code],"b1")),
+      x=sum(seriesDays(days,[l.code],"a3b3"));
+    const rev=a+b+x,ord=sum(orderSeries(days,[l.code]))+sum(seriesDays(days,[l.code],"o_a3b3"));
     return {code:l.code,label:l.label,sp,rev,ord,
       mere:rev?sp/rev*100:null,cpo:ord?sp/ord:null,aov:ord?rev/ord:null};
   }).sort((x,y)=>y.sp-x.sp);
-  const head="<thead><tr><th>Sản phẩm</th><th>Chi phí (Spent)</th><th>Doanh thu A1+B1</th><th>ME/RE</th>"
+  const head="<thead><tr><th>Sản phẩm</th><th>Chi phí (Spent)</th><th>Doanh thu Paid (A1+B1+A3+B3)</th><th>ME/RE</th>"
     +"<th>Order</th><th>Chi phí/đơn</th><th>AOV</th></tr></thead>";
   const body=rows.map(r=>"<tr><td><span style='display:inline-block;width:9px;height:9px;"
     +"border-radius:50%;background:"+COLORS[r.code]+";margin-right:7px'></span>"

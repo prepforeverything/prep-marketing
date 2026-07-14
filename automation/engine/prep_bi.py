@@ -84,5 +84,21 @@ def revenue_series(products, month, bucket, *, markets=None, currency="VND", key
         return None
 
 
+def conversion_overview(products, date_from, date_to, *, markets=None, currency="VND", key=None):
+    """Raw payload conversion_overview trong [from,to] — doanh thu/đơn TỪNG bucket lẻ (A1..E6)
+    gộp theo tháng. Dùng để lấy chính xác A3+B3 (paid tự chốt) mà revenue_series không tách được
+    (chỉ nhận 5 nhóm bucket). Trả None nếu thiếu key/API lỗi."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "from": date_from, "to": date_to, "currency": currency}
+    if markets:
+        body["markets"] = list(markets)
+    try:
+        return _post("conversion_overview", body, key)
+    except Exception:  # noqa: BLE001 — lỗi mạng/timeout/HTTP: trả None, caller lùi an toàn
+        return None
+
+
 def available():
     return _key() is not None
