@@ -2,9 +2,9 @@
   "product": "ielts-thai",
   "display": "IELTS Thái",
   "brand": {
-    "primary": "#d753d7",
-    "dark": "#ac42ac",
-    "tint": "#ffebe8"
+    "primary": "#4a86e8",
+    "dark": "#3b6bba",
+    "tint": "#e8f0fe"
   },
   "currency": "VND",
   "meta": {
@@ -97,5 +97,27 @@
   "telegram": {
     "token_env": "TELEGRAM_BOT_TOKEN",
     "chat_env": "TELEGRAM_THAI_CHAT_ID"
+  },
+  "mess_qc": {
+    "source": "pancake",
+    "page_id": "341351605728448",
+    "page_name": "IELTS by Prep - สมาร์ตโปรแกรมสำหรับการเตรียมสอบ",
+    "page_token_env": "PANCAKE_PAGE_TOKEN_IELTS_THAI",
+    "window_days": 1,
+    "min_conv": 5,
+    "model": "claude-sonnet-5",
+    "max_msgs_per_conv": 30,
+    "workers": 10,
+    "ad_greeting_templates": [
+      "คอร์สไหนที่เหมาะกับฉัน",
+      "ต้องใช้เวลานานแค่ไหนถึงจะสอบ IELTS ได้",
+      "สนใจคอร์ส Test Practice แบบฝึก 90 วัน",
+      "อยากขอรับสิทธิพิเศษเพิ่มเติมด้วย",
+      "สนใจโปรของ Prep",
+      "สนใจแผนการเรียนพิชิต IELTS 7.0+",
+      "แผนการเรียน IELTS 0 - 7.0+",
+      "แผนการเรียน IELTS 4.0 - 7.0+",
+      "แผนการเรียน IELTS 4.0 - 6.0"
+    ]
   }
 }
