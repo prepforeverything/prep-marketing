@@ -16,7 +16,8 @@
       "2315420118859218"
     ],
     "google": [],
-    "_ghi_chu": "Meta: Prep - IELTS 1 / IELTS 9 / IELTS 10 (theo config ad-ops IELTS VN, chờ user xác nhận)"
+    "_ghi_chu": "Meta: Prep - IELTS 1 / IELTS 9 / IELTS 10 (theo config ad-ops IELTS VN, chờ user xác nhận)",
+    "google_sheet": "1mohkhfB5Vw-7l1wWtCMX_4UzreFCGjHOGNOU3kvv7jg"
   },
   "TOEIC": {
     "meta": [
@@ -24,7 +25,8 @@
       "555686623359807"
     ],
     "google": [],
-    "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (theo config ad-ops TOEIC)"
+    "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (theo config ad-ops TOEIC)",
+    "google_sheet": "1-8U_3-noAO5fwK2v2rLhN08qRdT2tTxFRCCccxbTLv0"
   },
   "HSK": {
     "meta": [
@@ -32,14 +34,16 @@
       "467960226273623"
     ],
     "google": [],
-    "_ghi_chu": "Meta: HSK - 01 / HSK - 02 (user xác nhận 2026-07-13, ID tra qua Meta API)"
+    "_ghi_chu": "Meta: HSK - 01 / HSK - 02 (user xác nhận 2026-07-13, ID tra qua Meta API)",
+    "google_sheet": "13H3XGOBf9DQdKoMIYxF5OnZ3gqFk91o5oigFCDQym5E"
   },
   "VSTEP": {
     "meta": [
       "750272838130772"
     ],
     "google": [],
-    "_ghi_chu": "Meta: VSTEP - 01 (theo config ad-ops VSTEP)"
+    "_ghi_chu": "Meta: VSTEP - 01 (theo config ad-ops VSTEP)",
+    "google_sheet": "1HYpRoZ1rh5quh32V9shrnLkPioc6p3pZU1A11uT2Axo"
   },
   "IELTS_TEENS": {
     "meta": [
@@ -57,6 +61,7 @@
   },
   "google_ads": {
     "login_customer_id": "",
-    "_ghi_chu": "MCC ID (login customer id) điền vào đây khi có credentials Google Ads API; token/secret KHÔNG để ở đây — dùng GitHub Secrets: GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN"
+    "_ghi_chu": "MCC ID điền khi có API (API sẽ được ƯU TIÊN thay sheet, không cộng trùng). google_sheet = Sheet do Ads Script của team ghi (cột Date + Cost, chi phí NET) — pipeline nhân vat_multiplier (thuế nhà thầu 8%) ra chi phí thực. Sheet phải share Anyone-with-link Viewer. PTE/IELTS Junior không chạy Google (user xác nhận 15/07). Secrets API: GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN",
+    "vat_multiplier": 1.08
   }
 }

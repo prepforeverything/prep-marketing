@@ -146,6 +146,42 @@ def google_daily(customer_id, since, until, creds, login_customer_id, _tok_cache
         return None
 
 
+# ---------------- Google Sheet (Ads Script của team ghi ra — dùng khi CHƯA có API) ----------------
+
+def _vnd_cell(s):
+    """'21.224.317 đ' / '1.234,56' (định dạng VN) → float VND. 0 nếu không đọc được."""
+    s = str(s or "").replace(" ", " ").replace(" đ", "").strip().replace(".", "").replace(",", ".")
+    try:
+        return float(s or 0)
+    except ValueError:
+        return 0.0
+
+
+def sheet_daily(sheet_id, _cache={}):
+    """{'YYYY-MM-DD': cost_net} cộng dồn mọi dòng theo cột Date/Cost của Google Sheet
+    (export CSV — sheet phải share 'Anyone with the link · Viewer'). Cache theo run:
+    1 sheet chỉ tải 1 lần dù build nhiều tháng. None nếu 401/lỗi (chưa share…)."""
+    if sheet_id in _cache:
+        return _cache[sheet_id]
+    import csv
+    import io
+    try:
+        raw = _http(f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv", timeout=90)
+        out = {}
+        for r in csv.DictReader(io.StringIO(raw)):
+            day = (r.get("Date") or "").strip()
+            if not day.startswith("20"):
+                continue  # dòng tổng/header phụ
+            ckey = next((k for k in r if k and k.strip().lower().startswith("cost")), None)
+            if ckey:
+                out[day] = out.get(day, 0) + _vnd_cell(r[ckey])
+        _cache[sheet_id] = out
+    except Exception as e:  # noqa: BLE001 — sheet chưa share/đổi cấu trúc: cảnh báo, không giết run
+        print(f"[WARN] Google Sheet {sheet_id}: {e}", flush=True)
+        _cache[sheet_id] = None
+    return _cache[sheet_id]
+
+
 # ---------------- gộp theo sản phẩm ----------------
 
 def month_spend(accounts, line_code, since, until, n_days):
@@ -167,18 +203,29 @@ def month_spend(accounts, line_code, since, until, n_days):
 
     google = [0] * n_days
     creds = google_creds()
+    ga = accounts.get("google_ads") or {}
     if creds and line.get("google") and n_days > 0:
-        login = (accounts.get("google_ads") or {}).get("login_customer_id", "")
+        # Nguồn chính thức (khi có API): ưu tiên hơn sheet để không cộng trùng
+        login = ga.get("login_customer_id", "")
         for cid in line["google"]:
             got = google_daily(cid, since, until, creds, login)
             if got:
                 for i, day in enumerate(days):
                     google[i] += got.get(day, 0)
+    elif line.get("google_sheet") and n_days > 0:
+        # Tạm thời: sheet do Ads Script của team ghi (chi phí NET → nhân hệ số VAT, mặc định 1.08)
+        got = sheet_daily(line["google_sheet"])
+        if got:
+            vat = float(ga.get("vat_multiplier") or 1.08)
+            for i, day in enumerate(days):
+                google[i] = int(round(got.get(day, 0) * vat))
     return meta, google
 
 
 def sources_active(accounts):
     """{'meta': bool, 'google': bool} — nguồn nào đang chạy được (để dashboard ghi chú)."""
-    any_google_ids = any((accounts.get(l) or {}).get("google") for l in accounts if not l.startswith("_") and l != "google_ads")
+    lines = [v for k, v in accounts.items() if not k.startswith("_") and k != "google_ads" and isinstance(v, dict)]
+    api_on = bool(google_creds()) and any(l.get("google") for l in lines)
+    sheet_on = any(l.get("google_sheet") for l in lines)
     return {"meta": bool(os.environ.get("META_ACCESS_TOKEN", "").strip()),
-            "google": bool(google_creds()) and any_google_ids}
+            "google": api_on or sheet_on}
