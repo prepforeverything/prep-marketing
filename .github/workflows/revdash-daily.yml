@@ -2,7 +2,8 @@ name: Dashboard doanh thu A1+B1 hằng ngày
 
 # Fetch Prep BI → build dashboard → push repo PRIVATE prepedu-landing (Cloudflare tự deploy).
 # Số liệu KHÔNG được ghi vào repo này (public) — data.json/kpi.json/HTML nằm hết bên prepedu-landing.
-# GH cron hay trễ/bỏ lượt (đã dính 14/07) → đặt 3 lượt dự phòng; lượt schedule chạy với
+# ĐỔI TÊN FILE 15/07 để ép GitHub đăng ký lại schedule (file cũ revenue-dashboard.yml chưa từng
+# được kích hoạt theo lịch — bệnh khi sửa workflow liên tục). 3 lượt dự phòng; lượt schedule chạy với
 # --skip-if-fresh nên đã có số hôm qua thì thoát ngay, không chạy thừa. n8n 08:10 (nếu bật) vớt sớm nhất.
 # ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
 on:

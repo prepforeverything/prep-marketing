@@ -1,6 +1,6 @@
 # Dashboard doanh thu A1+B1 (VN) — cập nhật hằng ngày
 
-Mỗi sáng **08:10 (giờ VN)**, GitHub Actions (`.github/workflows/revenue-dashboard.yml`):
+Mỗi sáng **08:10 (giờ VN)**, GitHub Actions (`.github/workflows/revdash-daily.yml`):
 
 1. Lấy doanh thu **A1** (paid → chốt trong kỳ) + **B1** (paid → chốt từ lead kỳ trước) theo **từng ngày**
    từ Prep BI cho 6 dòng sản phẩm VN: IELTS, TOEIC, HSK (+HSK 3.0), VSTEP, IELTS Junior (BI: IELTS Teens),
