@@ -175,6 +175,41 @@ def fetch_month(c, month, fixture_dir=None):
             meta_arr, g_arr = spend.month_spend(acc, line["code"], since, until, n_days)
             lines[line["code"]]["sp_meta"] = meta_arr
             lines[line["code"]]["sp_g"] = g_arr
+
+    # Lead (L0 = lead episode mới) + QL (lần đầu chạm L3+) từ Prep BI leads_series — kênh Paid,
+    # attribution first_paid (định nghĩa chuẩn màn Conversion). Bug backend: multi-group chứa
+    # "KOLs" trả mỗi KOLs → gọi 4-nhóm + KOLs riêng rồi cộng (2 kỳ đầu disjoint theo first_paid).
+    PAID4 = ["Meta Ads", "Google Ads", "TikTok Ads", "Paid (other)"]
+    for line in c["lines"]:
+        per = lines[line["code"]]
+        n = len(per["a1"])
+        lead, ql = [0] * n, [0] * n
+        if fixture_dir:
+            f = Path(fixture_dir) / f"{month}-{line['code']}-LEADS.json"
+            payloads = [json.loads(f.read_text(encoding="utf-8"))] if f.exists() else []
+        elif n:
+            payloads = [prep_bi.leads_series(line["products"], month,
+                                             markets=c["market_keys"], channel_groups=g)
+                        for g in (PAID4, ["KOLs"])]
+            if any(pl is None for pl in payloads):
+                print(f"[WARN] {month} {line['code']}: không lấy được lead — tạm tính 0", file=sys.stderr)
+            payloads = [pl for pl in payloads if pl]
+        else:
+            payloads = []
+        for pl in payloads:
+            pts = sorted([q for q in pl.get("points", []) if q.get("l0") is not None],
+                         key=lambda q: q["offset"])
+            lc = [int(q.get("l0") or 0) for q in pts]
+            qc = [int(q.get("ql") or 0) for q in pts]
+            ld = [v - (lc[i - 1] if i else 0) for i, v in enumerate(lc)]
+            qd = [v - (qc[i - 1] if i else 0) for i, v in enumerate(qc)]
+            ld = (ld[:cut] if cut is not None else ld)[:n]
+            qd = (qd[:cut] if cut is not None else qd)[:n]
+            for i, v in enumerate(ld):
+                lead[i] += v
+            for i, v in enumerate(qd):
+                ql[i] += v
+        per["lead"], per["ql"] = lead, ql
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
@@ -196,7 +231,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v for v in ls.values())
 
     out_months = {}
     for m in months:
@@ -330,7 +365,7 @@ def main():
             yd = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=1)
             mm = cur.get("months", {}).get(yd.strftime("%Y%m"), {})
             ls = mm.get("lines") or {}
-            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v for v in ls.values()):
+            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v and "lead" in v for v in ls.values()):
                 print(f"Đã có số đến hết {yd.isoformat()} — bỏ qua lượt này.")
                 if tmp:
                     shutil.rmtree(tmp, ignore_errors=True)
