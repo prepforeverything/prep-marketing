@@ -18,7 +18,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.github.com/repos/prepforeverything/prep-marketing/actions/workflows/revenue-dashboard.yml/dispatches",
+        "url": "https://api.github.com/repos/prepforeverything/prep-marketing/actions/workflows/revdash-daily.yml/dispatches",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
