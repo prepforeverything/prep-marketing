@@ -176,10 +176,11 @@ def fetch_month(c, month, fixture_dir=None):
             lines[line["code"]]["sp_meta"] = meta_arr
             lines[line["code"]]["sp_g"] = g_arr
 
-    # Lead (L0 = lead episode mới) + QL (lần đầu chạm L3+) từ Prep BI leads_series — kênh Paid,
-    # attribution first_paid (định nghĩa chuẩn màn Conversion). Bug backend: multi-group chứa
-    # "KOLs" trả mỗi KOLs → gọi 4-nhóm + KOLs riêng rồi cộng (2 kỳ đầu disjoint theo first_paid).
-    PAID4 = ["Meta Ads", "Google Ads", "TikTok Ads", "Paid (other)"]
+    # Lead (L0 = lead episode mới) + QL (lần đầu chạm L3+) từ Prep BI leads_series — CHỈ kênh Paid,
+    # attribution first_paid (định nghĩa chuẩn màn Conversion). ⚠️ Tên nhóm phải ĐÚNG theo Config
+    # Channel Mapping của BI ("Meta", "Google"… KHÔNG phải "Meta Ads"): tên sai bị BỎ QUA IM LẶNG
+    # → trả toàn bộ lead kể cả organic (đã dính 15/07, user phát hiện).
+    PAID_GROUPS = ["Meta", "Google", "TikTok", "KOLs", "Other Paid"]
     for line in c["lines"]:
         per = lines[line["code"]]
         n = len(per["a1"])
@@ -188,12 +189,11 @@ def fetch_month(c, month, fixture_dir=None):
             f = Path(fixture_dir) / f"{month}-{line['code']}-LEADS.json"
             payloads = [json.loads(f.read_text(encoding="utf-8"))] if f.exists() else []
         elif n:
-            payloads = [prep_bi.leads_series(line["products"], month,
-                                             markets=c["market_keys"], channel_groups=g)
-                        for g in (PAID4, ["KOLs"])]
-            if any(pl is None for pl in payloads):
+            pl = prep_bi.leads_series(line["products"], month,
+                                      markets=c["market_keys"], channel_groups=PAID_GROUPS)
+            if pl is None:
                 print(f"[WARN] {month} {line['code']}: không lấy được lead — tạm tính 0", file=sys.stderr)
-            payloads = [pl for pl in payloads if pl]
+            payloads = [pl] if pl else []
         else:
             payloads = []
         for pl in payloads:

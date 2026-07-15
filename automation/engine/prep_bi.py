@@ -87,8 +87,9 @@ def revenue_series(products, month, bucket, *, markets=None, currency="VND", key
 def leads_series(products, month, *, markets=None, channel_groups=None, attr="first_paid", key=None):
     """Raw payload leads_series của 1 tháng — points[].l0 (lead episode mới, LŨY KẾ) và .ql
     (episode lần đầu chạm L3+, lũy kế) theo ngày, lọc được nhóm kênh + attribution.
-    LƯU Ý bug backend: channel_groups nhiều nhóm mà chứa "KOLs" → trả mỗi KOLs; caller phải
-    tách KOLs thành call riêng rồi tự cộng. Trả None nếu thiếu key/API lỗi."""
+    ⚠️ channel_groups phải dùng ĐÚNG tên nhóm của Config Channel Mapping ("Meta", "Google",
+    "TikTok", "KOLs", "Other Paid", "Organic"…) — tên sai (vd "Meta Ads") bị backend BỎ QUA
+    IM LẶNG, kết quả thành không-filter (lẫn organic). Trả None nếu thiếu key/API lỗi."""
     key = key or _key()
     if not key:
         return None
