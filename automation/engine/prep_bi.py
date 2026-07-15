@@ -84,6 +84,25 @@ def revenue_series(products, month, bucket, *, markets=None, currency="VND", key
         return None
 
 
+def leads_series(products, month, *, markets=None, channel_groups=None, attr="first_paid", key=None):
+    """Raw payload leads_series của 1 tháng — points[].l0 (lead episode mới, LŨY KẾ) và .ql
+    (episode lần đầu chạm L3+, lũy kế) theo ngày, lọc được nhóm kênh + attribution.
+    LƯU Ý bug backend: channel_groups nhiều nhóm mà chứa "KOLs" → trả mỗi KOLs; caller phải
+    tách KOLs thành call riêng rồi tự cộng. Trả None nếu thiếu key/API lỗi."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "month": str(month), "grain": "m", "attr": attr}
+    if markets:
+        body["markets"] = list(markets)
+    if channel_groups:
+        body["channel_groups"] = list(channel_groups)
+    try:
+        return _post("leads_series", body, key)
+    except Exception:  # noqa: BLE001 — lỗi mạng/timeout/HTTP: trả None, caller lùi an toàn
+        return None
+
+
 def conversion_overview(products, date_from, date_to, *, markets=None, currency="VND", key=None):
     """Raw payload conversion_overview trong [from,to] — doanh thu/đơn TỪNG bucket lẻ (A1..E6)
     gộp theo tháng. Dùng để lấy chính xác A3+B3 (paid tự chốt) mà revenue_series không tách được
