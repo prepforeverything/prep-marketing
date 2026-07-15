@@ -189,6 +189,7 @@ const COLORS={IELTS:"#3b82f6",TOEIC:"#10b981",HSK:"#f59e0b",VSTEP:"#0891b2",
 const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(135deg,#8b5cf6,#7c3aed)",
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
             proj:"linear-gradient(135deg,#06b6d4,#0891b2)",sp:"linear-gradient(135deg,#64748b,#475569)"};
+const SHOW_LEADS=false; // Lead/CPL/QL/%QL/CPQL — chờ user duyệt logic chỉ-Paid rồi bật
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
 let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
 
@@ -542,13 +543,14 @@ function renderEff(days,codes){
     card("ME/RE",mere!=null?mere.toFixed(1)+"%":"—","chi phí ÷ doanh thu Paid",GRAD.pace,false,tr.mere),
     card("Đơn (Order)",nf.format(totOrd),"đơn A1+B1+A3+B3",GRAD.att,false,tr.ord),
     card("Chi phí / đơn",totOrd?short2(totSp/totOrd):"—","Spent ÷ Order",GRAD.kpi,false,tr.cpo),
-    card("AOV",totOrd?short2(totRev/totOrd):"—","Doanh thu ÷ Order",GRAD.proj,false,tr.aov),
+    card("AOV",totOrd?short2(totRev/totOrd):"—","Doanh thu ÷ Order",GRAD.proj,false,tr.aov)
+  ].concat(SHOW_LEADS?[
     card("Lead",nf.format(totLead),"L0 mới · Prep BI · kênh Paid",GRAD.att,false,tr.lead),
     card("CPL",totLead?short2(totSp/totLead):"—","Spent ÷ Lead",GRAD.sp,false,tr.cpl),
     card("QL",nf.format(totQl),"chạm L3+ trong kỳ",GRAD.proj,false,tr.ql),
     card("%QL",totLead?(totQl/totLead*100).toFixed(1)+"%":"—","QL ÷ Lead",GRAD.kpi,false,tr.pql),
     card("CPQL",totQl?short2(totSp/totQl):"—","Spent ÷ QL",GRAD.pace,false,tr.cpql)
-  ].join("");
+  ]:[]).join("");
   renderSpendDaily(days,codes);
   renderMere(days,sp,rev);
   renderEffTable(days);
@@ -556,7 +558,7 @@ function renderEff(days,codes){
     +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
   $("eff-note").textContent="Kỳ: "+rangeLabel+" · Doanh thu Paid = A1+B1 (sales chốt) + A3+B3 (tự chốt từ lead paid) "
     +"— A3+B3 tổng kỳ chính xác, phân bổ theo ngày là ước lượng · ME/RE = chi phí ÷ doanh thu Paid "
-    +"· Lead = L0 lead episode mới, QL = lần đầu chạm L3+ (Prep BI, kênh Paid, first-paid).";
+    +(SHOW_LEADS?"· Lead = L0 lead episode mới, QL = lần đầu chạm L3+ (Prep BI, kênh Paid, first-paid).":"");
   if(!spendOn())$("sp-note").textContent="Chưa có nguồn chi phí nào chạy (META_ACCESS_TOKEN/Google Ads chưa cấu hình) — các số chi phí đang là 0.";
 }
 
@@ -630,16 +632,17 @@ function renderEffTable(days){
       mere:rev?sp/rev*100:null,cpo:ord?sp/ord:null,aov:ord?rev/ord:null,
       cpl:lead?sp/lead:null,pql:lead?ql/lead*100:null,cpql:ql?sp/ql:null};
   }).sort((x,y)=>y.sp-x.sp);
-  const head="<thead><tr><th>Sản phẩm</th><th>Chi phí (Spent)</th><th>Lead</th><th>CPL</th><th>QL</th>"
-    +"<th>%QL</th><th>CPQL</th><th>Doanh thu Paid</th><th>ME/RE</th>"
+  const leadTh=SHOW_LEADS?"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th>":"";
+  const head="<thead><tr><th>Sản phẩm</th><th>Chi phí (Spent)</th>"+leadTh
+    +"<th>Doanh thu Paid</th><th>ME/RE</th>"
     +"<th>Order</th><th>Chi phí/đơn</th><th>AOV</th></tr></thead>";
   const body=rows.map(r=>"<tr><td><span style='display:inline-block;width:9px;height:9px;"
     +"border-radius:50%;background:"+COLORS[r.code]+";margin-right:7px'></span>"
     +"<span style='color:"+COLORS[r.code]+"'>"+esc(r.label)+"</span></td>"
     +"<td>"+vnd(r.sp)+"</td>"
-    +"<td>"+nf.format(r.lead)+"</td><td>"+(r.cpl!=null?vnd(r.cpl):"—")+"</td>"
-    +"<td>"+nf.format(r.ql)+"</td><td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td>"
-    +"<td>"+(r.cpql!=null?vnd(r.cpql):"—")+"</td>"
+    +(SHOW_LEADS?"<td>"+nf.format(r.lead)+"</td><td>"+(r.cpl!=null?vnd(r.cpl):"—")+"</td>"
+      +"<td>"+nf.format(r.ql)+"</td><td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.cpql!=null?vnd(r.cpql):"—")+"</td>":"")
     +"<td>"+vnd(r.rev)+"</td>"
     +"<td style='font-weight:700'>"+(r.mere!=null?r.mere.toFixed(1)+"%":"—")+"</td>"
     +"<td>"+nf.format(r.ord)+"</td><td>"+(r.cpo!=null?vnd(r.cpo):"—")+"</td>"
@@ -647,9 +650,9 @@ function renderEffTable(days){
   const T=x=>sum(rows.map(r=>r[x]||0));
   const tSp=T("sp"),tRev=T("rev"),tOrd=T("ord"),tLead=T("lead"),tQl=T("ql");
   const foot="<tr class='total-row'><td>TỔNG</td><td>"+vnd(tSp)+"</td>"
-    +"<td>"+nf.format(tLead)+"</td><td>"+(tLead?vnd(tSp/tLead):"—")+"</td>"
-    +"<td>"+nf.format(tQl)+"</td><td>"+(tLead?(tQl/tLead*100).toFixed(1)+"%":"—")+"</td>"
-    +"<td>"+(tQl?vnd(tSp/tQl):"—")+"</td>"
+    +(SHOW_LEADS?"<td>"+nf.format(tLead)+"</td><td>"+(tLead?vnd(tSp/tLead):"—")+"</td>"
+      +"<td>"+nf.format(tQl)+"</td><td>"+(tLead?(tQl/tLead*100).toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(tQl?vnd(tSp/tQl):"—")+"</td>":"")
     +"<td>"+vnd(tRev)+"</td>"
     +"<td>"+(tRev?(tSp/tRev*100).toFixed(1)+"%":"—")+"</td><td>"+nf.format(tOrd)+"</td>"
     +"<td>"+(tOrd?vnd(tSp/tOrd):"—")+"</td><td>"+(tOrd?vnd(tRev/tOrd):"—")+"</td></tr>";
