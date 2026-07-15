@@ -98,6 +98,16 @@ def meta_daily(acct_id, since, until, token):
 
 # ---------------- Google Ads ----------------
 
+def sheet_ids():
+    """Mapping {line_code: spreadsheet_id} từ secret GOOGLE_SHEET_IDS — KHÔNG hard-code trong repo
+    (repo public; sheet đã link-share thì ID chính là chìa khóa đọc dữ liệu chi phí)."""
+    try:
+        return json.loads(os.environ.get("GOOGLE_SHEET_IDS", "") or "{}")
+    except json.JSONDecodeError:
+        print("[WARN] GOOGLE_SHEET_IDS không phải JSON hợp lệ — bỏ qua nguồn sheet", flush=True)
+        return {}
+
+
 def google_creds():
     """Đủ 4 secret → dict creds, thiếu → None (spend Google tắt êm cho tới khi setup xong)."""
     ks = ["GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_CLIENT_ID", "GOOGLE_ADS_CLIENT_SECRET", "GOOGLE_ADS_REFRESH_TOKEN"]
@@ -212,9 +222,9 @@ def month_spend(accounts, line_code, since, until, n_days):
             if got:
                 for i, day in enumerate(days):
                     google[i] += got.get(day, 0)
-    elif line.get("google_sheet") and n_days > 0:
+    elif (sheet_ids().get(line_code) or line.get("google_sheet")) and n_days > 0:
         # Tạm thời: sheet do Ads Script của team ghi (chi phí NET → nhân hệ số VAT, mặc định 1.08)
-        got = sheet_daily(line["google_sheet"])
+        got = sheet_daily(sheet_ids().get(line_code) or line["google_sheet"])
         if got:
             vat = float(ga.get("vat_multiplier") or 1.08)
             for i, day in enumerate(days):
@@ -226,6 +236,6 @@ def sources_active(accounts):
     """{'meta': bool, 'google': bool} — nguồn nào đang chạy được (để dashboard ghi chú)."""
     lines = [v for k, v in accounts.items() if not k.startswith("_") and k != "google_ads" and isinstance(v, dict)]
     api_on = bool(google_creds()) and any(l.get("google") for l in lines)
-    sheet_on = any(l.get("google_sheet") for l in lines)
+    sheet_on = bool(sheet_ids()) or any(l.get("google_sheet") for l in lines)
     return {"meta": bool(os.environ.get("META_ACCESS_TOKEN", "").strip()),
             "google": api_on or sheet_on}

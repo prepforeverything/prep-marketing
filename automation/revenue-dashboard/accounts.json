@@ -16,8 +16,7 @@
       "2315420118859218"
     ],
     "google": [],
-    "_ghi_chu": "Meta: Prep - IELTS 1 / IELTS 9 / IELTS 10 (theo config ad-ops IELTS VN, chờ user xác nhận)",
-    "google_sheet": "1mohkhfB5Vw-7l1wWtCMX_4UzreFCGjHOGNOU3kvv7jg"
+    "_ghi_chu": "Meta: Prep - IELTS 1 / IELTS 9 / IELTS 10 (theo config ad-ops IELTS VN, chờ user xác nhận)"
   },
   "TOEIC": {
     "meta": [
@@ -25,8 +24,7 @@
       "555686623359807"
     ],
     "google": [],
-    "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (theo config ad-ops TOEIC)",
-    "google_sheet": "1-8U_3-noAO5fwK2v2rLhN08qRdT2tTxFRCCccxbTLv0"
+    "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (theo config ad-ops TOEIC)"
   },
   "HSK": {
     "meta": [
@@ -34,16 +32,14 @@
       "467960226273623"
     ],
     "google": [],
-    "_ghi_chu": "Meta: HSK - 01 / HSK - 02 (user xác nhận 2026-07-13, ID tra qua Meta API)",
-    "google_sheet": "13H3XGOBf9DQdKoMIYxF5OnZ3gqFk91o5oigFCDQym5E"
+    "_ghi_chu": "Meta: HSK - 01 / HSK - 02 (user xác nhận 2026-07-13, ID tra qua Meta API)"
   },
   "VSTEP": {
     "meta": [
       "750272838130772"
     ],
     "google": [],
-    "_ghi_chu": "Meta: VSTEP - 01 (theo config ad-ops VSTEP)",
-    "google_sheet": "1HYpRoZ1rh5quh32V9shrnLkPioc6p3pZU1A11uT2Axo"
+    "_ghi_chu": "Meta: VSTEP - 01 (theo config ad-ops VSTEP)"
   },
   "IELTS_TEENS": {
     "meta": [
@@ -61,7 +57,7 @@
   },
   "google_ads": {
     "login_customer_id": "",
-    "_ghi_chu": "MCC ID điền khi có API (API sẽ được ƯU TIÊN thay sheet, không cộng trùng). google_sheet = Sheet do Ads Script của team ghi (cột Date + Cost, chi phí NET) — pipeline nhân vat_multiplier (thuế nhà thầu 8%) ra chi phí thực. Sheet phải share Anyone-with-link Viewer. PTE/IELTS Junior không chạy Google (user xác nhận 15/07). Secrets API: GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN",
+    "_ghi_chu": "MCC ID điền khi có API (API được ƯU TIÊN, không cộng trùng với sheet). Sheet ID của Ads Script KHÔNG để ở đây (repo public + sheet link-share = ai có ID đọc được chi phí) — nằm trong secret GOOGLE_SHEET_IDS (JSON {\"IELTS\":\"<id>\",...}). Chi phí sheet là NET → nhân vat_multiplier (thuế nhà thầu 8%). PTE/IELTS Junior không chạy Google. Secrets API: GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN",
     "vat_multiplier": 1.08
   }
 }
