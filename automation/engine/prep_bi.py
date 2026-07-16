@@ -106,6 +106,22 @@ def leads_series(products, month, *, markets=None, channel_groups=None, channel_
         return None
 
 
+def marketing_funnel(products, date_from, date_to, *, markets=None, currency="VND", key=None):
+    """Raw payload marketing_funnel trong [from,to] — leads/qleads/orders + spend THEO NHÓM KÊNH
+    ("Meta Ads","Google Ads","TikTok Ads","KOLs","Paid (other)"…) — cùng bảng nhóm với màn
+    Conversion (KHÁC bảng nhóm của leads_series!). Trả None nếu lỗi."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "from": date_from, "to": date_to, "currency": currency}
+    if markets:
+        body["markets"] = list(markets)
+    try:
+        return _post("marketing_funnel", body, key)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def conversion_overview(products, date_from, date_to, *, markets=None, currency="VND", key=None):
     """Raw payload conversion_overview trong [from,to] — doanh thu/đơn TỪNG bucket lẻ (A1..E6)
     gộp theo tháng. Dùng để lấy chính xác A3+B3 (paid tự chốt) mà revenue_series không tách được
