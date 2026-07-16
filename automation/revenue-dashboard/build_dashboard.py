@@ -92,17 +92,13 @@ def distribute(total, weights):
     return out
 
 
-# Nguồn lead/QL theo KÊNH từ BI (leads_series). ⚠️ KIỂM CHỨNG 16/07: channel_names chỉ
-# "Inbox FB Ads" hoạt động; các tên khác ("Landing Ads · Meta", "Landing Ads"…) bị API NUỐT
-# IM LẶNG (trả tổng không filter). Vì vậy: FB Conversion KHÔNG fetch trực tiếp mà = nhóm Meta
-# (mg) − FB Inbox, do client tính — tổng các kênh luôn khớp tổng lead Paid của dashboard.
-CHANNEL_LEAD_SRC = {
-    "fbi": {"channel_names": ["Inbox FB Ads"]},   # đã kiểm chứng khớp sources (lệch 2–7%)
-    "mg":  {"channel_groups": ["Meta"]},           # nhóm Meta — nền tính fbc = mg − fbi
-    "gs":  {"channel_groups": ["Google"]},
-    "kol": {"channel_groups": ["KOLs"]},           # kiểm chứng khớp 100% T6
-    "op":  {"channel_groups": ["TikTok", "Other Paid"]},
-}
+# Kênh: fbi (FB Inbox) = leads_series channel_names "Inbox FB Ads" — DAILY chính xác (đã kiểm
+# chứng). Các kênh còn lại: nhóm của leads_series map SAI (lead landing dồn Other Paid) →
+# dùng marketing_funnel (CÙNG bảng nhóm với màn Conversion) lấy TỔNG THÁNG per nhóm, rồi:
+#   fbc = "Meta Ads" − fbi · gs = "Google Ads" · kol = KOLs(+KOL-image) · op = TikTok + Paid(other)
+# Chuẩn hoá tỷ lệ để fbi + fbc + gs + kol + op = ĐÚNG tổng lead Paid từng tháng, phân bổ về
+# ngày theo nhịp (lead_ngày − fbi_ngày) bằng distribute() — tổng kỳ chính xác, mức ngày ước lượng.
+FBI_SRC = {"channel_names": ["Inbox FB Ads"]}
 
 
 def fetch_month(c, month, fixture_dir=None, prev=None):
@@ -250,32 +246,64 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
             arr = o + [0] * (n - len(o))
             print(f"[WARN] {month} {line['code']}: Meta conv lỗi — giữ số cũ", file=sys.stderr)
         per["sp_fbc"] = arr
-        # 2) Lead/QL theo kênh từ BI
+        # 2) Lead/QL theo kênh — fbi daily exact + marketing_funnel tổng tháng, chuẩn hoá & phân bổ
         chl, chq = {}, {}
-        for ck, flt in CHANNEL_LEAD_SRC.items():
-            if fixture_dir or n == 0:
+        if fixture_dir or n == 0:
+            for ck in ("fbi", "fbc", "gs", "kol", "op"):
                 chl[ck], chq[ck] = [0] * n, [0] * n
-                continue
-            pay = prep_bi.leads_series(line["products"], month, markets=c["market_keys"], **flt)
-            if pay is None:
-                oldl = (pl.get("ch_ld") or {}).get(ck)
-                if oldl:  # nguồn lỗi → giữ số cũ
-                    chl[ck] = (oldl[:n] + [0] * n)[:n]
-                    chq[ck] = ((pl.get("ch_ql") or {}).get(ck, [])[:n] + [0] * n)[:n]
-                    print(f"[WARN] {month} {line['code']} kênh {ck}: BI lỗi — giữ số cũ", file=sys.stderr)
+        else:
+            fbi_pay = prep_bi.leads_series(line["products"], month, markets=c["market_keys"], **FBI_SRC)
+            fun = prep_bi.marketing_funnel(line["products"], since,
+                                           (dt.date(int(month[:4]), int(month[4:6]), 1)
+                                            + dt.timedelta(days=max(n - 1, 0))).isoformat(),
+                                           markets=c["market_keys"], currency=c["currency"])
+            if fbi_pay is None or fun is None:
+                oldch = pl.get("ch_ld"), pl.get("ch_ql")
+                if oldch[0]:  # nguồn lỗi → giữ số cũ
+                    print(f"[WARN] {month} {line['code']}: kênh BI lỗi — giữ số cũ", file=sys.stderr)
+                    chl = {k: (v[:n] + [0] * n)[:n] for k, v in oldch[0].items()}
+                    chq = {k: (v[:n] + [0] * n)[:n] for k, v in (oldch[1] or {}).items()}
                 else:
-                    chl[ck], chq[ck] = [0] * n, [0] * n
-                continue
-            pts = sorted([q for q in pay.get("points", []) if q.get("l0") is not None],
-                         key=lambda q: q["offset"])
-            lc = [int(q.get("l0") or 0) for q in pts]
-            qc = [int(q.get("ql") or 0) for q in pts]
-            ld = [v - (lc[i - 1] if i else 0) for i, v in enumerate(lc)]
-            qd = [v - (qc[i - 1] if i else 0) for i, v in enumerate(qc)]
-            ld = (ld[:cut] if cut is not None else ld)[:n]
-            qd = (qd[:cut] if cut is not None else qd)[:n]
-            chl[ck] = ld + [0] * (n - len(ld))
-            chq[ck] = qd + [0] * (n - len(qd))
+                    for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                        chl[ck], chq[ck] = [0] * n, [0] * n
+            else:
+                # fbi daily
+                pts = sorted([q for q in fbi_pay.get("points", []) if q.get("l0") is not None],
+                             key=lambda q: q["offset"])
+                lc = [int(q.get("l0") or 0) for q in pts]
+                qc = [int(q.get("ql") or 0) for q in pts]
+                fld = [v - (lc[i - 1] if i else 0) for i, v in enumerate(lc)]
+                fqd = [v - (qc[i - 1] if i else 0) for i, v in enumerate(qc)]
+                fld = ((fld[:cut] if cut is not None else fld)[:n] + [0] * n)[:n]
+                fqd = ((fqd[:cut] if cut is not None else fqd)[:n] + [0] * n)[:n]
+                # tổng tháng theo nhóm chuẩn (marketing_funnel), khớp đúng tháng này
+                mo = next((x for x in fun.get("months", []) if str(x.get("month")) == month), {})
+
+                def per_ch(dic):
+                    g = lambda k: int(round((dic or {}).get(k) or 0))
+                    meta, gg = g("Meta Ads"), g("Google Ads")
+                    kol = g("KOLs") + g("KOL-image")
+                    op = g("TikTok Ads") + g("Paid (other)")
+                    return meta, gg, kol, op
+
+                for kind, fdaily, total_daily in (("ld", fld, per["lead"]), ("ql", fqd, per["ql"])):
+                    meta_m, gs_m, kol_m, op_m = per_ch(mo.get("leads" if kind == "ld" else "qleads"))
+                    fbi_m = sum(fdaily)
+                    fbc_m = max(meta_m - fbi_m, 0)
+                    total_m = sum(total_daily)
+                    rest_target = max(total_m - fbi_m, 0)
+                    rest_fun = fbc_m + gs_m + kol_m + op_m
+                    scale = rest_target / rest_fun if rest_fun else 0
+                    vals = [round(x * scale) for x in (fbc_m, gs_m, kol_m, op_m)]
+                    vals[0] += rest_target - sum(vals)  # ép tổng khớp tuyệt đối (dư dồn vào fbc)
+                    weights = [max(t - f, 0) for t, f in zip(total_daily, fdaily)]
+                    out = {"fbi": fdaily}
+                    for ck, m_val in zip(("fbc", "gs", "kol", "op"), vals):
+                        out[ck] = distribute(max(m_val, 0), weights)
+                    if kind == "ld":
+                        chl = out
+                    else:
+                        chq = out
         per["ch_ld"], per["ch_ql"] = chl, chq
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 

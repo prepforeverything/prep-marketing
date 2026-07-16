@@ -212,7 +212,7 @@ const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(1
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
             proj:"linear-gradient(135deg,#06b6d4,#0891b2)",sp:"linear-gradient(135deg,#64748b,#475569)"};
 const SHOW_LEADS=true;
-const SHOW_CHANNELS=false; // bảng kênh ẨN: nhóm kênh leads_series map sai (landing→Other Paid) — chờ sửa bằng marketing_funnel
+const SHOW_CHANNELS=true; // kênh theo nhóm chuẩn marketing_funnel, chuẩn hoá khớp tổng (17/07)
  // nhóm chỉ số lead — logic chỉ-Paid, user duyệt 16/07 (khớp màn BI)
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
 let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
@@ -776,10 +776,9 @@ const CHANNELS=[
   {k:"kol",label:"KOLs",color:"#ec4899",bud:null},
   {k:"op",label:"Paid Other (+TikTok)",color:"#64748b",bud:null}
 ];
-function chVal(d,code,ck,kind){ // kind: 'ld' | 'ql' — fbc = nhóm Meta − FB Inbox (client tính)
+function chVal(d,code,ck,kind){ // kind: 'ld' | 'ql'
   const m=DATA.months[d.m].lines[code]||{};
   const src=(kind==="ld"?m.ch_ld:m.ch_ql)||{};
-  if(ck==="fbc")return Math.max(((src.mg||[])[d.i]||0)-((src.fbi||[])[d.i]||0),0);
   return (src[ck]||[])[d.i]||0;
 }
 function chSpendDay(d,code,ck){ // chi phí kênh/ngày: fbi = Meta − Conv, fbc = Conv, gs = Google
@@ -859,9 +858,10 @@ function renderChannels(days,codes){
       tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
-  $("chan-note").textContent="Lead/QL: Prep BI — FB Inbox theo nguồn 'Inbox FB Ads'; FB Conversion = nhóm Meta − Inbox "
-    +"(gồm cả phần Meta chưa gán đích, ~5%) · Chi phí: Meta tách Conversion theo objective/tên campaign, FB Inbox = "
-    +"tổng Meta − Conversion (tổng luôn khớp thực tế), Google từ sheet Ads Script · KOLs/Paid Other chưa có nguồn chi phí.";
+  $("chan-note").textContent="Lead/QL: Prep BI — FB Inbox chính xác theo ngày (nguồn 'Inbox FB Ads'); các kênh khác theo "
+    +"nhóm chuẩn màn Conversion (Meta Ads/Google Ads/KOLs/TikTok+Other), tổng kỳ chuẩn hoá khớp đúng cột Lead, mức ngày "
+    +"là phân bổ ước lượng · Chi phí: Meta tách Conversion theo objective/tên campaign, FB Inbox = tổng Meta − Conversion "
+    +"(khớp thực tế từng đồng), Google từ sheet Ads Script · KOLs/Paid Other chưa có nguồn chi phí.";
 }
 
 function renderEffTable(days){
