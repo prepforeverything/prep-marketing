@@ -186,6 +186,13 @@
       <div class="note">CPL = chi phí ÷ lead phát sinh trong ngày · CPQL = chi phí ÷ QL trong ngày · nguồn chi phí Meta + Google.</div>
       <div id="cplchart"></div>
     </div>
+    <div class="card" id="chan-card">
+      <h3>Hiệu quả theo kênh</h3>
+      <div class="note" id="chan-note"></div>
+      <div id="chanchart"></div>
+      <div class="legend" id="chan-legend"></div>
+      <div style="overflow-x:auto;margin-top:12px"><table id="chantbl"></table></div>
+    </div>
     <div class="card">
       <h3>Hiệu quả theo sản phẩm</h3>
       <div class="note" id="eff-note"></div>
@@ -582,8 +589,9 @@ function renderEff(days,codes){
   renderMere(days,sp,rev);
   for(const id of ["kpiq-card","leadchart-card","cplchart-card"])
     $(id).style.display=SHOW_LEADS?"":"none";
+  $("chan-card").style.display=SHOW_LEADS?"":"none";
   if(SHOW_LEADS){renderKpiPanel(days,codes,{sp:totSp,lead:totLead,ql:totQl});
-    renderLeadDaily(days,codes);renderCplDaily(days,codes);}
+    renderLeadDaily(days,codes);renderCplDaily(days,codes);renderChannels(days,codes);}
   renderEffTable(days);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
@@ -756,6 +764,101 @@ function renderCplDaily(days,codes){
         +"<br>CPQL: "+(cpql[j]!=null?vnd(cpql[j])+" đ":"—"),ev);};
     r.onmouseleave=()=>tip(null);
   });
+}
+
+const CHANNELS=[
+  {k:"fbi",label:"Facebook Inbox",color:"#2563eb",bud:"Inbox"},
+  {k:"fbc",label:"Facebook Conversion",color:"#8b5cf6",bud:"FB Conv"},
+  {k:"gs",label:"Google Search",color:"#f59e0b",bud:"GG Search"},
+  {k:"kol",label:"KOLs",color:"#ec4899",bud:null},
+  {k:"op",label:"Paid Other (+TikTok)",color:"#64748b",bud:null}
+];
+function chVal(d,code,ck,kind){ // kind: 'ld' | 'ql' — fbc = nhóm Meta − FB Inbox (client tính)
+  const m=DATA.months[d.m].lines[code]||{};
+  const src=(kind==="ld"?m.ch_ld:m.ch_ql)||{};
+  if(ck==="fbc")return Math.max(((src.mg||[])[d.i]||0)-((src.fbi||[])[d.i]||0),0);
+  return (src[ck]||[])[d.i]||0;
+}
+function chSpendDay(d,code,ck){ // chi phí kênh/ngày: fbi = Meta − Conv, fbc = Conv, gs = Google
+  const m=DATA.months[d.m].lines[code]||{};
+  const fbc=(m.sp_fbc||[])[d.i]||0;
+  if(ck==="fbc")return fbc;
+  if(ck==="fbi")return Math.max(((m.sp_meta||[])[d.i]||0)-fbc,0);
+  if(ck==="gs")return (m.sp_g||[])[d.i]||0;
+  return null; // kol/op chưa có nguồn chi phí
+}
+function renderChannels(days,codes){
+  // bảng
+  const budT=key=>{ // ngân sách kênh pro-rata theo ngày kỳ chọn
+    if(!key)return null;
+    let v=0,any=false;
+    for(const d of days)for(const c of codes){
+      const ch=(((KPI&&KPI[d.m])||{})[c]||{}).channels;
+      if(ch&&ch[key]!=null){any=true;v+=ch[key]/DATA.months[d.m].days_in_month;}}
+    return any?v:null;};
+  const rows=CHANNELS.map(ch=>{
+    let sp=null;
+    if(ch.k!=="kol"&&ch.k!=="op"){sp=0;
+      for(const d of days)for(const c of codes)sp+=chSpendDay(d,c,ch.k)||0;}
+    let ld=0,ql=0;
+    for(const d of days)for(const c of codes){ld+=chVal(d,c,ch.k,"ld");ql+=chVal(d,c,ch.k,"ql");}
+    const bud=budT(ch.bud);
+    return {...ch,sp,ld,ql,bud,
+      cpl:sp&&ld?sp/ld:null,cpql:sp&&ql?sp/ql:null,pql:ld?ql/ld*100:null,
+      budPct:sp!=null&&bud?sp/bud*100:null};
+  });
+  let h="<thead><tr><th>Kênh</th><th>Chi phí</th><th>Ngân sách (kỳ chọn)</th><th>% NS đã dùng</th>"
+    +"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th></tr></thead><tbody>";
+  for(const r of rows){
+    const budCls=r.budPct==null?"":r.budPct<=100?"text-green":r.budPct<=115?"text-amber":"text-red";
+    h+="<tr><td><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:"
+      +r.color+";margin-right:7px'></span>"+esc(r.label)+"</td>"
+      +"<td>"+(r.sp!=null?vnd(r.sp):"<span class='text-mut'>chưa có</span>")+"</td>"
+      +"<td>"+(r.bud!=null?vnd(r.bud):"—")+"</td>"
+      +"<td style='font-weight:700' class='"+budCls+"'>"+(r.budPct!=null?r.budPct.toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+nf.format(r.ld)+"</td><td>"+(r.cpl!=null?vnd(r.cpl):"—")+"</td>"
+      +"<td>"+nf.format(r.ql)+"</td><td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.cpql!=null?vnd(r.cpql):"—")+"</td></tr>";
+  }
+  const tSp=rows.reduce((a,r)=>a+(r.sp||0),0),tLd=rows.reduce((a,r)=>a+r.ld,0),
+        tQl=rows.reduce((a,r)=>a+r.ql,0),tBud=rows.reduce((a,r)=>a+(r.bud||0),0);
+  h+="<tr class='total-row'><td>TỔNG</td><td>"+vnd(tSp)+"</td><td>"+(tBud?vnd(tBud):"—")+"</td>"
+    +"<td>"+(tBud?(tSp/tBud*100).toFixed(1)+"%":"—")+"</td>"
+    +"<td>"+nf.format(tLd)+"</td><td>"+(tLd?vnd(tSp/tLd):"—")+"</td>"
+    +"<td>"+nf.format(tQl)+"</td><td>"+(tLd?(tQl/tLd*100).toFixed(1)+"%":"—")+"</td>"
+    +"<td>"+(tQl?vnd(tSp/tQl):"—")+"</td></tr></tbody>";
+  $("chantbl").innerHTML=h;
+  // chart chi phí ngày chồng theo kênh (fbi/fbc/gs)
+  const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
+  const dayTot=days.map(d=>sum(codes.map(c=>(chSpendDay(d,c,"fbi")||0)+(chSpendDay(d,c,"fbc")||0)+(chSpendDay(d,c,"gs")||0))));
+  const max=Math.max(...dayTot,1)*1.12;
+  const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN,posf=j=>PAD.l+(j+.5)*bw;
+  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short)+xLabels(days,H,posf,axisN);
+  const rowsBy={};
+  for(let j=0;j<days.length;j++){
+    let y=H-PAD.b,tip_=[];
+    const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
+    for(const ch of CHANNELS.slice(0,3)){
+      const v=sum(codes.map(c=>chSpendDay(days[j],c,ch.k)||0));
+      if(v<=0)continue;
+      const hh=(H-PAD.t-PAD.b)*(v/max);y-=hh;
+      s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(hh,0)+'" rx="2" fill="'+ch.color+'"/>';
+      tip_.push(ch.label+": "+vnd(v)+" đ");
+    }
+    s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+    rowsBy[j]=tip_;
+  }
+  s+='</svg>';
+  $("chanchart").innerHTML=s;
+  $("chan-legend").innerHTML=CHANNELS.slice(0,3).map(ch=>'<span><i style="background:'+ch.color+'"></i>'+esc(ch.label)+'</span>').join("");
+  $("chanchart").querySelectorAll("rect[data-i]").forEach(r=>{
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
+    r.onmouseleave=()=>tip(null);
+  });
+  $("chan-note").textContent="Lead/QL: Prep BI — FB Inbox theo nguồn 'Inbox FB Ads'; FB Conversion = nhóm Meta − Inbox "
+    +"(gồm cả phần Meta chưa gán đích, ~5%) · Chi phí: Meta tách Conversion theo objective/tên campaign, FB Inbox = "
+    +"tổng Meta − Conversion (tổng luôn khớp thực tế), Google từ sheet Ads Script · KOLs/Paid Other chưa có nguồn chi phí.";
 }
 
 function renderEffTable(days){

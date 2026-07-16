@@ -96,6 +96,59 @@ def meta_daily(acct_id, since, until, token):
         return None
 
 
+CONV_OBJECTIVES = {"OUTCOME_SALES", "OUTCOME_LEADS", "CONVERSIONS", "PRODUCT_CATALOG_SALES"}
+
+
+def meta_conv_daily(acct_id, since, until, token):
+    """{'YYYY-MM-DD': VND} chi phí các campaign CONVERSION của 1 tài khoản (objective thuộc
+    CONV_OBJECTIVES hoặc tên campaign chứa 'conv' — user chốt 16/07). Phần còn lại của tài khoản
+    mặc nhiên là Inbox (FB Inbox = tổng Meta − Conversion → tổng luôn khớp thực tế).
+    None nếu lỗi."""
+    try:
+        info = _meta_get(f"act_{acct_id}", {"fields": "currency"}, token)
+        rate = rate_to_vnd(info.get("currency") or "VND")
+        if rate is None:
+            return None
+        out = {}
+        params = {"level": "campaign", "time_increment": 1,
+                  "fields": "campaign_name,objective,spend",
+                  "time_range": json.dumps({"since": since, "until": until}), "limit": 500}
+        d = _meta_get(f"act_{acct_id}/insights", params, token)
+        while True:
+            for r in d.get("data", []):
+                conv = (r.get("objective") or "").upper() in CONV_OBJECTIVES \
+                    or "conv" in (r.get("campaign_name") or "").lower()
+                if conv:
+                    day = r["date_start"]
+                    out[day] = out.get(day, 0) + int(round(float(r.get("spend") or 0) * rate))
+            nxt = (d.get("paging") or {}).get("next")
+            if not nxt:
+                return out
+            d = json.loads(_http(nxt))
+    except Exception as e:  # noqa: BLE001
+        print(f"[WARN] Meta conv act_{acct_id}: {e}", flush=True)
+        return None
+
+
+def month_meta_conv(accounts, line_code, since, until, n_days):
+    """([VND conversion-spend từng ngày], ok) của 1 dòng SP. ok=False khi có tài khoản lỗi."""
+    import datetime as dt
+    d0 = dt.date.fromisoformat(since)
+    days = [(d0 + dt.timedelta(days=i)).isoformat() for i in range(n_days)]
+    line = accounts.get(line_code, {})
+    arr, ok = [0] * n_days, True
+    token = os.environ.get("META_ACCESS_TOKEN", "").strip()
+    if token and line.get("meta") and n_days > 0:
+        for acct in line["meta"]:
+            got = meta_conv_daily(acct, since, until, token)
+            if got is None:
+                ok = False
+            else:
+                for i, day in enumerate(days):
+                    arr[i] += got.get(day, 0)
+    return arr, ok
+
+
 # ---------------- Google Ads ----------------
 
 def sheet_ids():

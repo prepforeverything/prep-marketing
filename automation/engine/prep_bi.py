@@ -84,7 +84,7 @@ def revenue_series(products, month, bucket, *, markets=None, currency="VND", key
         return None
 
 
-def leads_series(products, month, *, markets=None, channel_groups=None, attr="first_paid", key=None):
+def leads_series(products, month, *, markets=None, channel_groups=None, channel_names=None, attr="first_paid", key=None):
     """Raw payload leads_series của 1 tháng — points[].l0 (lead episode mới, LŨY KẾ) và .ql
     (episode lần đầu chạm L3+, lũy kế) theo ngày, lọc được nhóm kênh + attribution.
     ⚠️ channel_groups phải dùng ĐÚNG tên nhóm của Config Channel Mapping ("Meta", "Google",
@@ -98,6 +98,8 @@ def leads_series(products, month, *, markets=None, channel_groups=None, attr="fi
         body["markets"] = list(markets)
     if channel_groups:
         body["channel_groups"] = list(channel_groups)
+    if channel_names:
+        body["channel_names"] = list(channel_names)
     try:
         return _post("leads_series", body, key)
     except Exception:  # noqa: BLE001 — lỗi mạng/timeout/HTTP: trả None, caller lùi an toàn
