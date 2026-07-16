@@ -250,7 +250,17 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
         # 2) Lead/QL theo kênh — fbi daily exact (leads_series) + marketing_funnel GỌI TỪNG NGÀY
         # (lead tạo hôm nào tính hôm đó — user chốt 17/07, KHÔNG phân bổ ước lượng).
         chl, chq = {}, {}
-        if fixture_dir or n == 0:
+        if True:  # ⛔ TẠM KHÓA fetch kênh: marketing_funnel chỉ có grain THÁNG (call theo ngày
+            # trả nguyên tháng — phát hiện 16/07 tối, suýt ghi số sai ×30). Giữ nguyên ch cũ
+            # trong data; chờ chốt thiết kế mới (tháng-only hoặc BI bổ sung daily-by-channel).
+            oldl, oldq = pl.get("ch_ld"), pl.get("ch_ql")
+            if oldl:
+                chl = {k: (v[:n] + [0] * n)[:n] for k, v in oldl.items()}
+                chq = {k: (v[:n] + [0] * n)[:n] for k, v in (oldq or {}).items()}
+            else:
+                for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                    chl[ck], chq[ck] = [0] * n, [0] * n
+        elif fixture_dir or n == 0:
             for ck in ("fbi", "fbc", "gs", "kol", "op"):
                 chl[ck], chq[ck] = [0] * n, [0] * n
         else:
