@@ -171,6 +171,21 @@
       <div class="note">ME/RE = chi phí ÷ doanh thu A1+B1, cộng dồn từ đầu kỳ — đường đi xuống nghĩa là hiệu quả cải thiện.</div>
       <div id="merechart"></div>
     </div>
+    <div class="card" id="kpiq-card">
+      <h3>% đạt KPI theo chỉ số</h3>
+      <div class="note" id="kpiq-note"></div>
+      <div id="kpiqpanel"></div>
+    </div>
+    <div class="card" id="leadchart-card">
+      <h3>Lead &amp; QL theo ngày</h3>
+      <div class="note" id="lead-note"></div>
+      <div id="leadchart"></div>
+    </div>
+    <div class="card" id="cplchart-card">
+      <h3>CPL &amp; CPQL theo ngày</h3>
+      <div class="note">CPL = chi phí ÷ lead phát sinh trong ngày · CPQL = chi phí ÷ QL trong ngày · nguồn chi phí Meta + Google.</div>
+      <div id="cplchart"></div>
+    </div>
     <div class="card">
       <h3>Hiệu quả theo sản phẩm</h3>
       <div class="note" id="eff-note"></div>
@@ -189,7 +204,7 @@ const COLORS={IELTS:"#3b82f6",TOEIC:"#10b981",HSK:"#f59e0b",VSTEP:"#0891b2",
 const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(135deg,#8b5cf6,#7c3aed)",
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
             proj:"linear-gradient(135deg,#06b6d4,#0891b2)",sp:"linear-gradient(135deg,#64748b,#475569)"};
-const SHOW_LEADS=false; // Lead/CPL/QL/%QL/CPQL — chờ user duyệt logic chỉ-Paid rồi bật
+const SHOW_LEADS=true; // nhóm chỉ số lead — logic chỉ-Paid, user duyệt 16/07 (khớp màn BI)
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
 let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
 
@@ -224,8 +239,14 @@ function selDays(){ // mảng ngày đang chọn (mode tháng = trọn tháng; m
 }
 function dayVal(d,code,bucket){const a=(DATA.months[d.m].lines[code]||{})[bucket]||[];return a[d.i]||0;}
 function seriesDays(days,codes,bucket){return days.map(d=>sum(codes.map(c=>dayVal(d,c,bucket))));}
-function kpiDay(d,code){ // KPI 1 ngày của 1 dòng = KPI tháng / số ngày tháng đó (null nếu chưa điền)
-  const v=((KPI&&KPI[d.m])||{})[code];
+function kpiMetricVal(month,code,key){ // kpi.json v2: number = revenue (kiểu cũ); object = {revenue,lead,ql,cpl,cpql}
+  const v=((KPI&&KPI[month])||{})[code];
+  if(v==null)return null;
+  if(typeof v==="number")return key==="revenue"?v:null;
+  return v[key]!=null?v[key]:null;
+}
+function kpiDay(d,code){ // KPI DOANH THU 1 ngày = KPI tháng / số ngày tháng đó (null nếu chưa điền)
+  const v=kpiMetricVal(d.m,code,"revenue");
   return v==null?null:v/DATA.months[d.m].days_in_month;
 }
 function kpiOfDays(days,codes){ // {total, daily[], missing:[«tháng·dòng»]} — pro-rata theo ngày
@@ -289,8 +310,9 @@ function renderRev(days,codes){
     const elapsed=isCurrentMonth()?m.as_of_day:m.days_in_month;
     const timePct=elapsed/m.days_in_month*100;
     const kpiMonth=kpiOfDays(DAYS.filter(d=>d.m===state.month),codes); // pro-rata phần đã trôi
-    const kpiFull=(()=>{const k=(KPI&&KPI[state.month])||{};let v=0,any=false;
-      for(const c of codes){if(k[c]!=null){v+=k[c];any=true;}}return any?v:null;})();
+    const kpiFull=(()=>{let v=0,any=false;
+      for(const c of codes){const x=kpiMetricVal(state.month,c,"revenue");
+        if(x!=null){v+=x;any=true;}}return any?v:null;})();
     const attMonth=kpiFull?tot/kpiFull*100:null;
     const pace=attMonth!=null?attMonth-timePct:null;
     const proj=elapsed?tot/elapsed*m.days_in_month:0;
@@ -333,8 +355,9 @@ function renderChips(days){
     const codes=it.code==="ALL"?lineCodes():[it.code];
     const t=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"));
     const k=state.mode==="month"
-      ?(()=>{const kk=(KPI&&KPI[state.month])||{};let v=0,any=false;
-        for(const c of codes){if(kk[c]!=null){v+=kk[c];any=true;}}return any?v:null;})()
+      ?(()=>{let v=0,any=false;
+        for(const c of codes){const x=kpiMetricVal(state.month,c,"revenue");
+          if(x!=null){v+=x;any=true;}}return any?v:null;})()
       :kpiOfDays(days,codes).total;
     const on=state.scope===it.code;
     return '<div class="chip'+(on?" on":"")+'" data-c="'+it.code+'"'
@@ -381,8 +404,9 @@ function renderCum(days,a1,b1,kpi){
   const axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
   const cum=cumsum(a1.map((v,i)=>v+(b1[i]||0)));
   const kpiEnd=state.mode==="month"
-    ?(()=>{const k=(KPI&&KPI[state.month])||{};let v=0,any=false;
-      for(const c of scopeCodes()){if(k[c]!=null){v+=k[c];any=true;}}return any?v:null;})()
+    ?(()=>{let v=0,any=false;
+      for(const c of scopeCodes()){const x=kpiMetricVal(state.month,c,"revenue");
+        if(x!=null){v+=x;any=true;}}return any?v:null;})()
     :kpi.total;
   const cd=cmpDaysArr(); // đường kỳ so sánh (lũy kế A1+B1, xám nhạt)
   const ccum=cd&&cd.length?cumsum(seriesDays(cd,scopeCodes(),"a1")
@@ -473,7 +497,7 @@ function renderTable(days){
   const rows=DATA.lines.map(l=>{
     const a=sum(seriesDays(days,[l.code],"a1")),b=sum(seriesDays(days,[l.code],"b1"));
     const t=a+b;
-    const kp=isM?((KPI&&KPI[state.month])||{})[l.code]:kpiOfDays(days,[l.code]).total;
+    const kp=isM?kpiMetricVal(state.month,l.code,"revenue"):kpiOfDays(days,[l.code]).total;
     return {code:l.code,label:l.label,a,b,t,kp,
       att:kp?t/kp*100:null,
       need:isM?(kp&&left>0?Math.max(0,(kp-t)/left):null):t/days.length};
@@ -553,6 +577,10 @@ function renderEff(days,codes){
   ]:[]).join("");
   renderSpendDaily(days,codes);
   renderMere(days,sp,rev);
+  for(const id of ["kpiq-card","leadchart-card","cplchart-card"])
+    $(id).style.display=SHOW_LEADS?"":"none";
+  if(SHOW_LEADS){renderKpiPanel(days,codes,{sp:totSp,lead:totLead,ql:totQl});
+    renderLeadDaily(days,codes);renderCplDaily(days,codes);}
   renderEffTable(days);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
@@ -617,6 +645,100 @@ function renderMere(days,sp,rev){
     r.onmousemove=ev=>{const j=+r.dataset.i;
       tip("<b>"+esc(days[j].label)+"</b><br>ME/RE lũy kế: "+(mere[j]!=null?mere[j].toFixed(1)+"%":"—")
         +"<br>Chi lũy kế: "+vnd(cumSp[j])+" đ<br>DT lũy kế: "+vnd(cumRev[j])+" đ",ev);};
+    r.onmouseleave=()=>tip(null);
+  });
+}
+
+function renderKpiPanel(days,codes,tot){
+  // Mục tiêu đếm (lead/ql): KPI tháng rải đều theo ngày phủ kỳ chọn (như KPI doanh thu).
+  function targetOf(key){let v=0,any=false,miss=false;
+    for(const d of days)for(const c of codes){
+      const mv=kpiMetricVal(d.m,c,key);
+      if(mv==null){miss=true;continue;}
+      any=true;v+=mv/DATA.months[d.m].days_in_month;}
+    return {v:any?v:null,miss};}
+  // Ngưỡng đơn giá (cpl/cpql): chỉ so khi chọn 1 SP (không cộng ngưỡng nhiều SP được)
+  const cap=key=>codes.length===1?kpiMetricVal(days[days.length-1].m,codes[0],key):null;
+  const rows=[
+    {n:"Lead",act:tot.lead,t:targetOf("lead").v,fmt:v=>nf.format(Math.round(v)),up:true},
+    {n:"QL",act:tot.ql,t:targetOf("ql").v,fmt:v=>nf.format(Math.round(v)),up:true},
+    {n:"CPL",act:tot.lead?tot.sp/tot.lead:null,t:cap("cpl"),fmt:vnd,up:false},
+    {n:"CPQL",act:tot.ql?tot.sp/tot.ql:null,t:cap("cpql"),fmt:vnd,up:false}
+  ];
+  let h='<table><thead><tr><th>Chỉ số</th><th>Thực tế</th><th>Mục tiêu (kỳ chọn)</th><th>% đạt</th><th style="width:38%"></th></tr></thead><tbody>';
+  let anyT=false;
+  for(const r of rows){
+    const pct=r.act!=null&&r.t?((r.up?r.act/r.t:r.t/r.act)*100):null;
+    if(r.t)anyT=true;
+    const cls=pct==null?"text-mut":pct>=100?"text-green":pct>=80?"text-amber":"text-red";
+    const w=pct==null?0:Math.min(pct,140)/140*100;
+    h+="<tr><td>"+r.n+"</td><td>"+(r.act!=null?r.fmt(r.act):"—")+"</td>"
+      +"<td>"+(r.t?r.fmt(r.t):"<span class='text-mut'>chưa có</span>")+"</td>"
+      +"<td style='font-weight:700' class='"+cls+"'>"+(pct!=null?pct.toFixed(1)+"%":"—")+"</td>"
+      +"<td><div style='height:7px;border-radius:4px;background:#f3f4f6;overflow:hidden'>"
+      +"<div style='height:100%;width:"+w+"%;border-radius:4px;background:"
+      +(pct==null?"#e5e7eb":pct>=100?"#10b981":pct>=80?"#f59e0b":"#ef4444")+"'></div></div></td></tr>";
+  }
+  h+="</tbody></table>";
+  $("kpiqpanel").innerHTML=h;
+  $("kpiq-note").textContent=(anyT?"":"Chưa có mục tiêu — ")
+    +"điền KPI vào kpi.json theo định dạng mới: mỗi SP một object {revenue, lead, ql, cpl, cpql} "
+    +"(số cũ vẫn hiểu là KPI doanh thu). CPL/CPQL là NGƯỠNG trần — chỉ so khi chọn 1 sản phẩm"
+    +(codes.length!==1?" (đang xem Tất cả).":".");
+}
+
+function renderLeadDaily(days,codes){
+  const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
+  const L=seriesDays(days,codes,"lead"),Q=seriesDays(days,codes,"ql");
+  const max=Math.max(...L,1)*1.12;
+  const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN;
+  const posf=j=>PAD.l+(j+.5)*bw;
+  const color=COLORS[state.scope];
+  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,v=>nf.format(Math.round(v)))+xLabels(days,H,posf,axisN);
+  for(let j=0;j<days.length;j++){
+    const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
+    let h1=(H-PAD.t-PAD.b)*(L[j]/max);
+    s+='<rect x="'+x+'" y="'+(H-PAD.b-h1)+'" width="'+w+'" height="'+Math.max(h1,0)+'" rx="2" fill="'+color+'" opacity=".3"/>';
+    let h2=(H-PAD.t-PAD.b)*(Q[j]/max);
+    s+='<rect x="'+(x+w*0.2)+'" y="'+(H-PAD.b-h2)+'" width="'+(w*0.6)+'" height="'+Math.max(h2,0)+'" rx="2" fill="'+color+'"/>';
+    s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+  }
+  s+='</svg>';
+  $("leadchart").innerHTML=s;
+  $("lead-note").textContent="Cột nhạt = Lead (L0 mới) · cột đậm = QL (chạm L3+) · "+ (state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))+".";
+  $("leadchart").querySelectorAll("rect[data-i]").forEach(r=>{
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      const pq=L[j]?(Q[j]/L[j]*100).toFixed(1)+"%":"—";
+      tip("<b>"+esc(days[j].label)+"</b><br>Lead: "+nf.format(L[j])+"<br>QL: "+nf.format(Q[j])+" · %QL "+pq,ev);};
+    r.onmouseleave=()=>tip(null);
+  });
+}
+
+function renderCplDaily(days,codes){
+  const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
+  const sp=spendSeries(days,codes),L=seriesDays(days,codes,"lead"),Q=seriesDays(days,codes,"ql");
+  const cpl=days.map((d,j)=>L[j]>0?sp[j]/L[j]:null);
+  const cpql=days.map((d,j)=>Q[j]>0?sp[j]/Q[j]:null);
+  const vals=cpl.concat(cpql).filter(v=>v!=null);
+  if(!vals.length){$("cplchart").innerHTML='<div class="note">Chưa có dữ liệu chi phí/lead trong kỳ.</div>';return;}
+  const max=Math.max(...vals)*1.15;
+  const ys=yScale(max,H),xf=j=>PAD.l+(axisN===1?0:j/(axisN-1))*(W-PAD.l-PAD.r);
+  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short)+xLabels(days,H,xf,axisN);
+  for(const[arr,color,dash]of[[cpl,"#2563eb",""],[cpql,"#d97706","6 5"]]){
+    const pts=arr.map((v,j)=>v==null?null:xf(j)+","+ys(v)).filter(Boolean).join(" ");
+    if(pts)s+='<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2.4"'
+      +(dash?' stroke-dasharray="'+dash+'"':"")+' stroke-linejoin="round"/>';
+  }
+  const bw2=(W-PAD.l-PAD.r)/axisN;
+  for(let j=0;j<days.length;j++)
+    s+='<rect x="'+(xf(j)-bw2/2)+'" y="0" width="'+bw2+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+  s+='</svg><div class="legend"><span><i style="background:#2563eb"></i>CPL</span>'
+    +'<span><i style="background:#d97706"></i>CPQL</span></div>';
+  $("cplchart").innerHTML=s;
+  $("cplchart").querySelectorAll("rect[data-i]").forEach(r=>{
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      tip("<b>"+esc(days[j].label)+"</b><br>CPL: "+(cpl[j]!=null?vnd(cpl[j])+" đ":"—")
+        +"<br>CPQL: "+(cpql[j]!=null?vnd(cpql[j])+" đ":"—"),ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
