@@ -92,6 +92,19 @@ def distribute(total, weights):
     return out
 
 
+# Nguồn lead/QL theo KÊNH từ BI (leads_series). ⚠️ KIỂM CHỨNG 16/07: channel_names chỉ
+# "Inbox FB Ads" hoạt động; các tên khác ("Landing Ads · Meta", "Landing Ads"…) bị API NUỐT
+# IM LẶNG (trả tổng không filter). Vì vậy: FB Conversion KHÔNG fetch trực tiếp mà = nhóm Meta
+# (mg) − FB Inbox, do client tính — tổng các kênh luôn khớp tổng lead Paid của dashboard.
+CHANNEL_LEAD_SRC = {
+    "fbi": {"channel_names": ["Inbox FB Ads"]},   # đã kiểm chứng khớp sources (lệch 2–7%)
+    "mg":  {"channel_groups": ["Meta"]},           # nhóm Meta — nền tính fbc = mg − fbi
+    "gs":  {"channel_groups": ["Google"]},
+    "kol": {"channel_groups": ["KOLs"]},           # kiểm chứng khớp 100% T6
+    "op":  {"channel_groups": ["TikTok", "Other Paid"]},
+}
+
+
 def fetch_month(c, month, fixture_dir=None, prev=None):
     """{'days_in_month': n, 'as_of_day': n, 'lines': {code: {'a1': [...], 'b1': [...]}}} hoặc None nếu API hỏng.
 
@@ -219,6 +232,51 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
             for i, v in enumerate(qd):
                 ql[i] += v
         per["lead"], per["ql"] = lead, ql
+
+    # ---- Breakdown theo KÊNH ----
+    for line in c["lines"]:
+        per = lines[line["code"]]
+        n = len(per["a1"])
+        pl = ((prev or {}).get("lines") or {}).get(line["code"], {})
+        # 1) Chi phí Meta Conversion (objective/tên campaign) — FB Inbox = sp_meta − sp_fbc (client tính)
+        if fixture_dir:
+            arr, okc = [0] * n, True
+        else:
+            arr, okc = spend.month_meta_conv(accounts(), line["code"], since,
+                                             (dt.date(int(month[:4]), int(month[4:6]), 1)
+                                              + dt.timedelta(days=max(n - 1, 0))).isoformat(), n)
+        if not okc and pl.get("sp_fbc"):
+            o = pl["sp_fbc"][:n]
+            arr = o + [0] * (n - len(o))
+            print(f"[WARN] {month} {line['code']}: Meta conv lỗi — giữ số cũ", file=sys.stderr)
+        per["sp_fbc"] = arr
+        # 2) Lead/QL theo kênh từ BI
+        chl, chq = {}, {}
+        for ck, flt in CHANNEL_LEAD_SRC.items():
+            if fixture_dir or n == 0:
+                chl[ck], chq[ck] = [0] * n, [0] * n
+                continue
+            pay = prep_bi.leads_series(line["products"], month, markets=c["market_keys"], **flt)
+            if pay is None:
+                oldl = (pl.get("ch_ld") or {}).get(ck)
+                if oldl:  # nguồn lỗi → giữ số cũ
+                    chl[ck] = (oldl[:n] + [0] * n)[:n]
+                    chq[ck] = ((pl.get("ch_ql") or {}).get(ck, [])[:n] + [0] * n)[:n]
+                    print(f"[WARN] {month} {line['code']} kênh {ck}: BI lỗi — giữ số cũ", file=sys.stderr)
+                else:
+                    chl[ck], chq[ck] = [0] * n, [0] * n
+                continue
+            pts = sorted([q for q in pay.get("points", []) if q.get("l0") is not None],
+                         key=lambda q: q["offset"])
+            lc = [int(q.get("l0") or 0) for q in pts]
+            qc = [int(q.get("ql") or 0) for q in pts]
+            ld = [v - (lc[i - 1] if i else 0) for i, v in enumerate(lc)]
+            qd = [v - (qc[i - 1] if i else 0) for i, v in enumerate(qc)]
+            ld = (ld[:cut] if cut is not None else ld)[:n]
+            qd = (qd[:cut] if cut is not None else qd)[:n]
+            chl[ck] = ld + [0] * (n - len(ld))
+            chq[ck] = qd + [0] * (n - len(qd))
+        per["ch_ld"], per["ch_ql"] = chl, chq
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
@@ -240,7 +298,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "ch_ld" in v for v in ls.values())
 
     out_months = {}
     for m in months:
@@ -374,7 +432,7 @@ def main():
             yd = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=1)
             mm = cur.get("months", {}).get(yd.strftime("%Y%m"), {})
             ls = mm.get("lines") or {}
-            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v and "lead" in v for v in ls.values()):
+            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v and "lead" in v and "ch_ld" in v for v in ls.values()):
                 print(f"Đã có số đến hết {yd.isoformat()} — bỏ qua lượt này.")
                 if tmp:
                     shutil.rmtree(tmp, ignore_errors=True)
