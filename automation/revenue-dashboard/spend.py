@@ -168,15 +168,24 @@ def _vnd_cell(s):
 
 
 def sheet_daily(sheet_id, _cache={}):
-    """{'YYYY-MM-DD': cost_net} cộng dồn mọi dòng theo cột Date/Cost của Google Sheet
-    (export CSV — sheet phải share 'Anyone with the link · Viewer'). Cache theo run:
-    1 sheet chỉ tải 1 lần dù build nhiều tháng. None nếu 401/lỗi (chưa share…)."""
+    """{'YYYY-MM-DD': cost_net} cộng dồn theo cột Date/Cost của Google Sheet (share Viewer).
+    Ưu tiên tab "Dữ liệu thô" (16/07 team thêm tab report lên đầu làm tab mặc định đổi nội dung
+    → parser cũ ra 0 dòng và ghi 0 đè); fallback tab mặc định. KHÔNG có dòng ngày nào = coi là
+    LỖI (None) để caller giữ số cũ. Cache theo run."""
     if sheet_id in _cache:
         return _cache[sheet_id]
     import csv
     import io
-    try:
-        raw = _http(f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv", timeout=90)
+    import urllib.parse as up
+    tabs = ["Dữ liệu thô", "Data Raw"]  # tên tab dữ liệu gốc mỗi SP một kiểu (IELTS/HSK vs TOEIC)
+    urls = [f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={up.quote(x)}"
+            for x in tabs] + [f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"]
+    for url in urls:
+        try:
+            raw = _http(url, timeout=90)
+        except Exception as e:  # noqa: BLE001 — thử URL kế tiếp
+            print(f"[WARN] Google Sheet {sheet_id}: {e}", flush=True)
+            continue
         out = {}
         for r in csv.DictReader(io.StringIO(raw)):
             day = (r.get("Date") or "").strip()
@@ -185,11 +194,12 @@ def sheet_daily(sheet_id, _cache={}):
             ckey = next((k for k in r if k and k.strip().lower().startswith("cost")), None)
             if ckey:
                 out[day] = out.get(day, 0) + _vnd_cell(r[ckey])
-        _cache[sheet_id] = out
-    except Exception as e:  # noqa: BLE001 — sheet chưa share/đổi cấu trúc: cảnh báo, không giết run
-        print(f"[WARN] Google Sheet {sheet_id}: {e}", flush=True)
-        _cache[sheet_id] = None
-    return _cache[sheet_id]
+        if out:  # chỉ tin khi CÓ dữ liệu ngày thật
+            _cache[sheet_id] = out
+            return out
+    print(f"[WARN] Google Sheet {sheet_id}: không thấy dữ liệu Date/Cost ở tab nào — coi là lỗi", flush=True)
+    _cache[sheet_id] = None
+    return None
 
 
 # ---------------- gộp theo sản phẩm ----------------
