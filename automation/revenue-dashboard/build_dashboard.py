@@ -92,7 +92,7 @@ def distribute(total, weights):
     return out
 
 
-def fetch_month(c, month, fixture_dir=None):
+def fetch_month(c, month, fixture_dir=None, prev=None):
     """{'days_in_month': n, 'as_of_day': n, 'lines': {code: {'a1': [...], 'b1': [...]}}} hoặc None nếu API hỏng.
 
     Tháng hiện tại: cắt bỏ điểm của NGÀY HÔM NAY (BI mới đồng bộ một phần → số thấp giả tạo,
@@ -172,7 +172,16 @@ def fetch_month(c, month, fixture_dir=None):
         acc = accounts()
         until = (dt.date(int(month[:4]), int(month[4:6]), 1) + dt.timedelta(days=max(n_days - 1, 0))).isoformat()
         for line in c["lines"]:
-            meta_arr, g_arr = spend.month_spend(acc, line["code"], since, until, n_days)
+            meta_arr, g_arr, ok = spend.month_spend(acc, line["code"], since, until, n_days)
+            pl = ((prev or {}).get("lines") or {}).get(line["code"], {})
+            if not ok["meta"] and pl.get("sp_meta"):  # nguồn lỗi → giữ số cũ, KHÔNG ghi 0 đè
+                o = pl["sp_meta"][:n_days]
+                meta_arr = o + [0] * (n_days - len(o))
+                print(f"[WARN] {month} {line['code']}: Meta spend lỗi — giữ số cũ", file=sys.stderr)
+            if not ok["google"] and pl.get("sp_g"):
+                o = pl["sp_g"][:n_days]
+                g_arr = o + [0] * (n_days - len(o))
+                print(f"[WARN] {month} {line['code']}: Google spend lỗi — giữ số cũ", file=sys.stderr)
             lines[line["code"]]["sp_meta"] = meta_arr
             lines[line["code"]]["sp_g"] = g_arr
 
@@ -238,7 +247,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
         if m in old and m not in refetch and complete(old[m]):
             out_months[m] = old[m]
             continue
-        got = fetch_month(c, m, fixture_dir)
+        got = fetch_month(c, m, fixture_dir, prev=old.get(m))
         if got is None and m in old:
             got = old[m]  # API hỏng: giữ số cũ còn hơn xoá
             print(f"[WARN] {m}: dùng lại dữ liệu cũ trong data.json", file=sys.stderr)

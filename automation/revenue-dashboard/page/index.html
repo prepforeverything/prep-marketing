@@ -541,7 +541,7 @@ function renderEff(days,codes){
   const rangeLabel=state.mode==="month"?monthLabel(state.month)
     :days[0].label+" – "+days[days.length-1].label+" · "+days.length+" ngày";
   // So sánh vs kỳ liền trước (nếu bật): màu theo TỐT/XẤU — spend trung tính, ME/RE & CPO tăng = xấu
-  const tr={sp:"",rev:"",mere:"",ord:"",cpo:"",aov:"",lead:"",cpl:"",ql:"",pql:"",cpql:""};
+  const tr={sp:"",rev:"",mere:"",ord:"",cpo:"",aov:"",lead:"",cpl:"",ql:"",pql:"",cpql:"",cr:""};
   const cd=cmpDaysArr();
   if(cd&&cd.length){
     const psp=sum(spendSeries(cd,codes));
@@ -560,6 +560,8 @@ function renderEff(days,codes){
       const a=totQl/totLead*100,b=pql/plead*100;tr.pql=trendHtml(a-b,true," điểm");}
     tr.ql=trendHtml(pctChange(totQl,pql),true);
     if(totQl&&pql)tr.cpql=trendHtml(pctChange(totSp/totQl,psp/pql),false);
+    if(totLead&&plead&&totOrd&&pord)
+      tr.cr=trendHtml(totOrd/totLead*100-pord/plead*100,true," điểm");
   }
   $("eff-summary").innerHTML=[
     card("Chi phí (Spent)",short(totSp),esc(srcLabel())+" · "+vnd(totSp)+" đ",GRAD.sp,false,tr.sp),
@@ -573,7 +575,8 @@ function renderEff(days,codes){
     card("CPL",totLead?short2(totSp/totLead):"—","Spent ÷ Lead",GRAD.sp,false,tr.cpl),
     card("QL",nf.format(totQl),"chạm L3+ trong kỳ",GRAD.proj,false,tr.ql),
     card("%QL",totLead?(totQl/totLead*100).toFixed(1)+"%":"—","QL ÷ Lead",GRAD.kpi,false,tr.pql),
-    card("CPQL",totQl?short2(totSp/totQl):"—","Spent ÷ QL",GRAD.pace,false,tr.cpql)
+    card("CPQL",totQl?short2(totSp/totQl):"—","Spent ÷ QL",GRAD.pace,false,tr.cpql),
+    card("CR",totLead?(totOrd/totLead*100).toFixed(1)+"%":"—","Order ÷ Lead",GRAD.rev,false,tr.cr)
   ]:[]).join("");
   renderSpendDaily(days,codes);
   renderMere(days,sp,rev);
@@ -650,22 +653,33 @@ function renderMere(days,sp,rev){
 }
 
 function renderKpiPanel(days,codes,tot){
-  // Mục tiêu đếm (lead/ql): KPI tháng rải đều theo ngày phủ kỳ chọn (như KPI doanh thu).
-  function targetOf(key){let v=0,any=false,miss=false;
+  // CƠ SỞ SO KPI = A1+B1 (đúng cách file "Quản trị chỉ số" xây KPI: doanh thu Lead MKT, order = DT/AOV).
+  // Chỉ số dẫn xuất (CR, %QL, AOV, CPL, CPQL, ME/RE) suy từ thành phần → so được cả khi chọn "Tất cả".
+  function tSum(key){let v=0,any=false;
     for(const d of days)for(const c of codes){
       const mv=kpiMetricVal(d.m,c,key);
-      if(mv==null){miss=true;continue;}
-      any=true;v+=mv/DATA.months[d.m].days_in_month;}
-    return {v:any?v:null,miss};}
-  // Ngưỡng đơn giá (cpl/cpql): chỉ so khi chọn 1 SP (không cộng ngưỡng nhiều SP được)
-  const cap=key=>codes.length===1?kpiMetricVal(days[days.length-1].m,codes[0],key):null;
+      if(mv!=null){any=true;v+=mv/DATA.months[d.m].days_in_month;}}
+    return any?v:null;}
+  const actRev=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"));
+  const actOrd=sum(orderSeries(days,codes)); // o_a1+o_b1 (không gồm A3B3 — cùng cơ sở KPI)
+  const T={rev:tSum("revenue"),sp:tSum("spend"),lead:tSum("lead"),ql:tSum("ql"),ord:tSum("order")};
+  const ratio=(a,b)=>a!=null&&b?a/b:null;
+  const pctF=v=>v.toFixed(1)+"%";
+  const intF=v=>nf.format(Math.round(v));
   const rows=[
-    {n:"Lead",act:tot.lead,t:targetOf("lead").v,fmt:v=>nf.format(Math.round(v)),up:true},
-    {n:"QL",act:tot.ql,t:targetOf("ql").v,fmt:v=>nf.format(Math.round(v)),up:true},
-    {n:"CPL",act:tot.lead?tot.sp/tot.lead:null,t:cap("cpl"),fmt:vnd,up:false},
-    {n:"CPQL",act:tot.ql?tot.sp/tot.ql:null,t:cap("cpql"),fmt:vnd,up:false}
+    {n:"Doanh thu (A1+B1)",act:actRev,t:T.rev,fmt:short2,up:true},
+    {n:"Chi phí (Spent)",act:tot.sp,t:T.sp,fmt:short2,up:false},
+    {n:"Order",act:actOrd,t:T.ord,fmt:intF,up:true},
+    {n:"Lead",act:tot.lead,t:T.lead,fmt:intF,up:true},
+    {n:"QL",act:tot.ql,t:T.ql,fmt:intF,up:true},
+    {n:"%QL",act:tot.lead?tot.ql/tot.lead*100:null,t:ratio(T.ql,T.lead)!=null?ratio(T.ql,T.lead)*100:null,fmt:pctF,up:true},
+    {n:"CR (Order/Lead)",act:tot.lead?actOrd/tot.lead*100:null,t:ratio(T.ord,T.lead)!=null?ratio(T.ord,T.lead)*100:null,fmt:pctF,up:true},
+    {n:"AOV",act:actOrd?actRev/actOrd:null,t:ratio(T.rev,T.ord),fmt:vnd,up:true},
+    {n:"CPL",act:tot.lead?tot.sp/tot.lead:null,t:ratio(T.sp,T.lead),fmt:vnd,up:false},
+    {n:"CPQL",act:tot.ql?tot.sp/tot.ql:null,t:ratio(T.sp,T.ql),fmt:vnd,up:false},
+    {n:"ME/RE",act:actRev?tot.sp/actRev*100:null,t:ratio(T.sp,T.rev)!=null?ratio(T.sp,T.rev)*100:null,fmt:pctF,up:false}
   ];
-  let h='<table><thead><tr><th>Chỉ số</th><th>Thực tế</th><th>Mục tiêu (kỳ chọn)</th><th>% đạt</th><th style="width:38%"></th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Chỉ số</th><th>Thực tế</th><th>Mục tiêu (kỳ chọn)</th><th>% đạt</th><th style="width:34%"></th></tr></thead><tbody>';
   let anyT=false;
   for(const r of rows){
     const pct=r.act!=null&&r.t?((r.up?r.act/r.t:r.t/r.act)*100):null;
@@ -673,7 +687,7 @@ function renderKpiPanel(days,codes,tot){
     const cls=pct==null?"text-mut":pct>=100?"text-green":pct>=80?"text-amber":"text-red";
     const w=pct==null?0:Math.min(pct,140)/140*100;
     h+="<tr><td>"+r.n+"</td><td>"+(r.act!=null?r.fmt(r.act):"—")+"</td>"
-      +"<td>"+(r.t?r.fmt(r.t):"<span class='text-mut'>chưa có</span>")+"</td>"
+      +"<td>"+(r.t!=null?r.fmt(r.t):"<span class='text-mut'>chưa có</span>")+"</td>"
       +"<td style='font-weight:700' class='"+cls+"'>"+(pct!=null?pct.toFixed(1)+"%":"—")+"</td>"
       +"<td><div style='height:7px;border-radius:4px;background:#f3f4f6;overflow:hidden'>"
       +"<div style='height:100%;width:"+w+"%;border-radius:4px;background:"
@@ -681,10 +695,11 @@ function renderKpiPanel(days,codes,tot){
   }
   h+="</tbody></table>";
   $("kpiqpanel").innerHTML=h;
-  $("kpiq-note").textContent=(anyT?"":"Chưa có mục tiêu — ")
-    +"điền KPI vào kpi.json theo định dạng mới: mỗi SP một object {revenue, lead, ql, cpl, cpql} "
-    +"(số cũ vẫn hiểu là KPI doanh thu). CPL/CPQL là NGƯỠNG trần — chỉ so khi chọn 1 sản phẩm"
-    +(codes.length!==1?" (đang xem Tất cả).":".");
+  $("kpiq-note").textContent=(anyT?"":"Chưa có mục tiêu — điền kpi.json. ")
+    +"Cơ sở so KPI = A1+B1 (đúng file Quản trị chỉ số; Doanh thu/Order/AOV/CR/ME-RE tại đây KHÔNG gồm A3+B3 "
+    +"nên hơi khác card phía trên). Mục tiêu đếm rải đều theo ngày kỳ chọn; chỉ số dẫn xuất suy từ "
+    +"thành phần (vd CR trần = KPI order ÷ KPI lead) — hoạt động cả khi chọn Tất cả. "
+    +"Chi phí/CPL/CPQL/ME-RE: đạt = KHÔNG vượt mục tiêu.";
 }
 
 function renderLeadDaily(days,codes){
@@ -755,9 +770,10 @@ function renderEffTable(days){
       cpl:lead?sp/lead:null,pql:lead?ql/lead*100:null,cpql:ql?sp/ql:null};
   }).sort((x,y)=>y.sp-x.sp);
   const leadTh=SHOW_LEADS?"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th>":"";
+  const crTh=SHOW_LEADS?"<th>CR</th>":"";
   const head="<thead><tr><th>Sản phẩm</th><th>Chi phí (Spent)</th>"+leadTh
     +"<th>Doanh thu Paid</th><th>ME/RE</th>"
-    +"<th>Order</th><th>Chi phí/đơn</th><th>AOV</th></tr></thead>";
+    +"<th>Order</th>"+crTh+"<th>Chi phí/đơn</th><th>AOV</th></tr></thead>";
   const body=rows.map(r=>"<tr><td><span style='display:inline-block;width:9px;height:9px;"
     +"border-radius:50%;background:"+COLORS[r.code]+";margin-right:7px'></span>"
     +"<span style='color:"+COLORS[r.code]+"'>"+esc(r.label)+"</span></td>"
@@ -767,7 +783,9 @@ function renderEffTable(days){
       +"<td>"+(r.cpql!=null?vnd(r.cpql):"—")+"</td>":"")
     +"<td>"+vnd(r.rev)+"</td>"
     +"<td style='font-weight:700'>"+(r.mere!=null?r.mere.toFixed(1)+"%":"—")+"</td>"
-    +"<td>"+nf.format(r.ord)+"</td><td>"+(r.cpo!=null?vnd(r.cpo):"—")+"</td>"
+    +"<td>"+nf.format(r.ord)+"</td>"
+    +(SHOW_LEADS?"<td>"+(r.lead?(r.ord/r.lead*100).toFixed(1)+"%":"—")+"</td>":"")
+    +"<td>"+(r.cpo!=null?vnd(r.cpo):"—")+"</td>"
     +"<td>"+(r.aov!=null?vnd(r.aov):"—")+"</td></tr>").join("");
   const T=x=>sum(rows.map(r=>r[x]||0));
   const tSp=T("sp"),tRev=T("rev"),tOrd=T("ord"),tLead=T("lead"),tQl=T("ql");
@@ -777,6 +795,7 @@ function renderEffTable(days){
       +"<td>"+(tQl?vnd(tSp/tQl):"—")+"</td>":"")
     +"<td>"+vnd(tRev)+"</td>"
     +"<td>"+(tRev?(tSp/tRev*100).toFixed(1)+"%":"—")+"</td><td>"+nf.format(tOrd)+"</td>"
+    +(SHOW_LEADS?"<td>"+(tLead?(tOrd/tLead*100).toFixed(1)+"%":"—")+"</td>":"")
     +"<td>"+(tOrd?vnd(tSp/tOrd):"—")+"</td><td>"+(tOrd?vnd(tRev/tOrd):"—")+"</td></tr>";
   $("efftbl").innerHTML=head+"<tbody>"+body+foot+"</tbody>";
 }
