@@ -653,21 +653,22 @@ function renderMere(days,sp,rev){
 }
 
 function renderKpiPanel(days,codes,tot){
-  // CƠ SỞ SO KPI = A1+B1 (đúng cách file "Quản trị chỉ số" xây KPI: doanh thu Lead MKT, order = DT/AOV).
+  // CƠ SỞ = Paid ĐẦY ĐỦ (A1+B1+A3+B3) — trùng khớp các card phía trên (user chốt 16/07).
   // Chỉ số dẫn xuất (CR, %QL, AOV, CPL, CPQL, ME/RE) suy từ thành phần → so được cả khi chọn "Tất cả".
   function tSum(key){let v=0,any=false;
     for(const d of days)for(const c of codes){
       const mv=kpiMetricVal(d.m,c,key);
       if(mv!=null){any=true;v+=mv/DATA.months[d.m].days_in_month;}}
     return any?v:null;}
-  const actRev=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"));
-  const actOrd=sum(orderSeries(days,codes)); // o_a1+o_b1 (không gồm A3B3 — cùng cơ sở KPI)
+  const actRev=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"))
+    +sum(seriesDays(days,codes,"a3b3"));
+  const actOrd=sum(orderSeries(days,codes))+sum(seriesDays(days,codes,"o_a3b3"));
   const T={rev:tSum("revenue"),sp:tSum("spend"),lead:tSum("lead"),ql:tSum("ql"),ord:tSum("order")};
   const ratio=(a,b)=>a!=null&&b?a/b:null;
   const pctF=v=>v.toFixed(1)+"%";
   const intF=v=>nf.format(Math.round(v));
   const rows=[
-    {n:"Doanh thu (A1+B1)",act:actRev,t:T.rev,fmt:short2,up:true},
+    {n:"Doanh thu Paid",act:actRev,t:T.rev,fmt:short2,up:true},
     {n:"Chi phí (Spent)",act:tot.sp,t:T.sp,fmt:short2,up:false},
     {n:"Order",act:actOrd,t:T.ord,fmt:intF,up:true},
     {n:"Lead",act:tot.lead,t:T.lead,fmt:intF,up:true},
@@ -696,10 +697,9 @@ function renderKpiPanel(days,codes,tot){
   h+="</tbody></table>";
   $("kpiqpanel").innerHTML=h;
   $("kpiq-note").textContent=(anyT?"":"Chưa có mục tiêu — điền kpi.json. ")
-    +"Cơ sở so KPI = A1+B1 (đúng file Quản trị chỉ số; Doanh thu/Order/AOV/CR/ME-RE tại đây KHÔNG gồm A3+B3 "
-    +"nên hơi khác card phía trên). Mục tiêu đếm rải đều theo ngày kỳ chọn; chỉ số dẫn xuất suy từ "
-    +"thành phần (vd CR trần = KPI order ÷ KPI lead) — hoạt động cả khi chọn Tất cả. "
-    +"Chi phí/CPL/CPQL/ME-RE: đạt = KHÔNG vượt mục tiêu.";
+    +"Cơ sở = Paid đầy đủ (A1+B1+A3+B3), trùng khớp các card phía trên. Mục tiêu đếm rải đều theo "
+    +"ngày kỳ chọn; chỉ số dẫn xuất suy từ thành phần (vd CR trần = KPI order ÷ KPI lead) — hoạt động "
+    +"cả khi chọn Tất cả. Chi phí/CPL/CPQL/ME-RE: đạt = KHÔNG vượt mục tiêu.";
 }
 
 function renderLeadDaily(days,codes){
