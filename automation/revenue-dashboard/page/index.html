@@ -212,7 +212,7 @@ const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(1
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
             proj:"linear-gradient(135deg,#06b6d4,#0891b2)",sp:"linear-gradient(135deg,#64748b,#475569)"};
 const SHOW_LEADS=true;
-const SHOW_CHANNELS=false; // ẨN: BI không có daily-by-channel đúng nhóm — chờ chốt thiết kế với user
+const SHOW_CHANNELS=true; // phương án (a): chỉ số kênh grain THÁNG (user duyệt xem thử 17/07)
  // nhóm chỉ số lead — logic chỉ-Paid, user duyệt 16/07 (khớp màn BI)
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
 let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
@@ -790,26 +790,31 @@ function chSpendDay(d,code,ck){ // chi phí kênh/ngày: fbi = Meta − Conv, fb
   return null; // kol/op chưa có nguồn chi phí
 }
 function renderChannels(days,codes){
-  // bảng
-  const budT=key=>{ // ngân sách kênh pro-rata theo ngày kỳ chọn
-    if(!key)return null;
-    let v=0,any=false;
-    for(const d of days)for(const c of codes){
-      const ch=(((KPI&&KPI[d.m])||{})[c]||{}).channels;
-      if(ch&&ch[key]!=null){any=true;v+=ch[key]/DATA.months[d.m].days_in_month;}}
+  // PHƯƠNG ÁN (a): chỉ số kênh grain THÁNG — mọi cột trong bảng tính TRỌN các tháng phủ kỳ chọn
+  // (BI không có lead theo ngày × nhóm kênh chuẩn; không ước lượng). Chart chi phí bên dưới vẫn theo ngày.
+  const months=[...new Set(days.map(d=>d.m))];
+  const monthDays=DAYS.filter(d=>months.includes(d.m)); // trọn tháng để đồng grain spend/lead
+  const chm=(code,ck)=>{const m=[0,0];
+    for(const mo of months){const v=((DATA.months[mo].lines[code]||{}).chm||{})[ck];
+      if(v){m[0]+=v[0]||0;m[1]+=v[1]||0;}}
+    return m;};
+  const spFull=ck=>{let s=0;
+    for(const d of monthDays)for(const c of codes)s+=chSpendDay(d,c,ck)||0;
+    return s;};
+  const budT=key=>{if(!key)return null;let v=0,any=false;
+    for(const mo of months)for(const c of codes){
+      const ch=(((KPI&&KPI[mo])||{})[c]||{}).channels;
+      if(ch&&ch[key]!=null){any=true;v+=ch[key];}}
     return any?v:null;};
   const rows=CHANNELS.map(ch=>{
-    let sp=null;
-    if(ch.k!=="kol"&&ch.k!=="op"){sp=0;
-      for(const d of days)for(const c of codes)sp+=chSpendDay(d,c,ch.k)||0;}
     let ld=0,ql=0;
-    for(const d of days)for(const c of codes){ld+=chVal(d,c,ch.k,"ld");ql+=chVal(d,c,ch.k,"ql");}
+    for(const c of codes){const v=chm(c,ch.k);ld+=v[0];ql+=v[1];}
+    const sp=(ch.k==="kol"||ch.k==="op")?null:spFull(ch.k);
     const bud=budT(ch.bud);
-    return {...ch,sp,ld,ql,bud,
-      cpl:sp&&ld?sp/ld:null,cpql:sp&&ql?sp/ql:null,pql:ld?ql/ld*100:null,
-      budPct:sp!=null&&bud?sp/bud*100:null};
+    return {...ch,sp,ld,ql,bud,cpl:sp&&ld?sp/ld:null,cpql:sp&&ql?sp/ql:null,
+      pql:ld?ql/ld*100:null,budPct:sp!=null&&bud?sp/bud*100:null};
   });
-  let h="<thead><tr><th>Kênh</th><th>Chi phí</th><th>Ngân sách (kỳ chọn)</th><th>% NS đã dùng</th>"
+  let h="<thead><tr><th>Kênh</th><th>Chi phí</th><th>Ngân sách tháng</th><th>% NS đã dùng</th>"
     +"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th></tr></thead><tbody>";
   for(const r of rows){
     const budCls=r.budPct==null?"":r.budPct<=100?"text-green":r.budPct<=115?"text-amber":"text-red";
@@ -830,7 +835,7 @@ function renderChannels(days,codes){
     +"<td>"+nf.format(tQl)+"</td><td>"+(tLd?(tQl/tLd*100).toFixed(1)+"%":"—")+"</td>"
     +"<td>"+(tQl?vnd(tSp/tQl):"—")+"</td></tr></tbody>";
   $("chantbl").innerHTML=h;
-  // chart chi phí ngày chồng theo kênh (fbi/fbc/gs)
+  // chart chi phí ngày theo kênh (kỳ chọn thật — chi phí là data platform của mình)
   const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
   const dayTot=days.map(d=>sum(codes.map(c=>(chSpendDay(d,c,"fbi")||0)+(chSpendDay(d,c,"fbc")||0)+(chSpendDay(d,c,"gs")||0))));
   const max=Math.max(...dayTot,1)*1.12;
@@ -858,10 +863,11 @@ function renderChannels(days,codes){
       tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
-  $("chan-note").textContent="Lead/QL: Prep BI theo NGÀY PHÁT SINH thật (không ước lượng) — FB Inbox nguồn 'Inbox FB Ads', "
-    +"các kênh khác nhóm chuẩn màn Conversion (Meta Ads/Google Ads/KOLs/TikTok+Other); 2 trang BI đếm lệch ~≤1% nên tổng "
-    +"kênh có thể chênh cột Lead vài đơn vị · Chi phí: Meta tách Conversion theo objective/tên campaign, FB Inbox = tổng "
-    +"Meta − Conversion (khớp thực tế từng đồng), Google từ sheet Ads Script · KOLs/Paid Other chưa có nguồn chi phí.";
+  const mlabel=months.map(monthLabel).join(" + ");
+  $("chan-note").textContent="BẢNG: tính TRỌN "+mlabel+" (BI chỉ có lead theo tháng × nhóm kênh chuẩn — không ước lượng "
+    +"theo ngày; chi phí trong bảng cũng trọn tháng cho cùng hệ quy chiếu) · CHART: chi phí theo ngày đúng kỳ chọn · "
+    +"Lead/QL: nhóm chuẩn màn Conversion, FB Conversion = Meta Ads − FB Inbox · Chi phí Meta tách theo objective/tên "
+    +"campaign, khớp platform từng đồng · KOLs/Paid Other chưa có nguồn chi phí.";
 }
 
 function renderEffTable(days){
