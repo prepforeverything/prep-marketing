@@ -212,7 +212,7 @@ const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(1
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
             proj:"linear-gradient(135deg,#06b6d4,#0891b2)",sp:"linear-gradient(135deg,#64748b,#475569)"};
 const SHOW_LEADS=true;
-const SHOW_CHANNELS=true; // kênh theo nhóm chuẩn marketing_funnel, chuẩn hoá khớp tổng (17/07)
+const SHOW_CHANNELS=false; // ẨN: BI không có daily-by-channel đúng nhóm — chờ chốt thiết kế với user
  // nhóm chỉ số lead — logic chỉ-Paid, user duyệt 16/07 (khớp màn BI)
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
 let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
