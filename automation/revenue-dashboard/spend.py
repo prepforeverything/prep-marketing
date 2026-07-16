@@ -201,13 +201,18 @@ def month_spend(accounts, line_code, since, until, n_days):
     d0 = dt.date.fromisoformat(since)
     days = [(d0 + dt.timedelta(days=i)).isoformat() for i in range(n_days)]
     line = accounts.get(line_code, {})
+    # ok[source] = False khi nguồn CÓ cấu hình nhưng fetch LỖI → caller GIỮ số cũ thay vì ghi 0
+    # (bài học 16/07: sheet bị rate-limit lúc backfill → cả lịch sử Google về 0)
+    ok = {"meta": True, "google": True}
 
     meta = [0] * n_days
     token = os.environ.get("META_ACCESS_TOKEN", "").strip()
     if token and line.get("meta") and n_days > 0:
         for acct in line["meta"]:
             got = meta_daily(acct, since, until, token)
-            if got:
+            if got is None:
+                ok["meta"] = False
+            else:
                 for i, day in enumerate(days):
                     meta[i] += got.get(day, 0)
 
@@ -219,17 +224,21 @@ def month_spend(accounts, line_code, since, until, n_days):
         login = ga.get("login_customer_id", "")
         for cid in line["google"]:
             got = google_daily(cid, since, until, creds, login)
-            if got:
+            if got is None:
+                ok["google"] = False
+            else:
                 for i, day in enumerate(days):
                     google[i] += got.get(day, 0)
     elif (sheet_ids().get(line_code) or line.get("google_sheet")) and n_days > 0:
         # Tạm thời: sheet do Ads Script của team ghi (chi phí NET → nhân hệ số VAT, mặc định 1.08)
         got = sheet_daily(sheet_ids().get(line_code) or line["google_sheet"])
-        if got:
+        if got is None:
+            ok["google"] = False
+        else:
             vat = float(ga.get("vat_multiplier") or 1.08)
             for i, day in enumerate(days):
                 google[i] = int(round(got.get(day, 0) * vat))
-    return meta, google
+    return meta, google, ok
 
 
 def sources_active(accounts):
