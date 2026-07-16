@@ -211,7 +211,9 @@ const COLORS={IELTS:"#3b82f6",TOEIC:"#10b981",HSK:"#f59e0b",VSTEP:"#0891b2",
 const GRAD={rev:"linear-gradient(135deg,#3b82f6,#2563eb)",kpi:"linear-gradient(135deg,#8b5cf6,#7c3aed)",
             att:"linear-gradient(135deg,#10b981,#059669)",pace:"linear-gradient(135deg,#f59e0b,#d97706)",
             proj:"linear-gradient(135deg,#06b6d4,#0891b2)",sp:"linear-gradient(135deg,#64748b,#475569)"};
-const SHOW_LEADS=true; // nhóm chỉ số lead — logic chỉ-Paid, user duyệt 16/07 (khớp màn BI)
+const SHOW_LEADS=true;
+const SHOW_CHANNELS=false; // bảng kênh ẨN: nhóm kênh leads_series map sai (landing→Other Paid) — chờ sửa bằng marketing_funnel
+ // nhóm chỉ số lead — logic chỉ-Paid, user duyệt 16/07 (khớp màn BI)
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
 let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
 
@@ -589,9 +591,10 @@ function renderEff(days,codes){
   renderMere(days,sp,rev);
   for(const id of ["kpiq-card","leadchart-card","cplchart-card"])
     $(id).style.display=SHOW_LEADS?"":"none";
-  $("chan-card").style.display=SHOW_LEADS?"":"none";
+  $("chan-card").style.display=(SHOW_LEADS&&SHOW_CHANNELS)?"":"none";
   if(SHOW_LEADS){renderKpiPanel(days,codes,{sp:totSp,lead:totLead,ql:totQl});
-    renderLeadDaily(days,codes);renderCplDaily(days,codes);renderChannels(days,codes);}
+    renderLeadDaily(days,codes);renderCplDaily(days,codes);
+    if(SHOW_CHANNELS)renderChannels(days,codes);}
   renderEffTable(days);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
