@@ -247,46 +247,26 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
             arr = o + [0] * (n - len(o))
             print(f"[WARN] {month} {line['code']}: Meta conv lỗi — giữ số cũ", file=sys.stderr)
         per["sp_fbc"] = arr
-        # 2) Lead/QL theo kênh — fbi daily exact (leads_series) + marketing_funnel GỌI TỪNG NGÀY
-        # (lead tạo hôm nào tính hôm đó — user chốt 17/07, KHÔNG phân bổ ước lượng).
-        chl, chq = {}, {}
-        if True:  # ⛔ TẠM KHÓA fetch kênh: marketing_funnel chỉ có grain THÁNG (call theo ngày
-            # trả nguyên tháng — phát hiện 16/07 tối, suýt ghi số sai ×30). Giữ nguyên ch cũ
-            # trong data; chờ chốt thiết kế mới (tháng-only hoặc BI bổ sung daily-by-channel).
-            oldl, oldq = pl.get("ch_ld"), pl.get("ch_ql")
-            if oldl:
-                chl = {k: (v[:n] + [0] * n)[:n] for k, v in oldl.items()}
-                chq = {k: (v[:n] + [0] * n)[:n] for k, v in (oldq or {}).items()}
-            else:
-                for ck in ("fbi", "fbc", "gs", "kol", "op"):
-                    chl[ck], chq[ck] = [0] * n, [0] * n
-        elif fixture_dir or n == 0:
-            for ck in ("fbi", "fbc", "gs", "kol", "op"):
-                chl[ck], chq[ck] = [0] * n, [0] * n
+        # 2) Kênh — PHƯƠNG ÁN (a) user duyệt 17/07: chỉ số kênh grain THÁNG (marketing_funnel,
+        # nhóm chuẩn màn Conversion, KHÔNG ước lượng ngày); riêng FB Inbox có daily thật
+        # (leads_series "Inbox FB Ads"). fbc = Meta Ads − FB Inbox (cùng tháng).
+        chl, chq, chm = {}, {}, {}
+        if fixture_dir or n == 0:
+            chl["fbi"], chq["fbi"] = [0] * n, [0] * n
         else:
             fbi_pay = prep_bi.leads_series(line["products"], month, markets=c["market_keys"], **FBI_SRC)
-            day0 = dt.date(int(month[:4]), int(month[4:6]), 1)
-            fun_days, fail = [], fbi_pay is None
-            if not fail:
-                for i in range(n):
-                    dstr = (day0 + dt.timedelta(days=i)).isoformat()
-                    f = prep_bi.marketing_funnel(line["products"], dstr, dstr,
-                                                 markets=c["market_keys"], currency=c["currency"])
-                    if f is None:
-                        fail = True
-                        break
-                    mos = f.get("months") or []
-                    fun_days.append((mos[0] if mos else {}))
-                    time.sleep(0.1)  # nhẹ tay với BI (n ngày × 6 SP call/tháng)
-            if fail:
-                oldl, oldq = pl.get("ch_ld"), pl.get("ch_ql")
-                if oldl:  # nguồn lỗi → giữ số cũ
+            fun = prep_bi.marketing_funnel(line["products"], since,
+                                           (dt.date(int(month[:4]), int(month[4:6]), 1)
+                                            + dt.timedelta(days=max(n - 1, 0))).isoformat(),
+                                           markets=c["market_keys"], currency=c["currency"])
+            if fbi_pay is None or fun is None:
+                if pl.get("ch_ld"):
                     print(f"[WARN] {month} {line['code']}: kênh BI lỗi — giữ số cũ", file=sys.stderr)
-                    chl = {k: (v[:n] + [0] * n)[:n] for k, v in oldl.items()}
-                    chq = {k: (v[:n] + [0] * n)[:n] for k, v in (oldq or {}).items()}
+                    chl = {k: (v[:n] + [0] * n)[:n] for k, v in pl["ch_ld"].items()}
+                    chq = {k: (v[:n] + [0] * n)[:n] for k, v in (pl.get("ch_ql") or {}).items()}
+                    chm = pl.get("chm") or {}
                 else:
-                    for ck in ("fbi", "fbc", "gs", "kol", "op"):
-                        chl[ck], chq[ck] = [0] * n, [0] * n
+                    chl["fbi"], chq["fbi"] = [0] * n, [0] * n
             else:
                 pts = sorted([q for q in fbi_pay.get("points", []) if q.get("l0") is not None],
                              key=lambda q: q["offset"])
@@ -294,26 +274,24 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                 qc = [int(q.get("ql") or 0) for q in pts]
                 fld = [v - (lc[i - 1] if i else 0) for i, v in enumerate(lc)]
                 fqd = [v - (qc[i - 1] if i else 0) for i, v in enumerate(qc)]
-                fld = ((fld[:cut] if cut is not None else fld)[:n] + [0] * n)[:n]
-                fqd = ((fqd[:cut] if cut is not None else fqd)[:n] + [0] * n)[:n]
+                chl["fbi"] = ((fld[:cut] if cut is not None else fld)[:n] + [0] * n)[:n]
+                chq["fbi"] = ((fqd[:cut] if cut is not None else fqd)[:n] + [0] * n)[:n]
+                mo = next((x for x in fun.get("months", []) if str(x.get("month")) == month), {})
 
                 def g(dic, k):
                     return int(round((dic or {}).get(k) or 0))
 
-                for kind, fdaily in (("ld", fld), ("ql", fqd)):
-                    key = "leads" if kind == "ld" else "qleads"
-                    out = {"fbi": fdaily, "fbc": [], "gs": [], "kol": [], "op": []}
-                    for i in range(n):
-                        dic = fun_days[i].get(key) if i < len(fun_days) else {}
-                        out["fbc"].append(max(g(dic, "Meta Ads") - fdaily[i], 0))
-                        out["gs"].append(g(dic, "Google Ads"))
-                        out["kol"].append(g(dic, "KOLs") + g(dic, "KOL-image"))
-                        out["op"].append(g(dic, "TikTok Ads") + g(dic, "Paid (other)"))
-                    if kind == "ld":
-                        chl = out
-                    else:
-                        chq = out
-        per["ch_ld"], per["ch_ql"] = chl, chq
+                L, Q = mo.get("leads"), mo.get("qleads")
+                fbi_l, fbi_q = sum(chl["fbi"]), sum(chq["fbi"])
+                chm = {
+                    "fbi": [fbi_l, fbi_q],
+                    "fbc": [max(g(L, "Meta Ads") - fbi_l, 0), max(g(Q, "Meta Ads") - fbi_q, 0)],
+                    "gs":  [g(L, "Google Ads"), g(Q, "Google Ads")],
+                    "kol": [g(L, "KOLs") + g(L, "KOL-image"), g(Q, "KOLs") + g(Q, "KOL-image")],
+                    "op":  [g(L, "TikTok Ads") + g(L, "Paid (other)"),
+                            g(Q, "TikTok Ads") + g(Q, "Paid (other)")],
+                }
+        per["ch_ld"], per["ch_ql"], per["chm"] = chl, chq, chm
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
@@ -335,7 +313,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "ch_ld" in v for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "chm" in v for v in ls.values())
 
     out_months = {}
     for m in months:
@@ -469,7 +447,7 @@ def main():
             yd = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=1)
             mm = cur.get("months", {}).get(yd.strftime("%Y%m"), {})
             ls = mm.get("lines") or {}
-            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v and "lead" in v and "ch_ld" in v for v in ls.values()):
+            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v and "lead" in v and "chm" in v for v in ls.values()):
                 print(f"Đã có số đến hết {yd.isoformat()} — bỏ qua lượt này.")
                 if tmp:
                     shutil.rmtree(tmp, ignore_errors=True)
