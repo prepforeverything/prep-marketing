@@ -858,10 +858,10 @@ function renderChannels(days,codes){
       tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
-  $("chan-note").textContent="Lead/QL: Prep BI — FB Inbox chính xác theo ngày (nguồn 'Inbox FB Ads'); các kênh khác theo "
-    +"nhóm chuẩn màn Conversion (Meta Ads/Google Ads/KOLs/TikTok+Other), tổng kỳ chuẩn hoá khớp đúng cột Lead, mức ngày "
-    +"là phân bổ ước lượng · Chi phí: Meta tách Conversion theo objective/tên campaign, FB Inbox = tổng Meta − Conversion "
-    +"(khớp thực tế từng đồng), Google từ sheet Ads Script · KOLs/Paid Other chưa có nguồn chi phí.";
+  $("chan-note").textContent="Lead/QL: Prep BI theo NGÀY PHÁT SINH thật (không ước lượng) — FB Inbox nguồn 'Inbox FB Ads', "
+    +"các kênh khác nhóm chuẩn màn Conversion (Meta Ads/Google Ads/KOLs/TikTok+Other); 2 trang BI đếm lệch ~≤1% nên tổng "
+    +"kênh có thể chênh cột Lead vài đơn vị · Chi phí: Meta tách Conversion theo objective/tên campaign, FB Inbox = tổng "
+    +"Meta − Conversion (khớp thực tế từng đồng), Google từ sheet Ads Script · KOLs/Paid Other chưa có nguồn chi phí.";
 }
 
 function renderEffTable(days){
