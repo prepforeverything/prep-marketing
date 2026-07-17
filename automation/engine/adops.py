@@ -185,8 +185,18 @@ if JOIN == "ad_id":
             leads[acct][key]["lead7"] += 1
             if isql: leads[acct][key]["ql7"] += 1
 else:
+    # Fallback mã ← Ad ID: một số tài khoản (vd IELTS 10) chỉ điền cột Ad ID vào sheet cào lead,
+    # BỎ TRỐNG cột mã content (Sub). Khớp theo mã sẽ rớt hết → account có chi nhưng 0 lead.
+    # Dựng map ad_id→mã từ Meta (ads_overlay) để suy mã khi ô Sub trống. TOEIC/SP không có ads_overlay
+    # ⇒ map rỗng ⇒ dòng thiếu mã vẫn bị bỏ như cũ (hành vi không đổi).
+    _code_by_adid = {}
+    for _a in cfg["accounts"]:
+        for _e in cfg["accounts"][_a].get("ads_overlay", []):
+            if _e.get("id") and _e.get("code"):
+                _code_by_adid.setdefault(norm(_e["id"]), _e["code"])
+    _cai = LC.get("col_adid")
     for r in _lead_rows:
-        if len(r) < LC["min_cols"] or not r[LC["col_code"]].strip():
+        if len(r) < LC["min_cols"]:
             continue
         in3, in7 = inwin(r[LC["col_date"]]), inwin7(r[LC["col_date"]])
         if not (in3 or in7):
@@ -194,9 +204,13 @@ else:
         acct = R.match_account(r[LC["col_account"]], ACCOUNTS)
         if not acct:
             continue
-        code = norm(r[LC["col_code"]])
+        _adid = norm(r[_cai]) if (_cai is not None and len(r) > _cai and r[_cai].strip()) else ""
+        _rawcode = r[LC["col_code"]].strip()
+        code = norm(_rawcode) if _rawcode else _code_by_adid.get(_adid, "")
+        if not code:                                    # không có mã (ô Sub trống) lẫn map ad_id→mã ⇒ bỏ như cũ
+            continue
         isql = r[LC["col_ql"]].strip() == "1"
-        _adid = norm(r[LC["col_adid"]]) if (ADID_OVERLAY and len(r) > LC["col_adid"]) else None
+        _adid = _adid if (ADID_OVERLAY and _adid) else None
         if in3:
             leads[acct][code]["lead"] += 1
             if isql: leads[acct][code]["ql"] += 1
