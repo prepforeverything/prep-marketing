@@ -104,6 +104,17 @@ CHANNEL_SRC = {
     "op":  {"channel_groups": ["TikTok", "Other Paid"]},
 }
 
+# Cohort theo kênh (tool lead_cohort — BI thêm 17/07): lead SINH ngày nào → ql/won/revenue đến
+# as_of hôm chạy, gán về NGÀY SINH. Dùng bộ tên nhóm màn Conversion (đã test 17/07, tên sai trả 400).
+# Số làm mới mỗi sáng trong cửa sổ refetch (tháng này + trước) — cohort "chín" dần theo thời gian.
+COHORT_SRC = {
+    "fbi": {"channel_names": ["Inbox FB Ads"]},
+    "mg":  {"channel_groups": ["Meta Ads"]},
+    "gs":  {"channel_groups": ["Google Ads"]},
+    "kol": {"channel_groups": ["KOLs"]},
+    "op":  {"channel_groups": ["TikTok Ads", "Paid (other)"]},
+}
+
 
 def fetch_month(c, month, fixture_dir=None, prev=None):
     """{'days_in_month': n, 'as_of_day': n, 'lines': {code: {'a1': [...], 'b1': [...]}}} hoặc None nếu API hỏng.
@@ -285,6 +296,48 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                 chl["fbc"] = [max(a - b, 0) for a, b in zip(raw["mg"][0], raw["fbi"][0])]
                 chq["fbc"] = [max(a - b, 0) for a, b in zip(raw["mg"][1], raw["fbi"][1])]
         per["ch_ld"], per["ch_ql"] = chl, chq
+        # 3) Cohort theo kênh — lead sinh ngày i → ql/won/rev (VND) đến as_of hôm chạy.
+        #    rev BI trả USD (currency chưa ăn — đã báo) → quy đổi 1 tỷ giá/run; lỗi nguồn nào giữ số cũ.
+        cho, cfail = {}, False
+        if fixture_dir or n == 0:
+            for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                cho[ck] = {"ql": [0] * n, "won": [0] * n, "rev": [0] * n}
+        else:
+            usd = spend.rate_to_vnd("USD")
+            rawc = {}
+            if usd is None:
+                cfail = True
+            else:
+                until_c = (dt.date(int(month[:4]), int(month[4:6]), 1)
+                           + dt.timedelta(days=max(n - 1, 0))).isoformat()
+                for ck, flt in COHORT_SRC.items():
+                    pay = prep_bi.lead_cohort(line["products"], since, until_c,
+                                              markets=c["market_keys"], **flt)
+                    if pay is None:
+                        cfail = True
+                        break
+                    ql_, won_, rev_ = [0] * n, [0] * n, [0] * n
+                    for q in pay.get("days") or []:
+                        i = int(str(q.get("date"))[6:8]) - 1
+                        if 0 <= i < n:
+                            ql_[i] = int(q.get("ql") or 0)
+                            won_[i] = int(q.get("won") or 0)
+                            rev_[i] = int(round((q.get("revenue_usd") or 0) * usd))
+                    rawc[ck] = {"ql": ql_, "won": won_, "rev": rev_}
+            if cfail:
+                if pl.get("ch_co"):
+                    print(f"[WARN] {month} {line['code']}: cohort BI lỗi — giữ số cũ", file=sys.stderr)
+                    cho = {k: {kk: (vv[:n] + [0] * n)[:n] for kk, vv in v.items()}
+                           for k, v in pl["ch_co"].items()}
+                else:
+                    for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                        cho[ck] = {"ql": [0] * n, "won": [0] * n, "rev": [0] * n}
+            else:
+                for ck in ("fbi", "gs", "kol", "op"):
+                    cho[ck] = rawc[ck]
+                cho["fbc"] = {kk: [max(a - b, 0) for a, b in zip(rawc["mg"][kk], rawc["fbi"][kk])]
+                              for kk in ("ql", "won", "rev")}
+        per["ch_co"] = cho
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
@@ -306,7 +359,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "fbc" in (v.get("ch_ld") or {}) for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "fbc" in (v.get("ch_ld") or {}) and "fbi" in (v.get("ch_co") or {}) for v in ls.values())
 
     out_months = {}
     for m in months:

@@ -106,6 +106,29 @@ def leads_series(products, month, *, markets=None, channel_groups=None, channel_
         return None
 
 
+def lead_cohort(products, date_from, date_to, *, markets=None, channel_groups=None,
+                channel_names=None, attr="first_paid", key=None):
+    """Raw payload lead_cohort (BI thêm 17/07 theo yêu cầu Digital) — LĂNG KÍNH COHORT:
+    lead SINH trong [from,to] → đến as_of (mặc định hôm nay) đã có bao nhiêu ql/won/revenue_usd,
+    kèm days[] theo NGÀY SINH. ⚠️ revenue trả USD (currency chưa ăn — đã báo BI); caller tự quy đổi.
+    channel_groups dùng bộ tên màn Conversion ("Meta Ads","Google Ads",…); tên sai trả 400.
+    Trả None nếu thiếu key/API lỗi."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "from": date_from, "to": date_to, "attr": attr}
+    if markets:
+        body["markets"] = list(markets)
+    if channel_groups:
+        body["channel_groups"] = list(channel_groups)
+    if channel_names:
+        body["channel_names"] = list(channel_names)
+    try:
+        return _post("lead_cohort", body, key)
+    except Exception:  # noqa: BLE001 — lỗi mạng/timeout/HTTP: trả None, caller lùi an toàn
+        return None
+
+
 def marketing_funnel(products, date_from, date_to, *, markets=None, currency="VND", key=None):
     """Raw payload marketing_funnel trong [from,to] — leads/qleads/orders + spend THEO NHÓM KÊNH
     ("Meta Ads","Google Ads","TikTok Ads","KOLs","Paid (other)"…) — cùng bảng nhóm với màn
