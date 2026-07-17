@@ -96,13 +96,12 @@ def meta_daily(acct_id, since, until, token):
         return None
 
 
-CONV_OBJECTIVES = {"OUTCOME_SALES", "OUTCOME_LEADS", "CONVERSIONS", "PRODUCT_CATALOG_SALES"}
-
-
 def meta_conv_daily(acct_id, since, until, token):
-    """{'YYYY-MM-DD': VND} chi phí các campaign CONVERSION của 1 tài khoản (objective thuộc
-    CONV_OBJECTIVES hoặc tên campaign chứa 'conv' — user chốt 16/07). Phần còn lại của tài khoản
-    mặc nhiên là Inbox (FB Inbox = tổng Meta − Conversion → tổng luôn khớp thực tế).
+    """{'YYYY-MM-DD': VND} chi phí campaign CONVERSION của 1 tài khoản — phân loại CHỈ THEO TÊN
+    campaign chứa 'conv' (chuẩn team, giống ad-ops campaign_name_include='Conversion').
+    KHÔNG dùng objective: 17/07 phát hiện campaign tên 'Inbox' chạy OUTCOME_LEADS (tối ưu lead
+    qua tin nhắn) bị xếp nhầm Conversion ~165tr trong khi IELTS FB Conv đã dừng (user bắt lỗi).
+    Phần còn lại của tài khoản = Inbox (FB Inbox = tổng Meta − Conversion, tổng luôn khớp).
     None nếu lỗi."""
     try:
         info = _meta_get(f"act_{acct_id}", {"fields": "currency"}, token)
@@ -116,9 +115,7 @@ def meta_conv_daily(acct_id, since, until, token):
         d = _meta_get(f"act_{acct_id}/insights", params, token)
         while True:
             for r in d.get("data", []):
-                conv = (r.get("objective") or "").upper() in CONV_OBJECTIVES \
-                    or "conv" in (r.get("campaign_name") or "").lower()
-                if conv:
+                if "conv" in (r.get("campaign_name") or "").lower():
                     day = r["date_start"]
                     out[day] = out.get(day, 0) + int(round(float(r.get("spend") or 0) * rate))
             nxt = (d.get("paging") or {}).get("next")
