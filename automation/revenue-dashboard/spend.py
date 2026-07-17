@@ -301,15 +301,17 @@ def month_spend(accounts, line_code, since, until, n_days):
     creds = google_creds()
     ga = accounts.get("google_ads") or {}
     if creds and line.get("google") and n_days > 0:
-        # Nguồn chính thức (khi có API): ưu tiên hơn sheet để không cộng trùng
+        # Nguồn chính thức (khi có API): ưu tiên hơn sheet để không cộng trùng.
+        # API trả chi phí NET như sheet (đối chiếu 17/07: lệch <0,2% mọi SP) → cùng nhân vat_multiplier.
         login = ga.get("login_customer_id", "")
+        vat = float(ga.get("vat_multiplier") or 1.08)
         for cid in line["google"]:
             got = google_daily(cid, since, until, creds, login)
             if got is None:
                 ok["google"] = False
             else:
                 for i, day in enumerate(days):
-                    google[i] += got.get(day, 0)
+                    google[i] += int(round(got.get(day, 0) * vat))
     elif (sheet_ids().get(line_code) or line.get("google_sheet")) and n_days > 0:
         # Tạm thời: sheet do Ads Script của team ghi (chi phí NET → nhân hệ số VAT, mặc định 1.08)
         got = sheet_daily(sheet_ids().get(line_code) or line["google_sheet"])
