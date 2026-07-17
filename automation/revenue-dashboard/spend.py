@@ -174,6 +174,9 @@ def _google_access_token(creds):
     return d["access_token"]
 
 
+GOOGLE_VERSIONS = ["v23", "v22", "v21", "v20", "v19"]  # thử mới → cũ (version cũ Google khai tử ~12 tháng; v18 chết 07/2026)
+
+
 def google_daily(customer_id, since, until, creds, login_customer_id, _tok_cache={}):
     """{'YYYY-MM-DD': VND} spend theo ngày của 1 customer Google Ads (GAQL REST searchStream).
     None nếu lỗi. cost_micros quy đổi theo customer.currency_code."""
@@ -188,8 +191,20 @@ def google_daily(customer_id, since, until, creds, login_customer_id, _tok_cache
             headers["login-customer-id"] = login_customer_id.replace("-", "").strip()
         q = ("SELECT segments.date, metrics.cost_micros, customer.currency_code FROM customer "
              f"WHERE segments.date BETWEEN '{since}' AND '{until}'")
-        raw = _http(f"https://googleads.googleapis.com/v18/customers/{cid}/googleAds:searchStream",
-                    data=json.dumps({"query": q}).encode(), headers=headers)
+        raw = None
+        for ver in [_tok_cache["ver"]] if "ver" in _tok_cache else GOOGLE_VERSIONS:
+            try:
+                raw = _http(f"https://googleads.googleapis.com/{ver}/customers/{cid}/googleAds:searchStream",
+                            data=json.dumps({"query": q}).encode(), headers=headers)
+                _tok_cache["ver"] = ver  # nhớ version sống cho các call sau trong run
+                break
+            except urllib.error.HTTPError as e:
+                if e.code == 404:  # version chưa ra mắt / đã khai tử → thử bản kế
+                    continue
+                raise
+        if raw is None:
+            print(f"[WARN] Google Ads {customer_id}: mọi version {GOOGLE_VERSIONS} đều 404", flush=True)
+            return None
         out, rate = {}, None
         for chunk in json.loads(raw):
             for r in chunk.get("results", []):
@@ -202,7 +217,13 @@ def google_daily(customer_id, since, until, creds, login_customer_id, _tok_cache
                 out[day] = out.get(day, 0) + cost
         return out
     except Exception as e:  # noqa: BLE001 — 1 customer lỗi không giết cả run
-        print(f"[WARN] Google Ads {customer_id}: {e}", flush=True)
+        detail = ""
+        if isinstance(e, urllib.error.HTTPError):
+            try:  # body lỗi của Google nêu rõ nguyên nhân (SERVICE_DISABLED, DEVELOPER_TOKEN_..., USER_PERMISSION_DENIED...)
+                detail = " " + e.read().decode("utf-8", "replace")[:400].replace("\n", " ")
+            except Exception:  # noqa: BLE001
+                pass
+        print(f"[WARN] Google Ads {customer_id}: {e}{detail}", flush=True)
         return None
 
 
@@ -280,15 +301,17 @@ def month_spend(accounts, line_code, since, until, n_days):
     creds = google_creds()
     ga = accounts.get("google_ads") or {}
     if creds and line.get("google") and n_days > 0:
-        # Nguồn chính thức (khi có API): ưu tiên hơn sheet để không cộng trùng
+        # Nguồn chính thức (khi có API): ưu tiên hơn sheet để không cộng trùng.
+        # API trả chi phí NET như sheet (đối chiếu 17/07: lệch <0,2% mọi SP) → cùng nhân vat_multiplier.
         login = ga.get("login_customer_id", "")
+        vat = float(ga.get("vat_multiplier") or 1.08)
         for cid in line["google"]:
             got = google_daily(cid, since, until, creds, login)
             if got is None:
                 ok["google"] = False
             else:
                 for i, day in enumerate(days):
-                    google[i] += got.get(day, 0)
+                    google[i] += int(round(got.get(day, 0) * vat))
     elif (sheet_ids().get(line_code) or line.get("google_sheet")) and n_days > 0:
         # Tạm thời: sheet do Ads Script của team ghi (chi phí NET → nhân hệ số VAT, mặc định 1.08)
         got = sheet_daily(sheet_ids().get(line_code) or line["google_sheet"])
