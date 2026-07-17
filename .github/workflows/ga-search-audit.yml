@@ -1,0 +1,66 @@
+name: Google Ads — rà soát camp Search (read-only)
+
+# Chẩn đoán cài đặt & chỉ số camp Google Ads Search của 1 customer (settings, phân bố tuổi,
+# search terms, conversion actions, chuỗi theo ngày). CHỈ ĐỌC (GAQL SELECT) — không sửa gì trên Ads.
+# Kết quả là artifact JSON tải về phân tích. Secrets Google Ads chỉ tồn tại trên CI.
+# Dispatch: gh workflow run ga-search-audit.yml -f customer=181-100-5196 -f days=30
+on:
+  workflow_dispatch:
+    inputs:
+      customer:
+        description: "Customer ID (vd 181-100-5196 = HSK)"
+        required: true
+        default: "181-100-5196"
+      login:
+        description: "login-customer-id (MCC)"
+        required: true
+        default: "493-896-2719"
+      days:
+        description: "Số ngày gần nhất (bỏ qua nếu điền since/until)"
+        required: false
+        default: "30"
+      since:
+        description: "Từ ngày YYYY-MM-DD (tùy chọn)"
+        required: false
+        default: ""
+      until:
+        description: "Đến ngày YYYY-MM-DD (tùy chọn)"
+        required: false
+        default: ""
+
+concurrency:
+  group: ga-search-audit
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+      GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+      GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+      GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Rà soát Google Ads Search
+        run: |
+          ARGS="--customer '${{ github.event.inputs.customer }}' --login '${{ github.event.inputs.login }}' --out out"
+          if [ -n "${{ github.event.inputs.since }}" ] && [ -n "${{ github.event.inputs.until }}" ]; then
+            ARGS="$ARGS --since '${{ github.event.inputs.since }}' --until '${{ github.event.inputs.until }}'"
+          else
+            ARGS="$ARGS --days '${{ github.event.inputs.days }}'"
+          fi
+          eval python3 automation/adops-diagnose/ga_search_audit.py $ARGS
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ga-search-audit
+          path: out/
+          retention-days: 5
