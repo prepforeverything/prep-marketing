@@ -21,10 +21,11 @@
   "TOEIC": {
     "meta": [
       "829372215242475",
-      "555686623359807"
+      "555686623359807",
+      "183860110693045"
     ],
     "google": [],
-    "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (theo config ad-ops TOEIC)"
+    "_ghi_chu": "Meta: TOEIC 3 / TOEIC 5 (config ad-ops) + Prep - TOEIC 2 (183860110693045, user phát hiện thiếu 17/07 — chi 41,5tr 1–16/7)."
   },
   "HSK": {
     "meta": [
