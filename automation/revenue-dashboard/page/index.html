@@ -178,12 +178,14 @@
     </div>
     <div class="card" id="leadchart-card">
       <h3>Lead &amp; QL theo ngày</h3>
+      <div class="chips" id="lead-ch" style="margin:8px 0 4px"></div>
       <div class="note" id="lead-note"></div>
       <div id="leadchart"></div>
     </div>
     <div class="card" id="cplchart-card">
       <h3>CPL &amp; CPQL theo ngày</h3>
-      <div class="note">CPL = chi phí ÷ lead phát sinh trong ngày · CPQL = chi phí ÷ QL trong ngày · nguồn chi phí Meta + Google.</div>
+      <div class="chips" id="cpl-ch" style="margin:8px 0 4px"></div>
+      <div class="note">CPL = chi phí ÷ lead phát sinh trong ngày · CPQL = chi phí ÷ QL trong ngày · nguồn chi phí Meta + Google (KOLs/Paid Other chưa có nguồn chi phí nên không có chip).</div>
       <div id="cplchart"></div>
     </div>
     <div class="card" id="chan-card">
@@ -715,13 +717,24 @@ function renderKpiPanel(days,codes,tot){
     +"cả khi chọn Tất cả. Chi phí/CPL/CPQL/ME-RE: đạt = KHÔNG vượt mục tiêu.";
 }
 
+function chChips(elId,cur,keys,onPick){ // chip lọc kênh cho chart (Tất cả + từng kênh)
+  const items=[{k:"all",label:"Tất cả kênh",color:"#111827"}]
+    .concat(CHANNELS.filter(c=>keys.includes(c.k)));
+  $(elId).innerHTML=items.map(c=>'<span class="chip'+(cur===c.k?" on":"")+'" data-k="'+c.k+'"'
+    +(cur===c.k?' style="background:'+c.color+'"':'')
+    +'><span class="dot" style="background:'+c.color+'"></span>'+esc(c.label)+'</span>').join("");
+  for(const el of $(elId).children)el.onclick=()=>onPick(el.dataset.k);
+}
 function renderLeadDaily(days,codes){
   const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
-  const L=seriesDays(days,codes,"lead"),Q=seriesDays(days,codes,"ql");
+  const ck=state.leadCh||"all";
+  chChips("lead-ch",ck,["fbi","fbc","gs","kol","op"],k=>{state.leadCh=k;render();});
+  const L=ck==="all"?seriesDays(days,codes,"lead"):days.map(d=>sum(codes.map(c=>chVal(d,c,ck,"ld"))));
+  const Q=ck==="all"?seriesDays(days,codes,"ql"):days.map(d=>sum(codes.map(c=>chVal(d,c,ck,"ql"))));
   const max=Math.max(...L,1)*1.12;
   const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN;
   const posf=j=>PAD.l+(j+.5)*bw;
-  const color=COLORS[state.scope];
+  const color=ck==="all"?COLORS[state.scope]:CHANNELS.find(c=>c.k===ck).color;
   let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,v=>nf.format(Math.round(v)))+xLabels(days,H,posf,axisN);
   for(let j=0;j<days.length;j++){
     const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
@@ -733,7 +746,8 @@ function renderLeadDaily(days,codes){
   }
   s+='</svg>';
   $("leadchart").innerHTML=s;
-  $("lead-note").textContent="Cột nhạt = Lead (L0 mới) · cột đậm = QL (chạm L3+) · "+ (state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))+".";
+  $("lead-note").textContent="Cột nhạt = Lead (L0 mới) · cột đậm = QL (chạm L3+) · "+ (state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))
+    +(ck==="all"?"":" · kênh "+CHANNELS.find(c=>c.k===ck).label)+".";
   $("leadchart").querySelectorAll("rect[data-i]").forEach(r=>{
     r.onmousemove=ev=>{const j=+r.dataset.i;
       const pq=L[j]?(Q[j]/L[j]*100).toFixed(1)+"%":"—";
@@ -744,7 +758,11 @@ function renderLeadDaily(days,codes){
 
 function renderCplDaily(days,codes){
   const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
-  const sp=spendSeries(days,codes),L=seriesDays(days,codes,"lead"),Q=seriesDays(days,codes,"ql");
+  const ck=state.cplCh||"all";
+  chChips("cpl-ch",ck,["fbi","fbc","gs"],k=>{state.cplCh=k;render();});
+  const sp=ck==="all"?spendSeries(days,codes):days.map(d=>sum(codes.map(c=>chSpendDay(d,c,ck)||0)));
+  const L=ck==="all"?seriesDays(days,codes,"lead"):days.map(d=>sum(codes.map(c=>chVal(d,c,ck,"ld"))));
+  const Q=ck==="all"?seriesDays(days,codes,"ql"):days.map(d=>sum(codes.map(c=>chVal(d,c,ck,"ql"))));
   const cpl=days.map((d,j)=>L[j]>0?sp[j]/L[j]:null);
   const cpql=days.map((d,j)=>Q[j]>0?sp[j]/Q[j]:null);
   const vals=cpl.concat(cpql).filter(v=>v!=null);
@@ -929,6 +947,15 @@ function clampIso(s){return s<DMIN?DMIN:s>DMAX?DMAX:s;}
 function fmtVi(iso){const[y,m,d]=iso.split("-");return parseInt(d,10)+" Thg "+parseInt(m,10)+", "+y;}
 function spanDays(f,t){return Math.round((parseIso(t)-parseIso(f))/864e5)+1;}
 function prevRangeOf(f,t){const n=spanDays(f,t);return [addDays(f,-n),addDays(f,-1)];}
+function momRangeOf(f,t){ // cùng kỳ THÁNG TRƯỚC (1–15/7 → 1–15/6) — chỉ khi kỳ KHÔNG vắt tháng
+  if(f.slice(0,7)!==t.slice(0,7))return null;
+  const y=+f.slice(0,4),m=+f.slice(5,7);
+  const py=m===1?y-1:y,pm=m===1?12:m-1;
+  const dim=new Date(Date.UTC(py,pm,0)).getUTCDate(); // ngày 29–31 kẹp về cuối tháng trước
+  const mk=d=>py+"-"+pad2(pm)+"-"+pad2(Math.min(d,dim));
+  return [mk(+f.slice(8,10)),mk(+t.slice(8,10))];
+}
+function cmpRangeOf(f,t,mode){return (mode==="mom"&&momRangeOf(f,t))||prevRangeOf(f,t);}
 function monKey(iso){return iso.slice(0,4)+iso.slice(5,7);}
 
 const PRESETS=[
@@ -957,7 +984,7 @@ function presetRange(p){ // [from,to] của 1 preset (preset tháng = trọn ph�
 let P={preset:"l30",from:null,to:null,cmp:false,view:null}; // lựa chọn TẠM trong panel (Cập nhật mới áp)
 function dpOpen(){
   P={preset:state.preset,from:state.from,to:state.to,cmp:!!state.cmp,
-     view:state.from.slice(0,7)};
+     cmpMode:state.cmpMode||"prev",view:state.from.slice(0,7)};
   $("dp-panel").classList.add("open");
   dpRender();
 }
@@ -1008,12 +1035,21 @@ function dpCal(idx){
 }
 function dpCmp(){
   const to=P.to||P.from;
-  const[pf,pt]=prevRangeOf(P.from,to);
+  const sameMonth=P.from.slice(0,7)===to.slice(0,7); // vắt tháng thì không có lựa chọn cùng kỳ
+  if(!sameMonth)P.cmpMode="prev";
+  const[pf,pt]=cmpRangeOf(P.from,to,P.cmpMode||"prev");
   const ok=pf>=DMIN;
   if(!ok)P.cmp=false;
   $("dp-cmp").classList.toggle("on",P.cmp);
-  $("dp-cmp-lbl").textContent=P.cmp?("Kỳ liền trước: "+fmtVi(pf)+" – "+fmtVi(pt))
-    :(ok?"":"(không đủ dữ liệu kỳ trước)");
+  if(P.cmp){
+    const opts=[["prev","Kỳ liền trước"]].concat(sameMonth?[["mom","Cùng kỳ tháng trước"]]:[]);
+    $("dp-cmp-lbl").innerHTML=opts.map(([k,t2])=>
+      '<span data-m="'+k+'" style="cursor:pointer;margin-right:10px;'
+      +((P.cmpMode||"prev")===k?'color:#2563eb;font-weight:700':'text-decoration:underline dotted')
+      +'">'+t2+'</span>').join("")+'<span>'+fmtVi(pf)+" – "+fmtVi(pt)+'</span>';
+    $("dp-cmp-lbl").querySelectorAll("span[data-m]").forEach(el=>
+      el.onclick=e=>{e.stopPropagation();P.cmpMode=el.dataset.m;dpCmp();});
+  }else $("dp-cmp-lbl").textContent=ok?"":"(không đủ dữ liệu kỳ trước)";
   $("dp-cmp").onclick=()=>{if(ok){P.cmp=!P.cmp;dpCmp();}};
 }
 function dpApply(){
@@ -1022,8 +1058,9 @@ function dpApply(){
   if(p&&p.month){state.mode="month";state.month=p.month();}
   else{state.mode="range";}
   state.from=P.from;state.to=to;state.preset=P.preset;
-  if(P.cmp){const[pf,pt]=prevRangeOf(P.from,to);state.cmp={from:pf,to:pt};}
-  else state.cmp=null;
+  if(P.cmp){const[pf,pt]=cmpRangeOf(P.from,to,P.cmpMode||"prev");
+    state.cmp={from:pf,to:pt};state.cmpMode=P.cmpMode||"prev";}
+  else{state.cmp=null;state.cmpMode=null;}
   dpLabel();dpClose();render();
 }
 function dpLabel(){
@@ -1036,7 +1073,7 @@ function trendHtml(pct,goodUp,unit){ // goodUp=null → trung tính (không tô 
   if(pct==null||!isFinite(pct))return "";
   const up=pct>=0,bad=goodUp==null?false:(goodUp?!up:up);
   return '<div class="kpi-trend'+(bad?" bad":"")+'">'+(up?"▲ +":"▼ −")+Math.abs(pct).toFixed(1)
-    +(unit||"%")+' vs kỳ trước</div>';
+    +(unit||"%")+(state.cmpMode==="mom"?' vs cùng kỳ tháng trước':' vs kỳ trước')+'</div>';
 }
 function pctChange(cur,prev){return prev>0?(cur/prev-1)*100:null;}
 
