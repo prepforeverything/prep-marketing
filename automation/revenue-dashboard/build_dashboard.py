@@ -93,13 +93,16 @@ def distribute(total, weights):
     return out
 
 
-# Kênh: fbi (FB Inbox) = leads_series channel_names "Inbox FB Ads" — daily chính xác (kiểm chứng).
-# Các kênh còn lại: nhóm leads_series map SAI (landing dồn Other Paid) → marketing_funnel
-# (CÙNG bảng nhóm màn Conversion) gọi THEO TỪNG NGÀY — lead tạo hôm nào tính hôm đó (user chốt
-# 17/07, không ước lượng): fbc = "Meta Ads"−fbi · gs="Google Ads" · kol=KOLs(+image) ·
-# op=TikTok+Paid(other). Lưu ý: funnel và leads_series đếm lệch nhau ~≤1% (freeze/dedup khác)
-# → tổng kênh có thể lệch cột Lead chút ít — trung thực theo nguồn, không ép khớp.
-FBI_SRC = {"channel_names": ["Inbox FB Ads"]}
+# Kênh DAILY THẬT (BI fix mapping nhóm 17/07 — leads_series groups nay đúng chuẩn màn Conversion,
+# đã kiểm chứng: Google 806 lead 1–15/7 vs 2 trước fix). fbc = nhóm Meta − FB Inbox (tính lúc build).
+# Tổng 5 kênh = đúng tổng Lead Paid (cùng tool, cùng mapping) — lead tạo hôm nào tính hôm đó.
+CHANNEL_SRC = {
+    "fbi": {"channel_names": ["Inbox FB Ads"]},
+    "mg":  {"channel_groups": ["Meta"]},
+    "gs":  {"channel_groups": ["Google"]},
+    "kol": {"channel_groups": ["KOLs"]},
+    "op":  {"channel_groups": ["TikTok", "Other Paid"]},
+}
 
 
 def fetch_month(c, month, fixture_dir=None, prev=None):
@@ -247,51 +250,41 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
             arr = o + [0] * (n - len(o))
             print(f"[WARN] {month} {line['code']}: Meta conv lỗi — giữ số cũ", file=sys.stderr)
         per["sp_fbc"] = arr
-        # 2) Kênh — PHƯƠNG ÁN (a) user duyệt 17/07: chỉ số kênh grain THÁNG (marketing_funnel,
-        # nhóm chuẩn màn Conversion, KHÔNG ước lượng ngày); riêng FB Inbox có daily thật
-        # (leads_series "Inbox FB Ads"). fbc = Meta Ads − FB Inbox (cùng tháng).
-        chl, chq, chm = {}, {}, {}
+        # 2) Kênh — DAILY: 5 fetch leads_series (mapping đã fix), fbc = mg − fbi từng ngày
+        chl, chq = {}, {}
+        fail = False
         if fixture_dir or n == 0:
-            chl["fbi"], chq["fbi"] = [0] * n, [0] * n
+            for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                chl[ck], chq[ck] = [0] * n, [0] * n
         else:
-            fbi_pay = prep_bi.leads_series(line["products"], month, markets=c["market_keys"], **FBI_SRC)
-            fun = prep_bi.marketing_funnel(line["products"], since,
-                                           (dt.date(int(month[:4]), int(month[4:6]), 1)
-                                            + dt.timedelta(days=max(n - 1, 0))).isoformat(),
-                                           markets=c["market_keys"], currency=c["currency"])
-            if fbi_pay is None or fun is None:
+            raw = {}
+            for ck, flt in CHANNEL_SRC.items():
+                pay = prep_bi.leads_series(line["products"], month, markets=c["market_keys"], **flt)
+                if pay is None:
+                    fail = True
+                    break
+                pts = sorted([q for q in pay.get("points", []) if q.get("l0") is not None],
+                             key=lambda q: q["offset"])
+                lc = [int(q.get("l0") or 0) for q in pts]
+                qc = [int(q.get("ql") or 0) for q in pts]
+                ld = [v - (lc[i - 1] if i else 0) for i, v in enumerate(lc)]
+                qd = [v - (qc[i - 1] if i else 0) for i, v in enumerate(qc)]
+                raw[ck] = (((ld[:cut] if cut is not None else ld)[:n] + [0] * n)[:n],
+                           ((qd[:cut] if cut is not None else qd)[:n] + [0] * n)[:n])
+            if fail:
                 if pl.get("ch_ld"):
                     print(f"[WARN] {month} {line['code']}: kênh BI lỗi — giữ số cũ", file=sys.stderr)
                     chl = {k: (v[:n] + [0] * n)[:n] for k, v in pl["ch_ld"].items()}
                     chq = {k: (v[:n] + [0] * n)[:n] for k, v in (pl.get("ch_ql") or {}).items()}
-                    chm = pl.get("chm") or {}
                 else:
-                    chl["fbi"], chq["fbi"] = [0] * n, [0] * n
+                    for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                        chl[ck], chq[ck] = [0] * n, [0] * n
             else:
-                pts = sorted([q for q in fbi_pay.get("points", []) if q.get("l0") is not None],
-                             key=lambda q: q["offset"])
-                lc = [int(q.get("l0") or 0) for q in pts]
-                qc = [int(q.get("ql") or 0) for q in pts]
-                fld = [v - (lc[i - 1] if i else 0) for i, v in enumerate(lc)]
-                fqd = [v - (qc[i - 1] if i else 0) for i, v in enumerate(qc)]
-                chl["fbi"] = ((fld[:cut] if cut is not None else fld)[:n] + [0] * n)[:n]
-                chq["fbi"] = ((fqd[:cut] if cut is not None else fqd)[:n] + [0] * n)[:n]
-                mo = next((x for x in fun.get("months", []) if str(x.get("month")) == month), {})
-
-                def g(dic, k):
-                    return int(round((dic or {}).get(k) or 0))
-
-                L, Q = mo.get("leads"), mo.get("qleads")
-                fbi_l, fbi_q = sum(chl["fbi"]), sum(chq["fbi"])
-                chm = {
-                    "fbi": [fbi_l, fbi_q],
-                    "fbc": [max(g(L, "Meta Ads") - fbi_l, 0), max(g(Q, "Meta Ads") - fbi_q, 0)],
-                    "gs":  [g(L, "Google Ads"), g(Q, "Google Ads")],
-                    "kol": [g(L, "KOLs") + g(L, "KOL-image"), g(Q, "KOLs") + g(Q, "KOL-image")],
-                    "op":  [g(L, "TikTok Ads") + g(L, "Paid (other)"),
-                            g(Q, "TikTok Ads") + g(Q, "Paid (other)")],
-                }
-        per["ch_ld"], per["ch_ql"], per["chm"] = chl, chq, chm
+                for ck in ("fbi", "gs", "kol", "op"):
+                    chl[ck], chq[ck] = raw[ck]
+                chl["fbc"] = [max(a - b, 0) for a, b in zip(raw["mg"][0], raw["fbi"][0])]
+                chq["fbc"] = [max(a - b, 0) for a, b in zip(raw["mg"][1], raw["fbi"][1])]
+        per["ch_ld"], per["ch_ql"] = chl, chq
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
@@ -313,7 +306,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "chm" in v for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "fbc" in (v.get("ch_ld") or {}) for v in ls.values())
 
     out_months = {}
     for m in months:
@@ -447,7 +440,7 @@ def main():
             yd = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=1)
             mm = cur.get("months", {}).get(yd.strftime("%Y%m"), {})
             ls = mm.get("lines") or {}
-            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v and "lead" in v and "chm" in v for v in ls.values()):
+            if mm.get("as_of_day", 0) >= yd.day and ls and all("sp_meta" in v and "a3b3" in v and "lead" in v and "fbc" in (v.get("ch_ld") or {}) for v in ls.values()):
                 print(f"Đã có số đến hết {yd.isoformat()} — bỏ qua lượt này.")
                 if tmp:
                     shutil.rmtree(tmp, ignore_errors=True)
