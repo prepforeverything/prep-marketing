@@ -256,9 +256,30 @@ function kpiMetricVal(month,code,key){ // kpi.json v2: number = revenue (kiểu 
   if(typeof v==="number")return key==="revenue"?v:null;
   return v[key]!=null?v[key]:null;
 }
-function kpiDay(d,code){ // KPI DOANH THU 1 ngày = KPI tháng / số ngày tháng đó (null nếu chưa điền)
+function monthWeeks(m){ // các tuần Thứ2–CN của tháng: [{s,e}] ngày 1-based (khớp file quản trị/KPI master)
+  monthWeeks._c=monthWeeks._c||{};
+  if(monthWeeks._c[m])return monthWeeks._c[m];
+  const y=+m.slice(0,4),mo=+m.slice(4,6),n=DATA.months[m].days_in_month;
+  const ws=[];let s=1;
+  for(let d=2;d<=n;d++)if(new Date(Date.UTC(y,mo-1,d)).getUTCDay()===1){ws.push({s:s,e:d-1});s=d;}
+  ws.push({s:s,e:n});
+  return monthWeeks._c[m]=ws;
+}
+function dayShare(m,code,kind,dayIdx){ // phần KPI tháng rơi vào 1 ngày — theo TỶ TRỌNG TUẦN (kind
+  // 'wk_rev' cho doanh thu/order/lead/ql, 'wk_spend' cho ngân sách; trong tuần chia đều các ngày).
+  // Thiếu tỷ trọng / số tuần không khớp → lùi về chia đều tháng như cũ.
+  const v=((KPI&&KPI[m])||{})[code];
+  const wk=(v&&typeof v==="object"&&Array.isArray(v[kind]))?v[kind]:null;
+  const ws=wk&&monthWeeks(m);
+  if(!wk||wk.length!==ws.length)return 1/DATA.months[m].days_in_month;
+  const i=ws.findIndex(w=>dayIdx+1>=w.s&&dayIdx+1<=w.e);
+  if(i<0||!(+wk[i]>=0))return 1/DATA.months[m].days_in_month;
+  const tot=wk.reduce((a,b)=>a+(+b||0),0)||1; // tự chuẩn hóa (nhập 15 hay 0.15 đều chạy)
+  return (+wk[i]/tot)/(ws[i].e-ws[i].s+1);
+}
+function kpiDay(d,code){ // KPI DOANH THU 1 ngày = KPI tháng × tỷ trọng ngày (tuần hóa nếu có)
   const v=kpiMetricVal(d.m,code,"revenue");
-  return v==null?null:v/DATA.months[d.m].days_in_month;
+  return v==null?null:v*dayShare(d.m,code,"wk_rev",d.i);
 }
 function kpiOfDays(days,codes){ // {total, daily[], missing:[«tháng·dòng»]} — pro-rata theo ngày
   const missing=new Set();let total=0,any=false;
@@ -671,9 +692,10 @@ function renderKpiPanel(days,codes,tot){
   // CƠ SỞ = Paid ĐẦY ĐỦ (A1+B1+A3+B3) — trùng khớp các card phía trên (user chốt 16/07).
   // Chỉ số dẫn xuất (CR, %QL, AOV, CPL, CPQL, ME/RE) suy từ thành phần → so được cả khi chọn "Tất cả".
   function tSum(key){let v=0,any=false;
+    const kind=key==="spend"?"wk_spend":"wk_rev"; // ngân sách theo tuần KPI master; còn lại theo tuần file quản trị
     for(const d of days)for(const c of codes){
       const mv=kpiMetricVal(d.m,c,key);
-      if(mv!=null){any=true;v+=mv/DATA.months[d.m].days_in_month;}}
+      if(mv!=null){any=true;v+=mv*dayShare(d.m,c,kind,d.i);}}
     return any?v:null;}
   const actRev=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"))
     +sum(seriesDays(days,codes,"a3b3"));
@@ -684,7 +706,7 @@ function renderKpiPanel(days,codes,tot){
   const intF=v=>nf.format(Math.round(v));
   const rows=[
     {n:"Doanh thu Paid",act:actRev,t:T.rev,fmt:short2,up:true},
-    {n:"Chi phí (Spent)",act:tot.sp,t:T.sp,fmt:short2,up:false},
+    {n:"Chi phí (Spent)",act:tot.sp,t:T.sp,fmt:short2,plan:true}, // bám plan: under cũng là lệch (user 17/07)
     {n:"Order",act:actOrd,t:T.ord,fmt:intF,up:true},
     {n:"Lead",act:tot.lead,t:T.lead,fmt:intF,up:true},
     {n:"QL",act:tot.ql,t:T.ql,fmt:intF,up:true},
@@ -698,23 +720,35 @@ function renderKpiPanel(days,codes,tot){
   let h='<table><thead><tr><th>Chỉ số</th><th>Thực tế</th><th>Mục tiêu (kỳ chọn)</th><th>% đạt</th><th style="width:34%"></th></tr></thead><tbody>';
   let anyT=false;
   for(const r of rows){
-    const pct=r.act!=null&&r.t?((r.up?r.act/r.t:r.t/r.act)*100):null;
+    let pct=null,cls="text-mut",barc="#e5e7eb";
+    if(r.act!=null&&r.t){
+      if(r.plan){ // Chi phí: %so plan = thực tế ÷ mục tiêu; tốt = BÁM plan (90–110%), under/over đều lệch
+        pct=r.act/r.t*100;
+        const g=pct>=90&&pct<=110,a=(pct>=80&&pct<90)||(pct>110&&pct<=115);
+        cls=g?"text-green":a?"text-amber":"text-red";
+        barc=g?"#10b981":a?"#f59e0b":"#ef4444";
+      }else{
+        pct=(r.up?r.act/r.t:r.t/r.act)*100;
+        cls=pct>=100?"text-green":pct>=80?"text-amber":"text-red";
+        barc=pct>=100?"#10b981":pct>=80?"#f59e0b":"#ef4444";
+      }
+    }
     if(r.t)anyT=true;
-    const cls=pct==null?"text-mut":pct>=100?"text-green":pct>=80?"text-amber":"text-red";
     const w=pct==null?0:Math.min(pct,140)/140*100;
     h+="<tr><td>"+r.n+"</td><td>"+(r.act!=null?r.fmt(r.act):"—")+"</td>"
       +"<td>"+(r.t!=null?r.fmt(r.t):"<span class='text-mut'>chưa có</span>")+"</td>"
       +"<td style='font-weight:700' class='"+cls+"'>"+(pct!=null?pct.toFixed(1)+"%":"—")+"</td>"
       +"<td><div style='height:7px;border-radius:4px;background:#f3f4f6;overflow:hidden'>"
-      +"<div style='height:100%;width:"+w+"%;border-radius:4px;background:"
-      +(pct==null?"#e5e7eb":pct>=100?"#10b981":pct>=80?"#f59e0b":"#ef4444")+"'></div></div></td></tr>";
+      +"<div style='height:100%;width:"+w+"%;border-radius:4px;background:"+barc+"'></div></div></td></tr>";
   }
   h+="</tbody></table>";
   $("kpiqpanel").innerHTML=h;
   $("kpiq-note").textContent=(anyT?"":"Chưa có mục tiêu — điền kpi.json. ")
-    +"Cơ sở = Paid đầy đủ (A1+B1+A3+B3), trùng khớp các card phía trên. Mục tiêu đếm rải đều theo "
-    +"ngày kỳ chọn; chỉ số dẫn xuất suy từ thành phần (vd CR trần = KPI order ÷ KPI lead) — hoạt động "
-    +"cả khi chọn Tất cả. Chi phí/CPL/CPQL/ME-RE: đạt = KHÔNG vượt mục tiêu.";
+    +"Cơ sở = Paid đầy đủ (A1+B1+A3+B3), trùng khớp các card phía trên. Mục tiêu rải theo TỶ TRỌNG TUẦN "
+    +"trong file quản trị/KPI master (doanh thu·order·lead·QL theo tuần doanh thu; ngân sách theo tuần "
+    +"ngân sách; trong tuần chia đều ngày; SP chưa khai tuần thì chia đều tháng); chỉ số dẫn xuất suy từ "
+    +"thành phần (vd CR trần = KPI order ÷ KPI lead). Chi phí: %so plan = thực tế ÷ mục tiêu — tốt là BÁM "
+    +"kế hoạch (xanh 90–110%, tiêu thiếu hay vượt đều lệch). CPL/CPQL/ME-RE: đạt = KHÔNG vượt ngưỡng.";
 }
 
 function chChips(elId,cur,keys,onPick){ // chip lọc kênh cho chart (Tất cả + từng kênh)
@@ -818,7 +852,7 @@ function renderChannels(days,codes){
   const budT=key=>{if(!key)return null;let v=0,any=false;
     for(const d of days)for(const c of codes){
       const ch=(((KPI&&KPI[d.m])||{})[c]||{}).channels;
-      if(ch&&ch[key]!=null){any=true;v+=ch[key]/DATA.months[d.m].days_in_month;}}
+      if(ch&&ch[key]!=null){any=true;v+=ch[key]*dayShare(d.m,c,"wk_spend",d.i);}}
     return any?v:null;};
   const rows=CHANNELS.map(ch=>{
     let ld=0,ql=0,won=0,rev=0,sp=null;
@@ -894,7 +928,7 @@ function renderChannels(days,codes){
     +"FB Inbox · Chi phí: Meta tách theo tên campaign 'conv', Google Ads API (đều đã gồm thuế) · KOLs/Paid Other "
     +"chưa có nguồn chi phí · Paid Other (+TikTok) gồm các kênh BI: Tiktok Form, Inbox Tiktok, Landing Ads (không rõ "
     +"nền tảng), Inbox WhatsApp Ads, Zalo OA Ads, Web UTM, Blog UTM · Doanh thu cohort quy đổi từ USD theo tỷ giá "
-    +"ngày cập nhật · Ngân sách kênh rải đều theo ngày kỳ chọn.";
+    +"ngày cập nhật · Ngân sách kênh rải theo tỷ trọng tuần KPI master (SP chưa khai tuần thì chia đều tháng).";
 }
 
 function renderEffTable(days){
