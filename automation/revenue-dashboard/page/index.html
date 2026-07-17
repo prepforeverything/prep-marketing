@@ -996,8 +996,6 @@ const PRESETS=[
   {k:"yday",label:"Hôm qua",range:()=>[DMAX,DMAX]},
   {k:"l7",label:"7 ngày qua",range:()=>[clampIso(addDays(DMAX,-6)),DMAX]},
   {k:"l14",label:"14 ngày qua",range:()=>[clampIso(addDays(DMAX,-13)),DMAX]},
-  {k:"l28",label:"28 ngày qua",range:()=>[clampIso(addDays(DMAX,-27)),DMAX]},
-  {k:"l30",label:"30 ngày qua",range:()=>[clampIso(addDays(DMAX,-29)),DMAX]},
   {k:"tw",label:"Tuần này",range:()=>{const dow=(parseIso(DMAX).getUTCDay()+6)%7;
     return [clampIso(addDays(DMAX,-dow)),DMAX];}},
   {k:"lw",label:"Tuần trước",range:()=>{const dow=(parseIso(DMAX).getUTCDay()+6)%7;
@@ -1015,7 +1013,7 @@ function presetRange(p){ // [from,to] của 1 preset (preset tháng = trọn ph�
   return p.range();
 }
 
-let P={preset:"l30",from:null,to:null,cmp:false,view:null}; // lựa chọn TẠM trong panel (Cập nhật mới áp)
+let P={preset:"tm",from:null,to:null,cmp:false,view:null}; // lựa chọn TẠM trong panel (Cập nhật mới áp)
 function dpOpen(){
   P={preset:state.preset,from:state.from,to:state.to,cmp:!!state.cmp,
      cmpMode:state.cmpMode||"prev",view:state.from.slice(0,7)};
