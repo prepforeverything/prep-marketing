@@ -191,7 +191,7 @@
       <div class="note" id="chan-note"></div>
       <div id="chanchart"></div>
       <div class="legend" id="chan-legend"></div>
-      <div style="overflow-x:auto;margin-top:12px"><table id="chantbl"></table></div>
+      <div style="overflow-x:auto;margin-top:12px;padding-bottom:16px"><table id="chantbl"></table></div>
     </div>
     <div class="card">
       <h3>Hiệu quả theo sản phẩm</h3>
@@ -828,7 +828,7 @@ function renderChannels(days,codes){
     +"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th>"
     +"<th>Đơn</th><th>CR</th><th>Doanh thu</th><th>CPO</th><th>AOV</th><th>ME/RE</th></tr></thead><tbody>";
   for(const r of rows){
-    h+="<tr><td><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:"
+    h+="<tr><td style='white-space:nowrap'><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:"
       +r.color+";margin-right:7px'></span>"+esc(r.label)+"</td>"+cell(r)+"</tr>";
   }
   const t={label:"TỔNG",color:"transparent",
