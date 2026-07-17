@@ -1035,10 +1035,10 @@ async function boot(){
   }
   DMIN=DAYS[0].iso;DMAX=DAYS[DAYS.length-1].iso;
   $("dp-min").textContent=fmtVi(DMIN);$("dp-max").textContent=fmtVi(DMAX);
-  // mặc định: 30 ngày qua (kiểu Meta)
-  const r=presetRange(PRESETS.find(p=>p.k==="l30"));
-  state.mode="range";state.preset="l30";state.from=r[0];state.to=r[1];state.cmp=null;
-  state.month=months[months.length-1];
+  // mặc định: Tháng này (user đổi 17/07 — trước là 30 ngày qua kiểu Meta)
+  const tm=PRESETS.find(p=>p.k==="tm"),r=presetRange(tm);
+  state.mode="month";state.preset="tm";state.from=r[0];state.to=r[1];state.cmp=null;
+  state.month=tm.month();
   dpLabel();
   $("dp-btn").onclick=e=>{e.stopPropagation();
     $("dp-panel").classList.contains("open")?dpClose():dpOpen();};
