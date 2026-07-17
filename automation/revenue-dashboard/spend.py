@@ -217,7 +217,13 @@ def google_daily(customer_id, since, until, creds, login_customer_id, _tok_cache
                 out[day] = out.get(day, 0) + cost
         return out
     except Exception as e:  # noqa: BLE001 — 1 customer lỗi không giết cả run
-        print(f"[WARN] Google Ads {customer_id}: {e}", flush=True)
+        detail = ""
+        if isinstance(e, urllib.error.HTTPError):
+            try:  # body lỗi của Google nêu rõ nguyên nhân (SERVICE_DISABLED, DEVELOPER_TOKEN_..., USER_PERMISSION_DENIED...)
+                detail = " " + e.read().decode("utf-8", "replace")[:400].replace("\n", " ")
+            except Exception:  # noqa: BLE001
+                pass
+        print(f"[WARN] Google Ads {customer_id}: {e}{detail}", flush=True)
         return None
 
 
