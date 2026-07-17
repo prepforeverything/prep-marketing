@@ -790,31 +790,22 @@ function chSpendDay(d,code,ck){ // chi phí kênh/ngày: fbi = Meta − Conv, fb
   return null; // kol/op chưa có nguồn chi phí
 }
 function renderChannels(days,codes){
-  // PHƯƠNG ÁN (a): chỉ số kênh grain THÁNG — mọi cột trong bảng tính TRỌN các tháng phủ kỳ chọn
-  // (BI không có lead theo ngày × nhóm kênh chuẩn; không ước lượng). Chart chi phí bên dưới vẫn theo ngày.
-  const months=[...new Set(days.map(d=>d.m))];
-  const monthDays=DAYS.filter(d=>months.includes(d.m)); // trọn tháng để đồng grain spend/lead
-  const chm=(code,ck)=>{const m=[0,0];
-    for(const mo of months){const v=((DATA.months[mo].lines[code]||{}).chm||{})[ck];
-      if(v){m[0]+=v[0]||0;m[1]+=v[1]||0;}}
-    return m;};
-  const spFull=ck=>{let s=0;
-    for(const d of monthDays)for(const c of codes)s+=chSpendDay(d,c,ck)||0;
-    return s;};
+  // DAILY THẬT theo kỳ chọn (BI đã fix mapping nhóm 17/07) — lead tạo hôm nào tính hôm đó.
   const budT=key=>{if(!key)return null;let v=0,any=false;
-    for(const mo of months)for(const c of codes){
-      const ch=(((KPI&&KPI[mo])||{})[c]||{}).channels;
-      if(ch&&ch[key]!=null){any=true;v+=ch[key];}}
+    for(const d of days)for(const c of codes){
+      const ch=(((KPI&&KPI[d.m])||{})[c]||{}).channels;
+      if(ch&&ch[key]!=null){any=true;v+=ch[key]/DATA.months[d.m].days_in_month;}}
     return any?v:null;};
   const rows=CHANNELS.map(ch=>{
-    let ld=0,ql=0;
-    for(const c of codes){const v=chm(c,ch.k);ld+=v[0];ql+=v[1];}
-    const sp=(ch.k==="kol"||ch.k==="op")?null:spFull(ch.k);
+    let ld=0,ql=0,sp=null;
+    for(const d of days)for(const c of codes){ld+=chVal(d,c,ch.k,"ld");ql+=chVal(d,c,ch.k,"ql");}
+    if(ch.k!=="kol"&&ch.k!=="op"){sp=0;
+      for(const d of days)for(const c of codes)sp+=chSpendDay(d,c,ch.k)||0;}
     const bud=budT(ch.bud);
     return {...ch,sp,ld,ql,bud,cpl:sp&&ld?sp/ld:null,cpql:sp&&ql?sp/ql:null,
       pql:ld?ql/ld*100:null,budPct:sp!=null&&bud?sp/bud*100:null};
   });
-  let h="<thead><tr><th>Kênh</th><th>Chi phí</th><th>Ngân sách tháng</th><th>% NS đã dùng</th>"
+  let h="<thead><tr><th>Kênh</th><th>Chi phí</th><th>Ngân sách (kỳ chọn)</th><th>% NS đã dùng</th>"
     +"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th></tr></thead><tbody>";
   for(const r of rows){
     const budCls=r.budPct==null?"":r.budPct<=100?"text-green":r.budPct<=115?"text-amber":"text-red";
@@ -835,7 +826,6 @@ function renderChannels(days,codes){
     +"<td>"+nf.format(tQl)+"</td><td>"+(tLd?(tQl/tLd*100).toFixed(1)+"%":"—")+"</td>"
     +"<td>"+(tQl?vnd(tSp/tQl):"—")+"</td></tr></tbody>";
   $("chantbl").innerHTML=h;
-  // chart chi phí ngày theo kênh (kỳ chọn thật — chi phí là data platform của mình)
   const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
   const dayTot=days.map(d=>sum(codes.map(c=>(chSpendDay(d,c,"fbi")||0)+(chSpendDay(d,c,"fbc")||0)+(chSpendDay(d,c,"gs")||0))));
   const max=Math.max(...dayTot,1)*1.12;
@@ -863,11 +853,10 @@ function renderChannels(days,codes){
       tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
-  const mlabel=months.map(monthLabel).join(" + ");
-  $("chan-note").textContent="BẢNG: tính TRỌN "+mlabel+" (BI chỉ có lead theo tháng × nhóm kênh chuẩn — không ước lượng "
-    +"theo ngày; chi phí trong bảng cũng trọn tháng cho cùng hệ quy chiếu) · CHART: chi phí theo ngày đúng kỳ chọn · "
-    +"Lead/QL: nhóm chuẩn màn Conversion, FB Conversion = Meta Ads − FB Inbox · Chi phí Meta tách theo objective/tên "
-    +"campaign, khớp platform từng đồng · KOLs/Paid Other chưa có nguồn chi phí.";
+  $("chan-note").textContent="Lead/QL theo NGÀY PHÁT SINH thật, nhóm kênh chuẩn màn Conversion (BI fix 17/07) — tổng kênh "
+    +"khớp đúng cột Lead · FB Conversion = nhóm Meta − FB Inbox · Chi phí: Meta tách theo objective/tên campaign "
+    +"(khớp platform từng đồng), Google từ sheet Ads Script · KOLs/Paid Other chưa có nguồn chi phí · Ngân sách kênh "
+    +"rải đều theo ngày kỳ chọn.";
 }
 
 function renderEffTable(days){
