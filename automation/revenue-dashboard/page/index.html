@@ -193,7 +193,7 @@
       <div class="legend" id="chan-legend"></div>
       <div style="overflow-x:auto;margin-top:12px;padding-bottom:16px"><table id="chantbl"></table></div>
     </div>
-    <div class="card">
+    <div class="card" id="efftbl-card">
       <h3>Hiệu quả theo sản phẩm</h3>
       <div class="note" id="eff-note"></div>
       <div style="overflow-x:auto"><table id="efftbl"></table></div>
@@ -595,7 +595,9 @@ function renderEff(days,codes){
   if(SHOW_LEADS){renderKpiPanel(days,codes,{sp:totSp,lead:totLead,ql:totQl});
     renderLeadDaily(days,codes);renderCplDaily(days,codes);
     if(SHOW_CHANNELS)renderChannels(days,codes);}
-  renderEffTable(days);
+  // Bảng theo SP chỉ có nghĩa ở chế độ "Tất cả" — chọn 1 SP thì trùng card tổng (user 17/07)
+  $("efftbl-card").style.display=state.scope==="ALL"?"":"none";
+  if(state.scope==="ALL")renderEffTable(days);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
   $("eff-note").textContent="Kỳ: "+rangeLabel+" · Doanh thu Paid = A1+B1 (sales chốt) + A3+B3 (tự chốt từ lead paid) "
