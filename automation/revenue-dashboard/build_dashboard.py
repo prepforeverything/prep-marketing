@@ -504,6 +504,9 @@ def main():
     data = build_data(c, dash_dir, a.from_fixture, force=a.force_backfill)
     (dash_dir / "data.json").write_text(json.dumps(data, ensure_ascii=False) + "\n", encoding="utf-8")
     ensure_kpi(c, dash_dir, list(data["months"].keys()))
+    if not a.from_fixture:  # 2 bảng chi tiết Inbox/UTM (grain tháng, từ 202606) — user duyệt 19/07
+        import mkt_detail
+        mkt_detail.build_mkt(c, dash_dir, dt.datetime.now(VN_TZ).date(), force=a.force_backfill)
     write_static(c, dash_dir)
     if tmp:
         ensure_headers(repo_root, dash_dir.name)

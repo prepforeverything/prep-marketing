@@ -97,6 +97,9 @@
   tr.total-row{border-top:2px solid #d1d5db;background:#f9fafb;font-weight:700}
   tr.total-row td{border-bottom:none}
   .text-green{color:#059669}.text-red{color:#dc2626}.text-amber{color:#d97706}.text-mut{color:#9ca3af}
+  tr.camp{cursor:pointer}
+  tr.camp:hover{background:#f9fafb}
+  tr.adrow td{background:#f8faff;border-bottom:1px solid #eef2ff}
   .insight{border-left:4px solid;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:16px;
     font-size:.85rem;line-height:1.5}
   .insight.warning{border-color:#f59e0b;background:#fffbeb;color:#78350f}
@@ -160,6 +163,7 @@
     </div>
   </div>
   <div id="tab-eff" style="display:none">
+    <div class="chips" id="basis-chips" style="margin:0 0 12px"></div>
     <div class="kpi-grid" id="eff-summary"></div>
     <div class="card">
       <h3>Chi phí từng ngày</h3>
@@ -199,6 +203,18 @@
       <h3>Hiệu quả theo sản phẩm</h3>
       <div class="note" id="eff-note"></div>
       <div style="overflow-x:auto"><table id="efftbl"></table></div>
+    </div>
+    <div class="card" id="mkt-inbox-card">
+      <h3>Hiệu quả Inbox theo campaign &amp; ad</h3>
+      <div class="note" id="mi-note"></div>
+      <div style="overflow-x:auto;padding-bottom:16px"><table id="mi-tbl"></table></div>
+    </div>
+    <div class="card" id="mkt-utm-card">
+      <h3>UTM Explorer</h3>
+      <div class="note" id="mu-note"></div>
+      <div class="chips" id="mu-flt" style="margin:8px 0 4px"></div>
+      <div id="mu-crumbs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+      <div style="overflow-x:auto;padding-bottom:16px"><table id="mu-tbl"></table></div>
     </div>
   </div>
   <div class="footer">Prep Education — Dashboard doanh thu A1+B1 (Prep BI, bucket paid-a1/paid-b1, attribution first-paid)<br>
@@ -558,13 +574,26 @@ function renderTable(days){
 }
 
 // ---------- tab Chi phí & hiệu quả ----------
+// Toggle CƠ SỞ doanh thu tab hiệu quả (user 19/07): full = A1+B1+A3+B3 (mặc định), a1b1 = chỉ A1+B1.
+// KPI/mục tiêu GIỮ NGUYÊN theo yêu cầu — chỉ chỉ số THỰC TẾ đổi cơ sở.
+function xSeries(days,codes,key){ // a3b3/o_a3b3 về 0 khi chọn cơ sở A1+B1
+  return (state.basis==="a1b1")?days.map(()=>0):seriesDays(days,codes,key);
+}
+function renderBasisChips(){
+  const items=[["full","Paid đầy đủ (A1+B1+A3+B3)"],["a1b1","Chỉ A1+B1"]];
+  const cur=state.basis||"full";
+  $("basis-chips").innerHTML=items.map(([k,l])=>'<span class="chip'+(cur===k?" on":"")+'" data-k="'+k+'"'
+    +(cur===k?' style="background:#111827"':'')+'><span class="dot" style="background:#111827"></span>'+l+'</span>').join("");
+  for(const el of $("basis-chips").children)el.onclick=()=>{state.basis=el.dataset.k;render();};
+}
 function renderEff(days,codes){
+  renderBasisChips();
   const sp=spendSeries(days,codes);
   // Doanh thu Paid ĐẦY ĐỦ = A1+B1 (sales chốt) + A3+B3 (khách tự chốt từ lead paid).
   // Tab "Doanh thu vs KPI" vẫn chỉ A1+B1 vì KPI được set trên A1+B1.
-  const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1"),a3b3=seriesDays(days,codes,"a3b3");
+  const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1"),a3b3=xSeries(days,codes,"a3b3");
   const rev=a1.map((v,i)=>v+(b1[i]||0)+(a3b3[i]||0));
-  const oX=seriesDays(days,codes,"o_a3b3");
+  const oX=xSeries(days,codes,"o_a3b3");
   const ord=orderSeries(days,codes).map((v,i)=>v+(oX[i]||0));
   const leadS=seriesDays(days,codes,"lead"),qlS=seriesDays(days,codes,"ql");
   const totSp=sum(sp),totRev=sum(rev),totOrd=sum(ord),totLead=sum(leadS),totQl=sum(qlS);
@@ -577,8 +606,8 @@ function renderEff(days,codes){
   const cd=cmpDaysArr();
   if(cd&&cd.length){
     const psp=sum(spendSeries(cd,codes));
-    const prev=sum(seriesDays(cd,codes,"a1"))+sum(seriesDays(cd,codes,"b1"))+sum(seriesDays(cd,codes,"a3b3"));
-    const pord=sum(orderSeries(cd,codes))+sum(seriesDays(cd,codes,"o_a3b3"));
+    const prev=sum(seriesDays(cd,codes,"a1"))+sum(seriesDays(cd,codes,"b1"))+sum(xSeries(cd,codes,"a3b3"));
+    const pord=sum(orderSeries(cd,codes))+sum(xSeries(cd,codes,"o_a3b3"));
     const plead=sum(seriesDays(cd,codes,"lead")),pql=sum(seriesDays(cd,codes,"ql"));
     tr.sp=trendHtml(pctChange(totSp,psp),null);
     tr.rev=trendHtml(pctChange(totRev,prev),true);
@@ -597,7 +626,7 @@ function renderEff(days,codes){
   }
   $("eff-summary").innerHTML=[
     card("Chi phí (Spent)",short(totSp),esc(srcLabel())+" · "+vnd(totSp)+" đ",GRAD.sp,false,tr.sp),
-    card("Doanh thu Paid",short(totRev),"A1+B1+A3+B3 · "+vnd(totRev)+" đ",GRAD.rev,false,tr.rev),
+    card("Doanh thu Paid",short(totRev),(state.basis==="a1b1"?"chỉ A1+B1":"A1+B1+A3+B3")+" · "+vnd(totRev)+" đ",GRAD.rev,false,tr.rev),
     card("ME/RE",mere!=null?mere.toFixed(1)+"%":"—","chi phí ÷ doanh thu Paid",GRAD.pace,false,tr.mere),
     card("Đơn (Order)",nf.format(totOrd),"đơn A1+B1+A3+B3",GRAD.att,false,tr.ord),
     card("Chi phí / đơn",totOrd?short2(totSp/totOrd):"—","Spent ÷ Order",GRAD.kpi,false,tr.cpo),
@@ -621,6 +650,7 @@ function renderEff(days,codes){
   // Bảng theo SP chỉ có nghĩa ở chế độ "Tất cả" — chọn 1 SP thì trùng card tổng (user 17/07)
   $("efftbl-card").style.display=state.scope==="ALL"?"":"none";
   if(state.scope==="ALL")renderEffTable(days);
+  renderMkt(codes);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
   $("eff-note").textContent="Kỳ: "+rangeLabel+" · Doanh thu Paid = A1+B1 (sales chốt) + A3+B3 (tự chốt từ lead paid) "
@@ -698,8 +728,8 @@ function renderKpiPanel(days,codes,tot){
       if(mv!=null){any=true;v+=mv*dayShare(d.m,c,kind,d.i);}}
     return any?v:null;}
   const actRev=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"))
-    +sum(seriesDays(days,codes,"a3b3"));
-  const actOrd=sum(orderSeries(days,codes))+sum(seriesDays(days,codes,"o_a3b3"));
+    +sum(xSeries(days,codes,"a3b3"));
+  const actOrd=sum(orderSeries(days,codes))+sum(xSeries(days,codes,"o_a3b3"));
   const T={rev:tSum("revenue"),sp:tSum("spend"),lead:tSum("lead"),ql:tSum("ql"),ord:tSum("order")};
   const ratio=(a,b)=>a!=null&&b?a/b:null;
   const pctF=v=>v.toFixed(1)+"%";
@@ -931,12 +961,154 @@ function renderChannels(days,codes){
     +"ngày cập nhật · Ngân sách kênh rải theo tỷ trọng tuần KPI master (SP chưa khai tuần thì chia đều tháng).";
 }
 
+/* ---------- 2 bảng chi tiết Inbox & UTM (mkt-YYYYMM.json, grain THÁNG — user duyệt 19/07) ---------- */
+const MKTC={};
+function mktMonth(){ // tháng hiển thị = tháng chứa NGÀY CUỐI kỳ chọn; trước 202606 chưa có spend platform
+  const m=state.mode==="month"?state.month:(state.to||"").slice(0,7).replace("-","");
+  return m>="202606"?m:null;
+}
+function renderMkt(codes){
+  const m=mktMonth(),show=SHOW_LEADS&&SHOW_CHANNELS&&!!m;
+  $("mkt-inbox-card").style.display=show?"":"none";
+  $("mkt-utm-card").style.display=show?"":"none";
+  if(!show)return;
+  if(MKTC[m]){renderMi(m,codes);renderMu(m,codes);return;}
+  if(MKTC[m+"_p"])return;
+  MKTC[m+"_p"]=1;
+  fetch("./mkt-"+m+".json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{
+    delete MKTC[m+"_p"];
+    if(d){MKTC[m]=d;render();}
+    else{$("mi-note").textContent="Chưa có dữ liệu tháng này.";
+         $("mu-note").textContent="Chưa có dữ liệu tháng này.";
+         $("mi-tbl").innerHTML="";$("mu-tbl").innerHTML="";}
+  });
+}
+function esc2(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/'/g,"&#39;");}
+function grainNote(m){return "Grain THÁNG — đang hiện "+monthLabel(m)+" (tháng chứa ngày cuối kỳ chọn), tính đến "
+  +fmtVi(MKTC[m].as_of)+".";}
+
+/* --- Bảng Inbox: Meta campaign không 'conv', bấm dòng xổ từng ad id --- */
+let miSort={k:"sp",d:-1},miOpen={};
+const MI_COLS=[["c","Campaign / Ad"],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["rv","Doanh thu"],["mere","ME/RE"]];
+function miEn(r){return {...r,cpl:r.ld?r.sp/r.ld:null,pql:r.ld?r.ql/r.ld*100:null,
+  cr:r.ld?r.od/r.ld*100:null,mere:r.rv?r.sp/r.rv*100:null};}
+function miRow(r,cls,label){
+  const mc=r.mere==null?"":r.mere<=60?"text-green":r.mere<=90?"text-amber":"text-red";
+  return "<tr class='"+cls+"'><td style='white-space:normal;min-width:230px;text-align:left'>"+label+"</td>"
+    +"<td>"+(r.sp?vnd(r.sp):"—")+"</td><td>"+nf.format(r.ld)+"</td>"
+    +"<td>"+(r.cpl!=null?vnd(r.cpl):"—")+"</td><td>"+nf.format(r.ql)+"</td>"
+    +"<td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td><td>"+nf.format(r.od)+"</td>"
+    +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td>"
+    +"<td style='font-weight:700' class='"+mc+"'>"+(r.mere!=null?r.mere.toFixed(0)+"%":"—")+"</td></tr>";
+}
+function renderMi(m,codes){
+  const camps=[];
+  for(const cd of codes){const L=(MKTC[m].lines||{})[cd];if(!L)continue;
+    for(const cp of L.camps)if((cp.p||"").startsWith("meta")&&!cp.cv)camps.push(cp);}
+  const rows=camps.map(miEn).sort((a,b)=>miSort.d*((a[miSort.k]??-1)>(b[miSort.k]??-1)?1:-1));
+  let h="<thead><tr>"+MI_COLS.map(([k,l])=>"<th data-k='"+k+"' style='cursor:pointer'"
+    +(miSort.k===k?" class='text-green'":"")+">"+l+(miSort.k===k?(miSort.d<0?" ↓":" ↑"):"")+"</th>").join("")+"</tr></thead><tbody>";
+  for(const r of rows){
+    const o=!!miOpen[r.id];
+    h+=miRow(r,"camp' data-id='"+esc2(r.id),"<span style='color:#9ca3af'>"+(o?"▾ ":"▸ ")+"</span>"+esc2(r.c));
+    if(o)for(const a of (r.ads||[]).map(miEn))
+      h+=miRow(a,"adrow","<span style='padding-left:26px;font-size:.78rem'>"+esc2(a.n)
+        +" <span style='color:#6b7280;font-size:.72rem'>· "+esc2(a.id)+"</span></span>");
+  }
+  const t=miEn(camps.reduce((s,c)=>({sp:s.sp+(c.sp||0),ld:s.ld+c.ld,ql:s.ql+c.ql,od:s.od+c.od,rv:s.rv+(c.rv||0)}),
+    {sp:0,ld:0,ql:0,od:0,rv:0}));
+  h+=miRow(t,"total-row","TỔNG ("+camps.length+" campaign)")+"</tbody>";
+  $("mi-tbl").innerHTML=h;
+  $("mi-tbl").querySelectorAll("tr.camp").forEach(el=>el.onclick=()=>{miOpen[el.dataset.id]=!miOpen[el.dataset.id];renderMi(m,codes);});
+  $("mi-tbl").querySelectorAll("th").forEach(el=>el.onclick=()=>{const k=el.dataset.k;
+    if(miSort.k===k)miSort.d*=-1;else miSort={k,d:-1};renderMi(m,codes);});
+  $("mi-note").textContent=grainNote(m)+" Meta campaign KHÔNG chứa 'conv' (đúng luật tách Inbox/Conversion) · "
+    +"bấm dòng campaign để xổ từng ad id · lead/QL/đơn/doanh thu = lead-episode first-paid, đơn chốt trong kỳ (màn MKT của BI) — "
+    +"khác lens cohort của bảng kênh · top 40 campaign/SP theo chi phí.";
+}
+
+/* --- UTM Explorer: drill-down kiểu GA4, chi phí ghép 2 chiều ≥95% (thà '—' còn hơn số sai) --- */
+const MU_DIMS=["s","m","c","ct"],MU_LBL={s:"Source",m:"Medium",c:"Campaign",ct:"Content"};
+let muState={group:"s",path:[],q:"",sort:{k:"ld",d:-1}};
+const MU_COLS=[["key",""],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["rv","Doanh thu"]];
+function muData(m,codes){ // gộp các SP đã chọn; prefix sp_key theo SP để mã không va nhau giữa SP
+  const rows=[],map={},src={};
+  for(const cd of codes){const L=(MKTC[m].lines||{})[cd];if(!L)continue;
+    for(const r of L.utm)rows.push({...r,k:r.k?cd+"|"+r.k:null});
+    for(const[k,v]of Object.entries(L.sp_map||{}))map[cd+"|"+k]=v;
+    for(const[k,v]of Object.entries(L.src_sp||{}))src[k]=(src[k]||0)+v;}
+  return {rows,map,src};
+}
+function renderMu(m,codes){
+  const DD=muData(m,codes);
+  const spleads={};for(const r of DD.rows)if(r.k)spleads[r.k]=(spleads[r.k]||0)+r.ld;
+  const f=DD.rows.filter(r=>muState.path.every(p=>String(r[p.d]??"")===p.v)
+    &&(!muState.q||MU_DIMS.some(d=>String(r[d]??"").toLowerCase().includes(muState.q))));
+  const by={};
+  for(const r of f){
+    const k=String(r[muState.group]??"");
+    const g=by[k]=by[k]||{key:k,ld:0,ql:0,od:0,rv:0,_sp:{}};
+    g.ld+=r.ld;g.ql+=r.ql;g.od+=r.od;g.rv+=r.rv||0;
+    if(r.k)g._sp[r.k]=(g._sp[r.k]||0)+r.ld;
+  }
+  const rows=Object.values(by).map(g=>{
+    let sp=0,cov=0;
+    for(const[k,ld]of Object.entries(g._sp))
+      if(ld>=(spleads[k]||1)*0.95){sp+=DD.map[k]||0;cov+=ld;}
+    if(!(sp>0&&cov>=g.ld*0.95))sp=null;
+    if(muState.group==="s"&&!muState.path.length&&DD.src[g.key])sp=DD.src[g.key];
+    return {...g,sp,cpl:sp&&g.ld?sp/g.ld:null,pql:g.ld?g.ql/g.ld*100:null,cr:g.ld?g.od/g.ld*100:null};
+  }).sort((a,b)=>muState.sort.d*((a[muState.sort.k]??-1)>(b[muState.sort.k]??-1)?1:-1));
+  // filter row: chọn cấp nhóm + tìm nhanh
+  $("mu-flt").innerHTML='<span style="font-size:.75rem;color:#6b7280;align-self:center">Nhóm theo:</span>'
+    +MU_DIMS.map(d=>'<span class="chip'+(muState.group===d?" on":"")+'" data-d="'+d+'"'
+      +(muState.group===d?' style="background:#111827"':'')+'>'+MU_LBL[d]+'</span>').join("")
+    +'<input id="mu-q" placeholder="tìm nhanh…" value="'+esc2(muState.q)+'" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:.8rem">';
+  $("mu-flt").querySelectorAll(".chip").forEach(el=>el.onclick=()=>{muState.group=el.dataset.d;renderMu(m,codes);});
+  const q=$("mu-q");q.oninput=()=>{muState.q=q.value.trim().toLowerCase();renderMu(m,codes);};
+  $("mu-crumbs").innerHTML=muState.path.map((p,i)=>
+    '<span class="chip" data-i="'+i+'" style="background:#eef2ff;border-color:#c7d2fe"><b>'+MU_LBL[p.d]+':</b>&nbsp;'
+    +esc2(p.v||"(trống)")+'&nbsp;✕</span>').join("")
+    +(muState.path.length?'<span class="chip" data-i="all">Xóa hết</span>':"");
+  $("mu-crumbs").querySelectorAll(".chip").forEach(el=>el.onclick=()=>{
+    muState.path=el.dataset.i==="all"?[]:muState.path.slice(0,+el.dataset.i);
+    muState.group=muState.path.length?MU_DIMS[Math.min(MU_DIMS.indexOf(muState.path[muState.path.length-1].d)+1,3)]:"s";
+    renderMu(m,codes);});
+  const maxL=Math.max(...rows.map(r=>r.ld),1);
+  MU_COLS[0][1]=MU_LBL[muState.group];
+  let h="<thead><tr>"+MU_COLS.map(([k,l])=>"<th data-k='"+k+"' style='cursor:pointer'"
+    +(muState.sort.k===k?" class='text-green'":"")+">"+l+(muState.sort.k===k?(muState.sort.d<0?" ↓":" ↑"):"")+"</th>").join("")+"</tr></thead><tbody>";
+  for(const r of rows.slice(0,25)){
+    const drill=MU_DIMS.indexOf(muState.group)<3;
+    h+="<tr"+(drill?" class='camp' data-k='"+esc2(r.key)+"'":"")+"><td style='text-align:left;white-space:normal;min-width:200px'>"
+      +(r.key?esc2(r.key):"<i>(trống"+(muState.group==="s"?" — chủ yếu inbox":"")+")</i>")
+      +"<div style='height:4px;border-radius:2px;background:#e0e7ff;width:"+(r.ld/maxL*100).toFixed(0)+"%;max-width:150px;margin-top:4px'></div></td>"
+      +"<td>"+(r.sp!=null?"~"+vnd(r.sp):"—")+"</td><td>"+nf.format(r.ld)+"</td>"
+      +"<td>"+(r.cpl!=null?"~"+vnd(r.cpl):"—")+"</td><td>"+nf.format(r.ql)+"</td>"
+      +"<td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td><td>"+nf.format(r.od)+"</td>"
+      +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td></tr>";
+  }
+  h+="</tbody>";
+  $("mu-tbl").innerHTML=h;
+  $("mu-tbl").querySelectorAll("tr.camp").forEach(el=>el.onclick=()=>{
+    muState.path.push({d:muState.group,v:el.dataset.k});
+    muState.group=MU_DIMS[MU_DIMS.indexOf(muState.group)+1];
+    renderMu(m,codes);});
+  $("mu-tbl").querySelectorAll("th").forEach(el=>el.onclick=e=>{e.stopPropagation();
+    const k=el.dataset.k;if(k==="key")return;
+    if(muState.sort.k===k)muState.sort.d*=-1;else muState.sort={k,d:-1};renderMu(m,codes);});
+  $("mu-note").textContent=grainNote(m)+" Bấm dòng để khoan sâu (Source → Medium → Campaign → Content), chip ✕ để lùi · "
+    +"dòng '(trống)' = lead không gắn UTM (inbox — xem bảng trên) · Chi phí (dấu ~) ghép UTM ↔ campaign qua mã trong "
+    +"utm_content / ID campaign, CHỈ hiện khi khớp trọn vẹn hai chiều ≥95% — lát cắt lẻ hiện '—' thay vì số sai · "
+    +"đơn/doanh thu = lead chốt trong kỳ.";
+}
+
 function renderEffTable(days){
   const rows=DATA.lines.map(l=>{
     const sp=sum(spendSeries(days,[l.code]));
     const a=sum(seriesDays(days,[l.code],"a1")),b=sum(seriesDays(days,[l.code],"b1")),
-      x=sum(seriesDays(days,[l.code],"a3b3"));
-    const rev=a+b+x,ord=sum(orderSeries(days,[l.code]))+sum(seriesDays(days,[l.code],"o_a3b3"));
+      x=sum(xSeries(days,[l.code],"a3b3"));
+    const rev=a+b+x,ord=sum(orderSeries(days,[l.code]))+sum(xSeries(days,[l.code],"o_a3b3"));
     const lead=sum(seriesDays(days,[l.code],"lead")),ql=sum(seriesDays(days,[l.code],"ql"));
     return {code:l.code,label:l.label,sp,rev,ord,lead,ql,
       mere:rev?sp/rev*100:null,cpo:ord?sp/ord:null,aov:ord?rev/ord:null,

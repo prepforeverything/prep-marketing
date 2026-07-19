@@ -129,6 +129,38 @@ def lead_cohort(products, date_from, date_to, *, markets=None, channel_groups=No
         return None
 
 
+def mkt_ad_performance(products, date_from, date_to, *, markets=None, currency="VND", key=None):
+    """Raw payload mkt_ad_performance — hiệu quả quảng cáo grain CAMPAIGN + AD (mỗi campaign kèm
+    ads[]: ad_id/ad_name/spend/leads/ql/orders/revenue). Spend platform thật (đủ từ 06/2026),
+    attribution first_paid theo lead-episode. Trả None nếu lỗi."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "from": date_from, "to": date_to, "currency": currency}
+    if markets:
+        body["markets"] = list(markets)
+    try:
+        return _post("mkt_ad_performance", body, key)
+    except Exception:  # noqa: BLE001 — lỗi mạng/timeout/HTTP: trả None, caller lùi an toàn
+        return None
+
+
+def mkt_campaigns(products, date_from, date_to, *, markets=None,
+                  dims="utm_source,utm_medium,utm_campaign,utm_content", currency="VND", key=None):
+    """Raw payload mkt_campaigns — chi tiết UTM grain lead-episode (LIVE gồm hôm nay): rows theo
+    dims, totals, options. KHÔNG có spend (spend chỉ ở grain campaign/ad platform). Trả None nếu lỗi."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "from": date_from, "to": date_to, "dims": dims, "currency": currency}
+    if markets:
+        body["markets"] = list(markets)
+    try:
+        return _post("mkt_campaigns", body, key)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def marketing_funnel(products, date_from, date_to, *, markets=None, currency="VND", key=None):
     """Raw payload marketing_funnel trong [from,to] — leads/qleads/orders + spend THEO NHÓM KÊNH
     ("Meta Ads","Google Ads","TikTok Ads","KOLs","Paid (other)"…) — cùng bảng nhóm với màn
