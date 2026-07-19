@@ -1041,6 +1041,10 @@ function renderMi(m,codes){
   let h="<thead><tr>"+MI_COLS.map(([k,l])=>"<th data-k='"+k+"' style='cursor:pointer'"
     +(miSort.k===k?" class='text-green'":"")+">"+l+(miSort.k===k?(miSort.d<0?" ↓":" ↑"):"")+"</th>").join("")+"</tr></thead><tbody>";
   for(const r of rows){
+    if(String(r.id).startsWith("_rest")){ // dòng gộp phần đuôi — không xổ được, chữ mờ
+      h+=miRow(r,"","<i style='color:#6b7280'>"+esc2(r.c)+"</i>");
+      continue;
+    }
     const o=!!miOpen[r.id];
     h+=miRow(r,"camp' data-id='"+esc2(r.id),"<span style='color:#9ca3af'>"+(o?"▾ ":"▸ ")+"</span>"+esc2(r.c));
     if(o)for(const a of (r.ads||[]).map(miEn))
@@ -1049,14 +1053,18 @@ function renderMi(m,codes){
   }
   const t=miEn(camps.reduce((s,c)=>({sp:s.sp+(c.sp||0),ld:s.ld+c.ld,ql:s.ql+c.ql,od:s.od+c.od,rv:s.rv+(c.rv||0)}),
     {sp:0,ld:0,ql:0,od:0,rv:0}));
-  h+=miRow(t,"total-row","TỔNG ("+camps.length+" campaign)")+"</tbody>";
+  const nReal=camps.filter(c=>!String(c.id).startsWith("_rest")).length;
+  h+=miRow(t,"total-row","TỔNG ("+nReal+" campaign chi tiết"+(nReal<camps.length?" + phần còn lại":"")+")")+"</tbody>";
   $("mi-tbl").innerHTML=h;
   $("mi-tbl").querySelectorAll("tr.camp").forEach(el=>el.onclick=()=>{miOpen[el.dataset.id]=!miOpen[el.dataset.id];renderMi(m,codes);});
   $("mi-tbl").querySelectorAll("th").forEach(el=>el.onclick=()=>{const k=el.dataset.k;
     if(miSort.k===k)miSort.d*=-1;else miSort={k,d:-1};renderMi(m,codes);});
   $("mi-note").textContent=grainNote(m)+" Meta campaign KHÔNG chứa 'conv' (đúng luật tách Inbox/Conversion) · "
     +"bấm dòng campaign để xổ từng ad id · lead/QL/đơn/doanh thu = lead-episode first-paid, đơn chốt trong kỳ (màn MKT của BI) — "
-    +"khác lens cohort của bảng kênh · top 40 campaign/SP theo chi phí.";
+    +"khác lens cohort của bảng kênh · chi tiết top 40 campaign/SP theo chi phí, phần đuôi gộp dòng "
+    +"'(… còn lại)' nên TỔNG = đủ nguồn BI · ⚠️ chi phí bảng này lấy từ warehouse BI, LỆCH ~5–8% so "
+    +"cột Chi phí bảng kênh (platform trực tiếp) — đọc cơ cấu/so sánh campaign ở đây, đối chiếu tổng "
+    +"chi tiêu thì theo bảng kênh.";
 }
 
 /* --- UTM Explorer: drill-down kiểu GA4, chi phí ghép 2 chiều ≥95% (thà '—' còn hơn số sai) --- */

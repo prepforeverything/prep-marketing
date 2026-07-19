@@ -41,6 +41,24 @@ def _camps(payload, top=40, top_ads=15):
                              "sp": round(a.get("spend_usd") or 0), "ld": a.get("leads") or 0,
                              "ql": a.get("ql") or 0, "od": a.get("orders") or 0,
                              "rv": round(a.get("revenue") or 0)} for a in ads]})
+    # Phần đuôi ngoài top: GỘP theo (platform, cv) thành 1 dòng để TỔNG bảng = đủ nguồn BI
+    # (user bắt lệch 610 vs 642tr do cắt top-40, 19/07). id "_rest*" — UI không xổ ads.
+    rest = {}
+    for c in camps[top:]:
+        key = (c.get("platform") or "?", 1 if "conv" in (c.get("campaign") or "").lower() else 0)
+        r = rest.setdefault(key, {"n": 0, "sp": 0, "ld": 0, "ql": 0, "od": 0, "rv": 0})
+        r["n"] += 1
+        r["sp"] += c.get("spend_usd") or 0
+        r["ld"] += c.get("leads") or 0
+        r["ql"] += c.get("ql") or 0
+        r["od"] += c.get("orders") or 0
+        r["rv"] += c.get("revenue") or 0
+    for (p, cv), r in rest.items():
+        if r["sp"] <= 0 and r["ld"] <= 0:
+            continue
+        out.append({"c": f"({r['n']} campaign nhỏ còn lại)", "id": f"_rest:{p}:{cv}", "p": p,
+                    "cv": cv, "sp": round(r["sp"]), "ld": r["ld"], "ql": r["ql"],
+                    "od": r["od"], "rv": round(r["rv"]), "ads": []})
     return out
 
 
