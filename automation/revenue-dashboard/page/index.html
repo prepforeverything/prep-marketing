@@ -195,7 +195,10 @@
     <div class="card" id="chan-card">
       <h3>Hiệu quả theo kênh</h3>
       <div class="note" id="chan-note"></div>
-      <div id="chanchart"></div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">Chi phí theo kênh</div><div id="chanchart"></div></div>
+        <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">Lead theo kênh</div><div id="chanchart-ld"></div></div>
+      </div>
       <div class="legend" id="chan-legend"></div>
       <div style="overflow-x:auto;margin-top:12px;padding-bottom:16px"><table id="chantbl"></table></div>
     </div>
@@ -941,49 +944,44 @@ function renderChannels(days,codes){
   $("chantbl").innerHTML=h;
   // Combo (user 19/07): mỗi ngày 2 cột — TRÁI chi phí theo kênh (trục trái, VND), PHẢI lead theo
   // kênh (trục phải, đủ 5 kênh cùng bảng màu). Hết cảnh chart chỉ có chi phí "boring".
+  // TÁCH 2 CHART cạnh nhau (user 19/07 — bản gộp 2 cột/ngày khó nhìn): trái = chi phí (3 kênh
+  // có phí), phải = lead (đủ 5 kênh), cùng bảng màu, mỗi bên trục riêng.
   const H=280,axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
-  const dayTot=days.map(d=>sum(codes.map(c=>(chSpendDay(d,c,"fbi")||0)+(chSpendDay(d,c,"fbc")||0)+(chSpendDay(d,c,"gs")||0))));
-  const dayLd=days.map(d=>sum(CHANNELS.map(ch=>sum(codes.map(c=>chVal(d,c,ch.k,"ld"))))));
-  const max=Math.max(...dayTot,1)*1.12,maxL=Math.max(...dayLd,1)*1.12;
-  const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN,posf=j=>PAD.l+(j+.5)*bw;
-  let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short)+xLabels(days,H,posf,axisN);
-  for(const fr of [0,0.5,1]){ // trục PHẢI: mốc lead 0 / giữa / max
-    const yy=H-PAD.b-(H-PAD.t-PAD.b)*fr;
-    s+='<text x="'+(W-PAD.r+6)+'" y="'+(yy+4)+'" font-size="11" fill="#9ca3af">'+nf.format(Math.round(maxL*fr))+'</text>';
-  }
-  const rowsBy={};
-  for(let j=0;j<days.length;j++){
-    let y=H-PAD.b,tipSp=[],tipLd=[];
-    const x=PAD.l+j*bw+bw*0.10,w=bw*0.38;
-    for(const ch of CHANNELS.slice(0,3)){
-      const v=sum(codes.map(c=>chSpendDay(days[j],c,ch.k)||0));
-      if(v<=0)continue;
-      const hh=(H-PAD.t-PAD.b)*(v/max);y-=hh;
-      s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(hh,0)+'" rx="2" fill="'+ch.color+'"/>';
-      tipSp.push(ch.label+": "+vnd(v)+" đ");
+  function chanStack(elId,keys,valf,maxv,fmt,unit){
+    const bw=(W-PAD.l-PAD.r)/axisN,posf=j=>PAD.l+(j+.5)*bw;
+    let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(maxv,H,fmt)+xLabels(days,H,posf,axisN);
+    const rowsBy={},tots=[];
+    for(let j=0;j<days.length;j++){
+      let y=H-PAD.b,tip_=[],tot=0;
+      const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
+      for(const ch of CHANNELS){
+        if(!keys.includes(ch.k))continue;
+        const v=valf(days[j],ch.k);
+        if(v<=0)continue;
+        tot+=v;
+        const hh=(H-PAD.t-PAD.b)*(v/maxv);y-=hh;
+        s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(hh,0)+'" rx="2" fill="'+ch.color+'"/>';
+        tip_.push(ch.label+": "+(unit==="đ"?vnd(v)+" đ":nf.format(v)+" lead"));
+      }
+      s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+      rowsBy[j]=tip_;tots[j]=tot;
     }
-    let y2=H-PAD.b;
-    const x2=PAD.l+j*bw+bw*0.52;
-    for(const ch of CHANNELS){
-      const v=sum(codes.map(c=>chVal(days[j],c,ch.k,"ld")));
-      if(v<=0)continue;
-      const hh=(H-PAD.t-PAD.b)*(v/maxL);y2-=hh;
-      s+='<rect x="'+x2+'" y="'+y2+'" width="'+w+'" height="'+Math.max(hh,0)+'" rx="2" fill="'+ch.color+'" opacity=".45"/>';
-      tipLd.push(ch.label+": "+nf.format(v)+" lead");
-    }
-    s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
-    rowsBy[j]=[tipSp,tipLd];
+    $(elId).innerHTML=s+'</svg>';
+    $(elId).querySelectorAll("rect[data-i]").forEach(r=>{
+      r.onmousemove=ev=>{const j=+r.dataset.i;
+        tip("<b>"+esc(days[j].label)+" · "+(unit==="đ"?vnd(tots[j])+" đ":nf.format(tots[j])+" lead")+"</b><br>"
+          +(rowsBy[j]||[]).join("<br>"),ev);};
+      r.onmouseleave=()=>tip(null);
+    });
   }
-  s+='</svg>';
-  $("chanchart").innerHTML=s;
-  $("chan-legend").innerHTML=CHANNELS.map(ch=>'<span><i style="background:'+ch.color+'"></i>'+esc(ch.label)+'</span>').join("")
-    +'<span style="color:#6b7280">· cột đậm = chi phí (trục trái) · cột nhạt = lead (trục phải)</span>';
-  $("chanchart").querySelectorAll("rect[data-i]").forEach(r=>{
-    r.onmousemove=ev=>{const j=+r.dataset.i;
-      tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ · "+nf.format(dayLd[j])+" lead</b><br>"
-        +(rowsBy[j][0]||[]).join("<br>")+(rowsBy[j][1].length?"<br><i>Lead:</i><br>"+rowsBy[j][1].join("<br>"):""),ev);};
-    r.onmouseleave=()=>tip(null);
-  });
+  const spf=(d,k)=>sum(codes.map(c=>chSpendDay(d,c,k)||0));
+  const ldf=(d,k)=>sum(codes.map(c=>chVal(d,c,k,"ld")));
+  const SPK=["fbi","fbc","gs"],LDK=CHANNELS.map(ch=>ch.k);
+  const maxSp=Math.max(...days.map(d=>sum(SPK.map(k=>spf(d,k)))),1)*1.12;
+  const maxLd=Math.max(...days.map(d=>sum(LDK.map(k=>ldf(d,k)))),1)*1.12;
+  chanStack("chanchart",SPK,spf,maxSp,short,"đ");
+  chanStack("chanchart-ld",LDK,ldf,maxLd,v=>nf.format(Math.round(v)),"lead");
+  $("chan-legend").innerHTML=CHANNELS.map(ch=>'<span><i style="background:'+ch.color+'"></i>'+esc(ch.label)+'</span>').join("");
   $("chan-note").textContent="LĂNG KÍNH COHORT: QL/Đơn/Doanh thu đếm trên LEAD SINH TRONG KỲ CHỌN — trạng thái tính đến "
     +"lần cập nhật gần nhất, kỳ mới sẽ 'chín' dần khi lead cũ chốt muộn, nên KHÁC card tổng phía trên (đơn ghi nhận "
     +"trong kỳ, khớp KPI booking) · Lead theo ngày phát sinh, tổng kênh khớp cột Lead · FB Conversion = nhóm Meta − "
