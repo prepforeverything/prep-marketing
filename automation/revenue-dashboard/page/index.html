@@ -166,7 +166,7 @@
     <div class="chips" id="basis-chips" style="margin:0 0 12px"></div>
     <div class="kpi-grid" id="eff-summary"></div>
     <div class="card">
-      <h3>Chi phí từng ngày</h3>
+      <h3>Chi phí &amp; doanh thu từng ngày</h3>
       <div class="note" id="sp-note"></div>
       <div id="spendchart"></div>
     </div>
@@ -652,7 +652,9 @@ function renderEff(days,codes){
   if(state.scope==="ALL")renderEffTable(days);
   renderMkt(codes);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
-    +(state.scope==="ALL"?" — cột chồng theo sản phẩm, bấm chip để xem riêng.":".");
+    +" — cột nhạt = doanh thu ("+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ")+", A3+B3 phân bổ ngày là ước lượng), "
+    +"cột đậm = chi phí"+(state.scope==="ALL"?" chồng theo sản phẩm, bấm chip để xem riêng":"")
+    +" · rê chuột xem ME/RE từng ngày.";
   $("eff-note").textContent="Kỳ: "+rangeLabel+" · Doanh thu Paid = A1+B1 (sales chốt) + A3+B3 (tự chốt từ lead paid) "
     +"— A3+B3 tổng kỳ chính xác, phân bổ theo ngày là ước lượng · ME/RE = chi phí ÷ doanh thu Paid "
     +(SHOW_LEADS?"· Lead = L0 lead episode mới, QL = lần đầu chạm L3+ (Prep BI, kênh Paid, first-paid).":"");
@@ -660,17 +662,26 @@ function renderEff(days,codes){
 }
 
 function renderSpendDaily(days,codes){
+  // Chi phí + DOANH THU từng ngày (user 19/07, nối với chart ME/RE bên dưới): cột nhạt rộng =
+  // doanh thu (theo toggle cơ sở), cột chồng-SP hẹp = chi phí — cùng pattern chart Lead & QL.
   const H=300;
   const axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
   const dayTot=days.map(d=>sum(codes.map(c=>dayVal(d,c,"sp_meta")+dayVal(d,c,"sp_g"))));
-  const max=Math.max(...dayTot,1)*1.12;
+  const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1"),a3=xSeries(days,codes,"a3b3");
+  const revTot=days.map((d,j)=>(a1[j]||0)+(b1[j]||0)+(a3[j]||0));
+  const max=Math.max(...revTot,...dayTot,1)*1.12;
   const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN;
   const posf=j=>PAD.l+(j+.5)*bw;
   let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,short)+xLabels(days,H,posf,axisN);
   const rowsBy={};
   for(let j=0;j<days.length;j++){
-    let y=H-PAD.b,rows=[];
-    const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
+    let rows=[];
+    const hr=(H-PAD.t-PAD.b)*(revTot[j]/max);
+    if(revTot[j]>0)
+      s+='<rect x="'+(PAD.l+j*bw+bw*0.10)+'" y="'+(H-PAD.b-hr)+'" width="'+(bw*0.80)
+        +'" height="'+Math.max(hr,0)+'" rx="2" fill="#10b981" opacity=".28"/>';
+    let y=H-PAD.b;
+    const x=PAD.l+j*bw+bw*0.30,w=bw*0.40;
     for(const c of codes){
       const m=dayVal(days[j],c,"sp_meta"),g=dayVal(days[j],c,"sp_g"),v=m+g;
       if(v<=0)continue;
@@ -682,11 +693,14 @@ function renderSpendDaily(days,codes){
     s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
     rowsBy[j]=rows;
   }
-  s+='</svg>';
+  s+='</svg><div class="legend"><span><i style="background:#10b981;opacity:.35"></i>Doanh thu</span>'
+    +'<span><i style="background:#6b7280"></i>Chi phí (chồng theo SP)</span></div>';
   $("spendchart").innerHTML=s;
   $("spendchart").querySelectorAll("rect[data-i]").forEach(r=>{
     r.onmousemove=ev=>{const j=+r.dataset.i;
-      tip("<b>"+esc(days[j].label)+" · chi "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
+      const mr=revTot[j]?(dayTot[j]/revTot[j]*100).toFixed(0)+"%":"—";
+      tip("<b>"+esc(days[j].label)+"</b><br>Doanh thu: "+vnd(revTot[j])+" đ<br>Chi phí: "+vnd(dayTot[j])
+        +" đ · ME/RE ngày: "+mr+"<br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
