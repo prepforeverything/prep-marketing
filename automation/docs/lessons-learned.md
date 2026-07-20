@@ -167,3 +167,18 @@ Publish. (Đã xảy ra với workflow EOD 27–28/6: chưa publish → đối s
   nêu "⚠️ Ad có ngày lẻ 0-chi — kiểm tra". KHÔNG tự reset (tránh kẹt ad tốt mãi ở Phiên 1).
 - **Code:** `fetch_reactivations` + `fetch_ad_hierarchy` + `has_zero_spend_gap` trong `build_meta.py`; test offline
   `tests/test_reactivation.py`. `reactivation_src` (`log`/`spend`) đi kèm mỗi ad để soi nguồn.
+
+## 14. Meta insights lỗi cụm 1504044 (HTTP 400) làm rớt báo cáo (19/07/2026) ⭐
+- **Triệu chứng:** báo cáo sáng TOEIC/VSTEP (đôi khi PTE) rớt nhiều ngày → EOD báo `NO_BASELINE`. Ban đầu tưởng token/quyền.
+- **Sự thật:** token System User OK, account active. Meta Graph **insights** trả `code 2 / error_subcode 1504044
+  "Service temporarily unavailable"` **dưới dạng HTTP 400**, tới **theo CỤM/burst** vài chục giây. Đo tỷ lệ fail/1 call:
+  TOEIC ~20%, VSTEP ~40%, PTE ~0% (nên PTE lọt, TOEIC/VSTEP rớt). `is_transient:false` trong payload là GÂY HIỂU LẦM.
+- **Lỗi code:** `build_meta.http_get` cũ chỉ retry 429/5xx, **không retry HTTP 400** → gặp 1504044 fail ngay → account
+  bị BỎ QUA → không có spend → báo cáo fail → không lưu `state/baseline-<ngày>.json` → EOD không có gì đối soát.
+- **Fix:** (1) `http_get` soi body 400: retry nếu là transient Meta (code 2 / subcode 1504044 / "temporarily
+  unavailable"); token/tham số sai vẫn fail ngay. (2) Retry **tầng account** 3 lần cách 30s — vì burst kéo dài vài
+  chục giây, retry sát nhau trong `http_get` vẫn rơi cùng burst → phải chờ 30s vượt qua.
+- **Chẩn đoán nhanh nếu tái diễn:** KHÔNG phải token. Loop 10 lần `act_{id}/insights?date_preset=last_3d&fields=spend`
+  đo tỷ lệ fail; nếu 1504044 lác đác → là Meta flaky, retry sẽ xuyên.
+- **Lưu ý vận hành:** lịch chạy GitHub Actions **checkout `main`** → fix phải nằm trên `main` mới có tác dụng cho
+  lịch (fix commit ở nhánh feature KHÔNG ảnh hưởng scheduled run). GHA cron cũng hay trễ vài chục phút (phía GitHub).
