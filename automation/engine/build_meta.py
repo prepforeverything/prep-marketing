@@ -17,22 +17,33 @@ from collections import defaultdict
 import prepcfg
 
 
-def http_get(url, timeout=60, retries=4):
-    """GET có retry + backoff cho lỗi mạng tạm thời (timeout/đứt kết nối khi máy mới thức).
-    KHÔNG retry HTTPError (vd token sai 4xx) — để lỗi thật nổi lên ngay."""
+def http_get(url, timeout=60, retries=5):
+    """GET có retry + backoff cho lỗi mạng tạm thời VÀ lỗi transient Meta.
+    Meta hay trả `code 2 / error_subcode 1504044` ("Service temporarily unavailable") DƯỚI DẠNG HTTP 400
+    nhưng thành công khi thử lại (đã kiểm chứng: cùng account fail lần 1 → OK lần 2). Ta soi body 400:
+    nếu là lỗi transient của Meta → retry; còn 400 do token/tham số sai → nổi lên ngay như cũ."""
     last = None
     for attempt in range(retries):
         try:
             req = url if isinstance(url, urllib.request.Request) else urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             return urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503, 504) and attempt < retries - 1:
-                last = e; time.sleep(5 * (attempt + 1)); continue  # rate-limit / lỗi server tạm → thử lại
-            raise  # 400/401/403/404 = lỗi thật → nổi lên ngay
+            transient = e.code in (429, 500, 502, 503, 504)
+            if e.code == 400:  # Meta gói lỗi tạm vào 400 → soi body để phân biệt lỗi tạm vs lỗi thật
+                try:
+                    err = json.loads(e.read().decode("utf-8", "replace")).get("error", {})
+                    if err.get("code") == 2 or err.get("error_subcode") == 1504044 \
+                       or "temporarily unavailable" in (err.get("message") or "").lower():
+                        transient = True
+                except Exception:  # noqa: BLE001 — không đọc/parse được body → coi như lỗi thật
+                    pass
+            if transient and attempt < retries - 1:
+                last = e; time.sleep(5 * (attempt + 1)); continue  # lỗi tạm (rate-limit/server/Meta 1504044) → thử lại
+            raise  # token/tham số sai (400/401/403/404) → nổi lên ngay
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
             last = e
             if attempt < retries - 1:
-                time.sleep(5 * (attempt + 1))  # 5s, 10s, 15s — đủ cho mạng kịp lên sau khi thức
+                time.sleep(5 * (attempt + 1))  # 5s, 10s, 15s, 20s — đủ cho mạng/Meta kịp hồi
     raise last
 
 
@@ -487,20 +498,29 @@ def main():
                 print(f"  {name} ({acct}): ⚠️ KHÔNG truy cập được (HTTP {e.code}) — token thiếu ads_read cho BM của tài khoản này. BỎ QUA.")
                 continue
         rate, rate_src = resolve_rate(cur, name, acct)
-        try:
-            acc, win, win7 = build_account(ga, acct, primary_preset, confirm_preset, rate, cbo_budget, join, objectives, name_include, short_preset, with_meta=(join == "ad_id"), age_preset=age_preset, adid_overlay=adid_overlay)
-            if name_include:  # đối chiếu tổng campaign có tên chứa name_include
-                chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "campaign_name,spend"})
-                acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if name_include.lower() in (c.get("campaign_name") or "").lower()) * rate))
-            elif objectives:  # đối chiếu theo tổng campaign đã lọc objective
-                chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "objective,spend"})
-                acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if c.get("objective") in objectives) * rate))
-            else:
-                chk = ga.page(f"act_{acct}/insights", {"date_preset": primary_preset, "fields": "spend"})
-                acct_tot = int(round(float(chk[0]["spend"]) * rate)) if chk else 0
-        except urllib.error.HTTPError as e:
-            errors[name] = f"HTTP {e.code}"
-            print(f"  {name} ({acct}): ⚠️ KHÔNG kéo được dữ liệu (HTTP {e.code}). BỎ QUA.")
+        # Lỗi Meta transient (code 2 / 1504044) tới theo CỤM vài chục giây → retry sát nhau (trong http_get)
+        # vẫn rơi cùng burst. Nên thử lại CẢ account tối đa 3 lần, chờ 30s để vượt qua burst.
+        acc = None
+        for _atry in range(3):
+            try:
+                acc, win, win7 = build_account(ga, acct, primary_preset, confirm_preset, rate, cbo_budget, join, objectives, name_include, short_preset, with_meta=(join == "ad_id"), age_preset=age_preset, adid_overlay=adid_overlay)
+                if name_include:  # đối chiếu tổng campaign có tên chứa name_include
+                    chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "campaign_name,spend"})
+                    acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if name_include.lower() in (c.get("campaign_name") or "").lower()) * rate))
+                elif objectives:  # đối chiếu theo tổng campaign đã lọc objective
+                    chk = ga.page(f"act_{acct}/insights", {"level": "campaign", "date_preset": primary_preset, "fields": "objective,spend"})
+                    acct_tot = int(round(sum(float(c.get("spend", 0) or 0) for c in chk if c.get("objective") in objectives) * rate))
+                else:
+                    chk = ga.page(f"act_{acct}/insights", {"date_preset": primary_preset, "fields": "spend"})
+                    acct_tot = int(round(float(chk[0]["spend"]) * rate)) if chk else 0
+                break  # kéo đủ dữ liệu account → thoát vòng retry
+            except urllib.error.HTTPError as e:
+                if _atry < 2:
+                    time.sleep(30); acc = None; continue  # Meta lỗi cụm → chờ qua burst rồi thử lại cả account
+                errors[name] = f"HTTP {e.code}"
+                print(f"  {name} ({acct}): ⚠️ KHÔNG kéo được dữ liệu (HTTP {e.code}) sau 3 lần thử. BỎ QUA.")
+                acc = None
+        if acc is None:
             continue
         if rate != 1:
             acc["currency"] = cur
