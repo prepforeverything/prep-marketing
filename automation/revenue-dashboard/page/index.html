@@ -605,7 +605,7 @@ function renderEff(days,codes){
   const rangeLabel=state.mode==="month"?monthLabel(state.month)
     :days[0].label+" – "+days[days.length-1].label+" · "+days.length+" ngày";
   // So sánh vs kỳ liền trước (nếu bật): màu theo TỐT/XẤU — spend trung tính, ME/RE & CPO tăng = xấu
-  const tr={sp:"",rev:"",mere:"",ord:"",cpo:"",aov:"",lead:"",cpl:"",ql:"",pql:"",cpql:"",cr:""};
+  const tr={sp:"",rev:"",mere:"",ord:"",cpo:"",aov:"",lead:"",cpl:"",ql:"",pql:"",cpql:"",cr:"",crql:""};
   const cd=cmpDaysArr();
   if(cd&&cd.length){
     const psp=sum(spendSeries(cd,codes));
@@ -626,6 +626,8 @@ function renderEff(days,codes){
     if(totQl&&pql)tr.cpql=trendHtml(pctChange(totSp/totQl,psp/pql),false);
     if(totLead&&plead&&totOrd&&pord)
       tr.cr=trendHtml(totOrd/totLead*100-pord/plead*100,true," điểm");
+    if(totQl&&pql&&totOrd&&pord)
+      tr.crql=trendHtml(totOrd/totQl*100-pord/pql*100,true," điểm");
   }
   $("eff-summary").innerHTML=[
     card("Chi phí (Spent)",short(totSp),esc(srcLabel())+" · "+vnd(totSp)+" đ",GRAD.sp,false,tr.sp),
@@ -640,7 +642,8 @@ function renderEff(days,codes){
     card("QL",nf.format(totQl),"chạm L3+ trong kỳ",GRAD.proj,false,tr.ql),
     card("%QL",totLead?(totQl/totLead*100).toFixed(1)+"%":"—","QL ÷ Lead",GRAD.kpi,false,tr.pql),
     card("CPQL",totQl?short2(totSp/totQl):"—","Spent ÷ QL",GRAD.pace,false,tr.cpql),
-    card("CR",totLead?(totOrd/totLead*100).toFixed(1)+"%":"—","Order ÷ Lead",GRAD.rev,false,tr.cr)
+    card("CR",totLead?(totOrd/totLead*100).toFixed(1)+"%":"—","Order ÷ Lead",GRAD.rev,false,tr.cr),
+    card("CR/QL",totQl?(totOrd/totQl*100).toFixed(1)+"%":"—","Order ÷ QL",GRAD.proj,false,tr.crql)
   ]:[]).join("");
   renderSpendDaily(days,codes);
   renderMere(days,sp,rev);
@@ -759,6 +762,7 @@ function renderKpiPanel(days,codes,tot){
     {n:"QL",act:tot.ql,t:T.ql,fmt:intF,up:true},
     {n:"%QL",act:tot.lead?tot.ql/tot.lead*100:null,t:ratio(T.ql,T.lead)!=null?ratio(T.ql,T.lead)*100:null,fmt:pctF,up:true},
     {n:"CR (Order/Lead)",act:tot.lead?actOrd/tot.lead*100:null,t:ratio(T.ord,T.lead)!=null?ratio(T.ord,T.lead)*100:null,fmt:pctF,up:true},
+    {n:"CR/QL (Order/QL)",act:tot.ql?actOrd/tot.ql*100:null,t:ratio(T.ord,T.ql)!=null?ratio(T.ord,T.ql)*100:null,fmt:pctF,up:true},
     {n:"AOV",act:actOrd?actRev/actOrd:null,t:ratio(T.rev,T.ord),fmt:vnd,up:true},
     {n:"CPL",act:tot.lead?tot.sp/tot.lead:null,t:ratio(T.sp,T.lead),fmt:vnd,up:false},
     {n:"CPQL",act:tot.ql?tot.sp/tot.ql:null,t:ratio(T.sp,T.ql),fmt:vnd,up:false},
@@ -909,7 +913,7 @@ function renderChannels(days,codes){
       for(const d of days)for(const c of codes)sp+=chSpendDay(d,c,ch.k)||0;}
     const bud=budT(ch.bud);
     return {...ch,sp,ld,ql,won,rev,bud,cpl:sp&&ld?sp/ld:null,cpql:sp&&ql?sp/ql:null,
-      pql:ld?ql/ld*100:null,cr:ld?won/ld*100:null,cpo:sp&&won?sp/won:null,
+      pql:ld?ql/ld*100:null,cr:ld?won/ld*100:null,crql:ql?won/ql*100:null,cpo:sp&&won?sp/won:null,
       aov:won?rev/won:null,mere:sp&&rev?sp/rev*100:null,budPct:sp!=null&&bud?sp/bud*100:null};
   });
   const cell=(r)=>{
@@ -921,13 +925,14 @@ function renderChannels(days,codes){
       +"<td>"+nf.format(r.ql)+"</td><td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td>"
       +"<td>"+(r.cpql!=null?vnd(r.cpql):"—")+"</td>"
       +"<td>"+nf.format(r.won)+"</td><td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.crql!=null?r.crql.toFixed(1)+"%":"—")+"</td>"
       +"<td>"+(r.rev?vnd(r.rev):"—")+"</td><td>"+(r.cpo!=null?vnd(r.cpo):"—")+"</td>"
       +"<td>"+(r.aov!=null?vnd(r.aov):"—")+"</td>"
       +"<td>"+(r.mere!=null?r.mere.toFixed(0)+"%":"—")+"</td>";
   };
   let h="<thead><tr><th>Kênh</th><th>Chi phí</th><th>Ngân sách (kỳ chọn)</th><th>% NS đã dùng</th>"
     +"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th>"
-    +"<th>Đơn</th><th>CR</th><th>Doanh thu</th><th>CPO</th><th>AOV</th><th>ME/RE</th></tr></thead><tbody>";
+    +"<th>Đơn</th><th>CR</th><th>CR/QL</th><th>Doanh thu</th><th>CPO</th><th>AOV</th><th>ME/RE</th></tr></thead><tbody>";
   for(const r of rows){
     h+="<tr><td style='white-space:nowrap'><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:"
       +r.color+";margin-right:7px'></span>"+esc(r.label)+"</td>"+cell(r)+"</tr>";
@@ -1019,16 +1024,17 @@ function grainNote(m){return "Grain THÁNG — đang hiện "+monthLabel(m)+" (t
 
 /* --- Bảng Inbox: Meta campaign không 'conv', bấm dòng xổ từng ad id --- */
 let miSort={k:"sp",d:-1},miOpen={};
-const MI_COLS=[["c","Campaign / Ad"],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["rv","Doanh thu"],["mere","ME/RE"]];
+const MI_COLS=[["c","Campaign / Ad"],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["crql","CR/QL"],["rv","Doanh thu"],["mere","ME/RE"]];
 function miEn(r){return {...r,cpl:r.ld?r.sp/r.ld:null,pql:r.ld?r.ql/r.ld*100:null,
-  cr:r.ld?r.od/r.ld*100:null,mere:r.rv?r.sp/r.rv*100:null};}
+  cr:r.ld?r.od/r.ld*100:null,crql:r.ql?r.od/r.ql*100:null,mere:r.rv?r.sp/r.rv*100:null};}
 function miRow(r,cls,label){
   const mc=r.mere==null?"":r.mere<=60?"text-green":r.mere<=90?"text-amber":"text-red";
   return "<tr class='"+cls+"'><td style='white-space:normal;min-width:230px;text-align:left'>"+label+"</td>"
     +"<td>"+(r.sp?vnd(r.sp):"—")+"</td><td>"+nf.format(r.ld)+"</td>"
     +"<td>"+(r.cpl!=null?vnd(r.cpl):"—")+"</td><td>"+nf.format(r.ql)+"</td>"
     +"<td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td><td>"+nf.format(r.od)+"</td>"
-    +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td>"
+    +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td>"
+    +"<td>"+(r.crql!=null?r.crql.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td>"
     +"<td style='font-weight:700' class='"+mc+"'>"+(r.mere!=null?r.mere.toFixed(0)+"%":"—")+"</td></tr>";
 }
 function renderMi(m,codes){
@@ -1068,7 +1074,7 @@ function renderMi(m,codes){
 /* --- UTM Explorer: drill-down kiểu GA4, chi phí ghép 2 chiều ≥95% (thà '—' còn hơn số sai) --- */
 const MU_DIMS=["s","m","c","ct"],MU_LBL={s:"Source",m:"Medium",c:"Campaign",ct:"Content"};
 let muState={group:"s",path:[],q:"",sort:{k:"ld",d:-1}};
-const MU_COLS=[["key",""],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["rv","Doanh thu"]];
+const MU_COLS=[["key",""],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["crql","CR/QL"],["rv","Doanh thu"]];
 function muData(m,codes){ // gộp các SP đã chọn; prefix sp_key theo SP để mã không va nhau giữa SP
   const rows=[],map={},src={};
   for(const cd of codes){const L=(MKTC[m].lines||{})[cd];if(!L)continue;
@@ -1095,7 +1101,8 @@ function renderMu(m,codes){
       if(ld>=(spleads[k]||1)*0.95){sp+=DD.map[k]||0;cov+=ld;}
     if(!(sp>0&&cov>=g.ld*0.95))sp=null;
     if(muState.group==="s"&&!muState.path.length&&DD.src[g.key])sp=DD.src[g.key];
-    return {...g,sp,cpl:sp&&g.ld?sp/g.ld:null,pql:g.ld?g.ql/g.ld*100:null,cr:g.ld?g.od/g.ld*100:null};
+    return {...g,sp,cpl:sp&&g.ld?sp/g.ld:null,pql:g.ld?g.ql/g.ld*100:null,
+      cr:g.ld?g.od/g.ld*100:null,crql:g.ql?g.od/g.ql*100:null};
   }).sort((a,b)=>muState.sort.d*((a[muState.sort.k]??-1)>(b[muState.sort.k]??-1)?1:-1));
   // filter row: chọn cấp nhóm + tìm nhanh
   $("mu-flt").innerHTML='<span style="font-size:.75rem;color:#6b7280;align-self:center">Nhóm theo:</span>'
@@ -1124,7 +1131,8 @@ function renderMu(m,codes){
       +"<td>"+(r.sp!=null?"~"+vnd(r.sp):"—")+"</td><td>"+nf.format(r.ld)+"</td>"
       +"<td>"+(r.cpl!=null?"~"+vnd(r.cpl):"—")+"</td><td>"+nf.format(r.ql)+"</td>"
       +"<td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td><td>"+nf.format(r.od)+"</td>"
-      +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td></tr>";
+      +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.crql!=null?r.crql.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td></tr>";
   }
   h+="</tbody>";
   $("mu-tbl").innerHTML=h;
@@ -1153,7 +1161,7 @@ function renderEffTable(days){
       cpl:lead?sp/lead:null,pql:lead?ql/lead*100:null,cpql:ql?sp/ql:null};
   }).sort((x,y)=>y.sp-x.sp);
   const leadTh=SHOW_LEADS?"<th>Lead</th><th>CPL</th><th>QL</th><th>%QL</th><th>CPQL</th>":"";
-  const crTh=SHOW_LEADS?"<th>CR</th>":"";
+  const crTh=SHOW_LEADS?"<th>CR</th><th>CR/QL</th>":"";
   const head="<thead><tr><th>Sản phẩm</th><th>Chi phí (Spent)</th>"+leadTh
     +"<th>Doanh thu Paid</th><th>ME/RE</th>"
     +"<th>Order</th>"+crTh+"<th>Chi phí/đơn</th><th>AOV</th></tr></thead>";
@@ -1167,7 +1175,8 @@ function renderEffTable(days){
     +"<td>"+vnd(r.rev)+"</td>"
     +"<td style='font-weight:700'>"+(r.mere!=null?r.mere.toFixed(1)+"%":"—")+"</td>"
     +"<td>"+nf.format(r.ord)+"</td>"
-    +(SHOW_LEADS?"<td>"+(r.lead?(r.ord/r.lead*100).toFixed(1)+"%":"—")+"</td>":"")
+    +(SHOW_LEADS?"<td>"+(r.lead?(r.ord/r.lead*100).toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.ql?(r.ord/r.ql*100).toFixed(1)+"%":"—")+"</td>":"")
     +"<td>"+(r.cpo!=null?vnd(r.cpo):"—")+"</td>"
     +"<td>"+(r.aov!=null?vnd(r.aov):"—")+"</td></tr>").join("");
   const T=x=>sum(rows.map(r=>r[x]||0));
@@ -1178,7 +1187,8 @@ function renderEffTable(days){
       +"<td>"+(tQl?vnd(tSp/tQl):"—")+"</td>":"")
     +"<td>"+vnd(tRev)+"</td>"
     +"<td>"+(tRev?(tSp/tRev*100).toFixed(1)+"%":"—")+"</td><td>"+nf.format(tOrd)+"</td>"
-    +(SHOW_LEADS?"<td>"+(tLead?(tOrd/tLead*100).toFixed(1)+"%":"—")+"</td>":"")
+    +(SHOW_LEADS?"<td>"+(tLead?(tOrd/tLead*100).toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(tQl?(tOrd/tQl*100).toFixed(1)+"%":"—")+"</td>":"")
     +"<td>"+(tOrd?vnd(tSp/tOrd):"—")+"</td><td>"+(tOrd?vnd(tRev/tOrd):"—")+"</td></tr>";
   $("efftbl").innerHTML=head+"<tbody>"+body+foot+"</tbody>";
 }
