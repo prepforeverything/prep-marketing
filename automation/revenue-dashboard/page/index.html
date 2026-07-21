@@ -794,12 +794,9 @@ function renderKpiPanel(days,codes,tot){
   }
   h+="</tbody></table>";
   $("kpiqpanel").innerHTML=h;
-  $("kpiq-note").textContent=(anyT?"":"Chưa có mục tiêu — điền kpi.json. ")
-    +"Cơ sở = Paid đầy đủ (A1+B1+A3+B3), trùng khớp các card phía trên. Mục tiêu rải theo TỶ TRỌNG TUẦN "
-    +"trong file quản trị/KPI master (doanh thu·order·lead·QL theo tuần doanh thu; ngân sách theo tuần "
-    +"ngân sách; trong tuần chia đều ngày; SP chưa khai tuần thì chia đều tháng); chỉ số dẫn xuất suy từ "
-    +"thành phần (vd CR trần = KPI order ÷ KPI lead). Chi phí: %so plan = thực tế ÷ mục tiêu — tốt là BÁM "
-    +"kế hoạch (xanh 90–110%, tiêu thiếu hay vượt đều lệch). CPL/CPQL/ME-RE: đạt = KHÔNG vượt ngưỡng.";
+  // Chú thích dài bỏ theo yêu cầu user 21/07 — logic mục tiêu (tỷ trọng tuần, chỉ số dẫn xuất,
+  // chi phí bám-plan 90–110%, CPL/CPQL/ME-RE không-vượt) GIỮ NGUYÊN, chỉ ẩn phần giải thích.
+  $("kpiq-note").textContent=anyT?"":"Chưa có mục tiêu — điền kpi.json.";
 }
 
 function chChips(elId,cur,keys,onPick){ // chip lọc kênh cho chart (Tất cả + từng kênh)
@@ -987,13 +984,10 @@ function renderChannels(days,codes){
   chanStack("chanchart",SPK,spf,maxSp,short,"đ");
   chanStack("chanchart-ld",LDK,ldf,maxLd,v=>nf.format(Math.round(v)),"lead");
   $("chan-legend").innerHTML=CHANNELS.map(ch=>'<span><i style="background:'+ch.color+'"></i>'+esc(ch.label)+'</span>').join("");
-  $("chan-note").textContent="LĂNG KÍNH COHORT: QL/Đơn/Doanh thu đếm trên LEAD SINH TRONG KỲ CHỌN — trạng thái tính đến "
-    +"lần cập nhật gần nhất, kỳ mới sẽ 'chín' dần khi lead cũ chốt muộn, nên KHÁC card tổng phía trên (đơn ghi nhận "
-    +"trong kỳ, khớp KPI booking) · Lead theo ngày phát sinh, tổng kênh khớp cột Lead · FB Conversion = nhóm Meta − "
-    +"FB Inbox · Chi phí: Meta tách theo tên campaign 'conv', Google Ads API (đều đã gồm thuế) · KOLs/Paid Other "
-    +"chưa có nguồn chi phí · Paid Other (+TikTok) gồm các kênh BI: Tiktok Form, Inbox Tiktok, Landing Ads (không rõ "
-    +"nền tảng), Inbox WhatsApp Ads, Zalo OA Ads, Web UTM, Blog UTM · Doanh thu cohort quy đổi từ USD theo tỷ giá "
-    +"ngày cập nhật · Ngân sách kênh rải theo tỷ trọng tuần KPI master (SP chưa khai tuần thì chia đều tháng).";
+  // Rút gọn theo yêu cầu user 21/07 — chi tiết định nghĩa (FB Conv = Meta − Inbox, nguồn chi phí,
+  // thành phần Paid Other, tỷ giá cohort, ngân sách tuần) giữ trong code/memory, không hiện UI.
+  $("chan-note").textContent="QL / Đơn / Doanh thu đếm trên lead SINH TRONG KỲ chọn (dạng A1+A3) "
+    +"— trạng thái tính đến lần cập nhật gần nhất.";
 }
 
 /* ---------- 2 bảng chi tiết Inbox & UTM (mkt-YYYYMM.json, grain THÁNG — user duyệt 19/07) ---------- */
