@@ -228,6 +228,10 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                     lines[line["code"]][dk] = arr
                 if not okg2 and not pl.get("sp_g_search"):
                     print(f"[WARN] {month} {line['code']}: Google split lỗi — 0", file=sys.stderr)
+                # Tổng Google = Search + GDN (query cấp campaign chuẩn hơn 'FROM customer' — TK Thái
+                # trả 0 ở customer-level nhưng đủ ở campaign-level; đảm bảo tổng chi phí/ME-RE đúng).
+                sr, gd = lines[line["code"]]["sp_g_search"], lines[line["code"]]["sp_g_gdn"]
+                lines[line["code"]]["sp_g"] = [a + b for a, b in zip(sr, gd)]
             # TikTok spend (chỉ khi config bật)
             if c.get("tiktok"):
                 tt_arr, oktt = spend.tiktok_month(acc, line["code"], since, until, n_days, c["currency"])
