@@ -1,0 +1,21 @@
+{
+  "_note": "Dashboard doanh thu A1+B1 thị trường THÁI LAN. Chạy chung engine build_dashboard.py qua --config. Code (repo public) KHÔNG chứa số liệu — data.json/kpi.json/HTML build nằm bên repo private prepedu-landing (publish.repo, thư mục bi-th-mkt-paid). KPI mỗi tháng (THB) điền vào kpi.json bên repo đó. Chỉ IELTS Thái (SP duy nhất có chi ads Thái đáng kể).",
+  "dashboard_title": "Thái Lan — Paid Marketing Performance",
+  "market_keys": [2],
+  "market_label": "Thái Lan",
+  "currency": "THB",
+  "fx_to_vnd": 850,
+  "start_month": "202601",
+  "buckets": {"a1": "paid-a1", "b1": "paid-b1"},
+  "lines": [
+    {"code": "IELTS", "label": "IELTS", "products": [1]}
+  ],
+  "publish": {
+    "repo": "https://github.com/prepforeverything/prepedu-landing.git",
+    "branch": "main",
+    "base_url": "https://lp.prepedu.com",
+    "dir_prefix": "bi-th-",
+    "dir_name": "bi-th-mkt-paid",
+    "marker": "revenue-dashboard-th"
+  }
+}

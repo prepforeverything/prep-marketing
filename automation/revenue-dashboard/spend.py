@@ -40,19 +40,26 @@ def _http(url, *, data=None, headers=None, timeout=60, retries=4):
     raise last
 
 
-def rate_to_vnd(cur, _cache={}):
-    """1 <cur> = ? VND (live, không cần key). None nếu không lấy được — caller quyết định."""
-    if cur == "VND":
+def rate_to(target, cur, _cache={}):
+    """1 <cur> = ? <target> (live, không cần key). None nếu không lấy được — caller quyết định.
+    Tổng quát hóa cho báo cáo đa thị trường (VN target=VND, Thái target=THB)."""
+    if cur == target:
         return 1.0
-    if cur in _cache:
-        return _cache[cur]
+    key = (cur, target)
+    if key in _cache:
+        return _cache[key]
     try:
         d = json.loads(_http(f"https://open.er-api.com/v6/latest/{urllib.parse.quote(cur)}", timeout=20))
-        v = d.get("rates", {}).get("VND")
-        _cache[cur] = float(v) if v else None
+        v = d.get("rates", {}).get(target)
+        _cache[key] = float(v) if v else None
     except Exception:  # noqa: BLE001 — tỷ giá lỗi thì trả None, không hỏng run
-        _cache[cur] = None
-    return _cache[cur]
+        _cache[key] = None
+    return _cache[key]
+
+
+def rate_to_vnd(cur):
+    """Tương thích ngược: 1 <cur> = ? VND."""
+    return rate_to("VND", cur)
 
 
 # ---------------- Meta ----------------
@@ -72,12 +79,12 @@ def _meta_get(path, params, token):
     raise last
 
 
-def meta_daily(acct_id, since, until, token):
-    """{'YYYY-MM-DD': VND} spend theo ngày của 1 tài khoản (level=account, time_increment=1).
-    Quy đổi VND theo currency tài khoản. None nếu lỗi/miss tỷ giá."""
+def meta_daily(acct_id, since, until, token, target="VND"):
+    """{'YYYY-MM-DD': <target>} spend theo ngày của 1 tài khoản (level=account, time_increment=1).
+    Quy đổi sang tiền tệ báo cáo `target` theo currency tài khoản. None nếu lỗi/miss tỷ giá."""
     try:
         info = _meta_get(f"act_{acct_id}", {"fields": "currency"}, token)
-        rate = rate_to_vnd(info.get("currency") or "VND")
+        rate = rate_to(target, info.get("currency") or target)
         if rate is None:
             return None
         out = {}
@@ -96,7 +103,7 @@ def meta_daily(acct_id, since, until, token):
         return None
 
 
-def meta_conv_daily(acct_id, since, until, token):
+def meta_conv_daily(acct_id, since, until, token, target="VND"):
     """{'YYYY-MM-DD': VND} chi phí campaign CONVERSION của 1 tài khoản — phân loại CHỈ THEO TÊN
     campaign chứa 'conv' (chuẩn team, giống ad-ops campaign_name_include='Conversion').
     KHÔNG dùng objective: 17/07 phát hiện campaign tên 'Inbox' chạy OUTCOME_LEADS (tối ưu lead
@@ -105,7 +112,7 @@ def meta_conv_daily(acct_id, since, until, token):
     None nếu lỗi."""
     try:
         info = _meta_get(f"act_{acct_id}", {"fields": "currency"}, token)
-        rate = rate_to_vnd(info.get("currency") or "VND")
+        rate = rate_to(target, info.get("currency") or target)
         if rate is None:
             return None
         out = {}
@@ -127,17 +134,32 @@ def meta_conv_daily(acct_id, since, until, token):
         return None
 
 
-def month_meta_conv(accounts, line_code, since, until, n_days):
-    """([VND conversion-spend từng ngày], ok) của 1 dòng SP. ok=False khi có tài khoản lỗi."""
+def _acct_token(line, acct, default_token):
+    """Token Meta cho 1 tài khoản: nếu accounts.json khai `meta_tokens[acct] = "TÊN_SECRET"`
+    (VD IEThai 01 dùng META_TOKEN_THAILAND — Business Manager Thái khác BM VN) thì lấy secret đó;
+    ngược lại dùng token mặc định META_ACCESS_TOKEN. VN không khai meta_tokens → giữ nguyên."""
+    env = (line.get("meta_tokens") or {}).get(acct)
+    if env:
+        return os.environ.get(env, "").strip() or default_token
+    return default_token
+
+
+def month_meta_conv(accounts, line_code, since, until, n_days, target="VND"):
+    """([<target> conversion-spend từng ngày], ok) của 1 dòng SP. ok=False khi có tài khoản lỗi."""
     import datetime as dt
     d0 = dt.date.fromisoformat(since)
     days = [(d0 + dt.timedelta(days=i)).isoformat() for i in range(n_days)]
     line = accounts.get(line_code, {})
     arr, ok = [0] * n_days, True
-    token = os.environ.get("META_ACCESS_TOKEN", "").strip()
-    if token and line.get("meta") and n_days > 0:
+    default_token = os.environ.get("META_ACCESS_TOKEN", "").strip()
+    if line.get("meta") and n_days > 0:
         for acct in line["meta"]:
-            got = meta_conv_daily(acct, since, until, token)
+            tok = _acct_token(line, acct, default_token)
+            if not tok:
+                ok = False
+                print(f"[WARN] Meta conv act_{acct}: thiếu token", flush=True)
+                continue
+            got = meta_conv_daily(acct, since, until, tok, target)
             if got is None:
                 ok = False
             else:
@@ -177,9 +199,9 @@ def _google_access_token(creds):
 GOOGLE_VERSIONS = ["v23", "v22", "v21", "v20", "v19"]  # thử mới → cũ (version cũ Google khai tử ~12 tháng; v18 chết 07/2026)
 
 
-def google_daily(customer_id, since, until, creds, login_customer_id, _tok_cache={}):
-    """{'YYYY-MM-DD': VND} spend theo ngày của 1 customer Google Ads (GAQL REST searchStream).
-    None nếu lỗi. cost_micros quy đổi theo customer.currency_code."""
+def google_daily(customer_id, since, until, creds, login_customer_id, target="VND", _tok_cache={}):
+    """{'YYYY-MM-DD': <target>} spend theo ngày của 1 customer Google Ads (GAQL REST searchStream).
+    None nếu lỗi. cost_micros quy đổi sang tiền tệ báo cáo theo customer.currency_code."""
     cid = customer_id.replace("-", "").strip()
     try:
         if "t" not in _tok_cache:
@@ -209,7 +231,7 @@ def google_daily(customer_id, since, until, creds, login_customer_id, _tok_cache
         for chunk in json.loads(raw):
             for r in chunk.get("results", []):
                 if rate is None:
-                    rate = rate_to_vnd((r.get("customer") or {}).get("currencyCode") or "VND")
+                    rate = rate_to(target, (r.get("customer") or {}).get("currencyCode") or target)
                     if rate is None:
                         return None
                 day = (r.get("segments") or {}).get("date")
@@ -275,8 +297,8 @@ def sheet_daily(sheet_id, _cache={}):
 
 # ---------------- gộp theo sản phẩm ----------------
 
-def month_spend(accounts, line_code, since, until, n_days):
-    """(meta[], google[]) — VND từng ngày (list dài n_days, index 0 = ngày `since`) của 1 dòng SP.
+def month_spend(accounts, line_code, since, until, n_days, target="VND"):
+    """(meta[], google[]) — <target> từng ngày (list dài n_days, index 0 = ngày `since`) của 1 dòng SP.
     Nguồn lỗi/chưa cấu hình → list 0 (dashboard tự ghi chú nguồn nào đang bật)."""
     import datetime as dt
     d0 = dt.date.fromisoformat(since)
@@ -287,10 +309,15 @@ def month_spend(accounts, line_code, since, until, n_days):
     ok = {"meta": True, "google": True}
 
     meta = [0] * n_days
-    token = os.environ.get("META_ACCESS_TOKEN", "").strip()
-    if token and line.get("meta") and n_days > 0:
+    default_token = os.environ.get("META_ACCESS_TOKEN", "").strip()
+    if line.get("meta") and n_days > 0:
         for acct in line["meta"]:
-            got = meta_daily(acct, since, until, token)
+            tok = _acct_token(line, acct, default_token)
+            if not tok:
+                ok["meta"] = False
+                print(f"[WARN] Meta act_{acct}: thiếu token", flush=True)
+                continue
+            got = meta_daily(acct, since, until, tok, target)
             if got is None:
                 ok["meta"] = False
             else:
@@ -306,7 +333,7 @@ def month_spend(accounts, line_code, since, until, n_days):
         login = ga.get("login_customer_id", "")
         vat = float(ga.get("vat_multiplier") or 1.08)
         for cid in line["google"]:
-            got = google_daily(cid, since, until, creds, login)
+            got = google_daily(cid, since, until, creds, login, target=target)
             if got is None:
                 ok["google"] = False
             else:
