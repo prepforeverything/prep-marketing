@@ -217,6 +217,25 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                 print(f"[WARN] {month} {line['code']}: Google spend lỗi — giữ số cũ", file=sys.stderr)
             lines[line["code"]]["sp_meta"] = meta_arr
             lines[line["code"]]["sp_g"] = g_arr
+            # Google tách Search/GDN theo campaign type (chỉ khi config bật — VN không có → bỏ qua)
+            if c.get("google_split"):
+                gs2, okg2 = spend.google_split_month(acc, line["code"], since, until, n_days, c["currency"])
+                for k, dk in (("search", "sp_g_search"), ("gdn", "sp_g_gdn")):
+                    arr = gs2[k]
+                    if not okg2 and pl.get(dk):  # lỗi → giữ số cũ
+                        o = pl[dk][:n_days]
+                        arr = o + [0] * (n_days - len(o))
+                    lines[line["code"]][dk] = arr
+                if not okg2 and not pl.get("sp_g_search"):
+                    print(f"[WARN] {month} {line['code']}: Google split lỗi — 0", file=sys.stderr)
+            # TikTok spend (chỉ khi config bật)
+            if c.get("tiktok"):
+                tt_arr, oktt = spend.tiktok_month(acc, line["code"], since, until, n_days, c["currency"])
+                if not oktt and pl.get("sp_tt"):
+                    o = pl["sp_tt"][:n_days]
+                    tt_arr = o + [0] * (n_days - len(o))
+                    print(f"[WARN] {month} {line['code']}: TikTok spend lỗi — giữ số cũ", file=sys.stderr)
+                lines[line["code"]]["sp_tt"] = tt_arr
 
     # Lead (L0 = lead episode mới) + QL (lần đầu chạm L3+) từ Prep BI leads_series — CHỈ kênh Paid,
     # attribution first_paid (định nghĩa chuẩn màn Conversion). ⚠️ Tên nhóm phải ĐÚNG theo Config
