@@ -38,6 +38,11 @@ jobs:
       PUBLISH_REPO_TOKEN: ${{ secrets.PUBLISH_REPO_TOKEN }}
       META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
       META_TOKEN_THAILAND: ${{ secrets.META_TOKEN_THAILAND }}
+      # Google Ads (IELTS Thái customer 940-028-4811) — cùng OAuth/developer token với VN
+      GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+      GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+      GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+      GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
