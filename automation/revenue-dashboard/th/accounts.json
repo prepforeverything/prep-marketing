@@ -15,12 +15,14 @@
     "meta_tokens": {
       "1907161559943907": "META_TOKEN_THAILAND"
     },
-    "google": ["940-028-4811"],
+    "google": [
+      "940-028-4811"
+    ],
     "_ghi_chu": "IELTS Thái — Meta: IELTS Thái 1 (553262224077942) / IEThai 01 (1907161559943907, BM Thái → token META_TOKEN_THAILAND) / IELTS Thái 2 (2863366577353491). Google Ads: 940-028-4811 (user cấp 22/07). Nguồn: config ad-ops ielts-thai (Inbox) + ielts-thai-conv (Conversion). Nếu TK nào rỗng chi phí ở dry-run → gán thêm token vào meta_tokens."
   },
   "google_ads": {
-    "login_customer_id": "",
+    "login_customer_id": "493-896-2719",
     "vat_multiplier": 1.0,
-    "_ghi_chu": "Google Ads IELTS Thái: customer 940-028-4811. vat_multiplier=1.0 (KHÔNG áp thuế nhà thầu 8% như VN — Thái khác pháp lý; hiển thị chi phí NET giống Meta Thái). login_customer_id để trống như VN; nếu API trả USER_PERMISSION_DENIED/không thấy customer → điền MCC quản lý TK Thái. Engine tự bật Google khi đủ secrets GOOGLE_ADS_*."
+    "_ghi_chu": "Google Ads IELTS Thái: customer 940-028-4811, quản lý bởi MCC 493-896-2719 (cùng MCC VN — user link 22/07, login_customer_id bắt buộc để hết 403 USER_PERMISSION_DENIED). vat_multiplier=1.0 (không áp thuế nhà thầu như VN — hiển thị NET như Meta Thái)."
   }
 }
