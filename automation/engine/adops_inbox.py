@@ -417,3 +417,51 @@ Bảng trong khối = từng <b>AD</b> với CPL 1/3/7 ngày tô màu theo vùng
 </div></body></html>'''
 open(OUT, "w").write(html)
 print(f"\n✅ HTML: {OUT}")
+
+# ---- baseline cho đối soát cuối ngày (opt-in qua env ADOPS_BASELINE_JSON) --------------------
+# Engine inbox: TẮT chấm theo TỪNG AD ID (đã tắt = ad không còn chạy sáng nay). SCALE/GIẢM chỉ THEO DÕI
+# ngân sách chủ sở hữu (CBO = campaign, ABO = ad set) sáng→chiều — KHÔNG chấm đúng/sai, vì budget CBO
+# đặt ở cấp campaign nên không map 1-1 xuống Nhóm QC. "XEM XÉT TẮT / ĐỌC INBOX" là mục MỀM → không chấm.
+# ID lưu ở dạng raw (như meta_spend) để khớp tuyệt đối với tập ACTIVE + owner budget EOD đọc buổi chiều.
+_baseline_path = os.environ.get("ADOPS_BASELINE_JSON")
+if _baseline_path:
+    def _dir(rec):
+        if rec.startswith("SCALE"): return "up"
+        if rec.startswith("GIẢM"): return "down"
+        if rec.startswith("TẮT"): return "off"   # chỉ TẮT cứng; XEM XÉT TẮT/ĐỌC INBOX = mềm, bỏ qua
+        return "hold"
+    _owner_of = {}   # acct → {adset_id(raw): {"owner_id"(raw), "budget"(sáng)}}
+    for _acct, _a in cfg["accounts"].items():
+        _m = {}
+        for _e in _a.get("adsets", []):
+            if _e.get("cbo") and _e.get("campaign_id") and _e.get("campaign_budget"):
+                _m[_e["id"]] = {"owner_id": _e["campaign_id"], "budget": _e["campaign_budget"]}
+            else:
+                _m[_e["id"]] = {"owner_id": _e["id"], "budget": _e.get("budget") or 0}
+        _owner_of[_acct] = _m
+    _acc = defaultdict(lambda: {"codes": [], "kill_ads": [], "scale_track": []})
+    _seen = set()
+    for g in G:
+        if g["s3"] <= 0:                          # nhóm không chi 3 ngày → không có gì để thao tác
+            continue
+        _acct = next((a["acct"] for a in g["ads"] if a.get("acct") and a["acct"] != "-"), None)
+        if not _acct:
+            continue
+        d = _dir(g["rec"])
+        if d == "off":
+            for a in g["ads"]:
+                if a.get("active", True) and a["id"] and (_acct, a["id"]) not in _seen:
+                    _seen.add((_acct, a["id"]))
+                    _acc[_acct]["kill_ads"].append({"id": a["id"], "code": "", "name": clean_name(a.get("name")),
+                                                    "rec": g["rec"], "src": "nhóm TẮT"})
+        elif d in ("up", "down"):
+            _asid = g["ads"][0]["adset_id"] if g["ads"] else ""
+            _own = _owner_of.get(_acct, {}).get(_asid)
+            if _own:
+                _acc[_acct]["scale_track"].append({"owner_id": _own["owner_id"], "budget": _own["budget"],
+                                                   "dir": d, "name": (g["camp"] or g["name"]), "code": ""})
+    _bl = {"window": [WIN3[0], WIN3[-1]], "kpi_day": kpi_day, "per_ad_action": True,
+           "accounts": {_acct: _entry for _acct, _entry in _acc.items()}}
+    json.dump(_bl, open(_baseline_path, "w", encoding="utf-8"), ensure_ascii=False)
+    _nk = sum(len(v["kill_ads"]) for v in _acc.values()); _ns = sum(len(v["scale_track"]) for v in _acc.values())
+    print(f"✅ baseline EOD: {_baseline_path} ({_nk} ad TẮT · {_ns} cụm SCALE/GIẢM theo dõi)")

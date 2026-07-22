@@ -1,0 +1,59 @@
+name: IELTS Thái ad-ops — đối soát cuối ngày
+
+# 18:17 VN: so trạng thái Meta nhân sự đã thao tác vs checklist đề xuất buổi sáng (engine inbox) → gửi nhóm Thái.
+# Sau hạn thao tác 14h. Đọc baseline (state/baseline-<ngày>.json) do run buổi sáng commit. TẮT chấm theo từng Ad ID;
+# SCALE/GIẢM chỉ theo dõi ngân sách CBO (campaign) sáng→chiều. Cron UTC: 18:17 VN = 11:17 UTC (lệch VSTEP 11:07 tránh đụng).
+# ⚠️ Lịch chỉ chạy khi file nằm trên nhánh mặc định (main). Secrets: META_TOKEN_THAILAND, TELEGRAM_THAI_CHAT_ID.
+on:
+  schedule:
+    - cron: "17 11 * * *"   # 18:17 giờ VN/Thái
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — KHÔNG gửi Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ielts-thai-adops-eod
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      META_TOKEN_THAILAND: ${{ secrets.META_TOKEN_THAILAND }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_THAI_CHAT_ID: ${{ secrets.TELEGRAM_THAI_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4   # lấy main mới nhất → gồm baseline buổi sáng đã commit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Đối soát thực thi cuối ngày
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/engine/eod_compliance.py --product ielts-thai --dry-run
+          else
+            python3 automation/engine/eod_compliance.py --product ielts-thai
+          fi
+
+      - name: Lưu cờ đã-gửi đối soát (chống trùng)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          if [ -n "$(git status --porcelain automation/products/ielts-thai/state)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add automation/products/ielts-thai/state
+            git commit -m "chore(adops): IELTS Thái đối soát cuối ngày $(date +%F) [skip ci]"
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push origin HEAD:main && break
+              echo "push lần $i trượt (có commit mới trên main) — rebase & thử lại"; sleep 3
+            done
+          fi
