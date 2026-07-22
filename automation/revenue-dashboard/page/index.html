@@ -333,7 +333,7 @@ function isCurrentMonth(){
     &&DATA.months[state.month].as_of_day<DATA.months[state.month].days_in_month;
 }
 
-function spendSeries(days,codes){return days.map(d=>sum(codes.map(c=>dayVal(d,c,"sp_meta")+dayVal(d,c,"sp_g"))));}
+function spendSeries(days,codes){return days.map(d=>sum(codes.map(c=>dayVal(d,c,"sp_meta")+dayVal(d,c,"sp_g")+dayVal(d,c,"sp_tt"))));}
 function orderSeries(days,codes){return days.map(d=>sum(codes.map(c=>dayVal(d,c,"o_a1")+dayVal(d,c,"o_b1"))));}
 function spendOn(){const s=DATA.spend_sources||{};return !!(s.meta||s.google);}
 function srcLabel(){const s=DATA.spend_sources||{};
@@ -717,7 +717,7 @@ function renderSpendDaily(days,codes){
   // doanh thu (theo toggle cơ sở), cột chồng-SP hẹp = chi phí — cùng pattern chart Lead & QL.
   const H=300;
   const axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
-  const dayTot=days.map(d=>sum(codes.map(c=>dayVal(d,c,"sp_meta")+dayVal(d,c,"sp_g"))));
+  const dayTot=days.map(d=>sum(codes.map(c=>dayVal(d,c,"sp_meta")+dayVal(d,c,"sp_g")+dayVal(d,c,"sp_tt"))));
   const a1=seriesDays(days,codes,"a1"),b1=seriesDays(days,codes,"b1"),a3=xSeries(days,codes,"a3b3");
   const revTot=days.map((d,j)=>(a1[j]||0)+(b1[j]||0)+(a3[j]||0));
   const max=Math.max(...revTot,...dayTot,1)*1.12;
@@ -734,12 +734,13 @@ function renderSpendDaily(days,codes){
     let y=H-PAD.b;
     const x=PAD.l+j*bw+bw*0.30,w=bw*0.40;
     for(const c of codes){
-      const m=dayVal(days[j],c,"sp_meta"),g=dayVal(days[j],c,"sp_g"),v=m+g;
+      const m=dayVal(days[j],c,"sp_meta"),g=dayVal(days[j],c,"sp_g"),tt=dayVal(days[j],c,"sp_tt"),v=m+g+tt;
       if(v<=0)continue;
       const h=(H-PAD.t-PAD.b)*(v/max);y-=h;
       s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(h,0)
         +'" rx="2" fill="'+COLORS[c]+'"/>';
-      rows.push(lineLabel(c)+": "+vnd(v)+" "+csym()+(g>0?" (Meta "+vnd(m)+" · Google "+vnd(g)+")":""));
+      const brk=[m>0?"Meta "+vnd(m):"",g>0?"Google "+vnd(g):"",tt>0?"TikTok "+vnd(tt):""].filter(Boolean).join(" · ");
+      rows.push(lineLabel(c)+": "+vnd(v)+" "+csym()+(brk?" ("+brk+")":""));
     }
     s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
     rowsBy[j]=rows;
@@ -846,7 +847,7 @@ function renderKpiPanel(days,codes,tot){
 
 function chChips(elId,cur,keys,onPick){ // chip lọc kênh cho chart (Tất cả + từng kênh)
   const items=[{k:"all",label:"Tất cả kênh",color:"#111827"}]
-    .concat(CHANNELS.filter(c=>keys.includes(c.k)));
+    .concat(channels().filter(c=>keys.includes(c.k)));
   $(elId).innerHTML=items.map(c=>'<span class="chip'+(cur===c.k?" on":"")+'" data-k="'+c.k+'"'
     +(cur===c.k?' style="background:'+c.color+'"':'')
     +'><span class="dot" style="background:'+c.color+'"></span>'+esc(c.label)+'</span>').join("");
@@ -861,7 +862,7 @@ function renderLeadDaily(days,codes){
   const max=Math.max(...L,1)*1.12;
   const ys=yScale(max,H),bw=(W-PAD.l-PAD.r)/axisN;
   const posf=j=>PAD.l+(j+.5)*bw;
-  const color=ck==="all"?COLORS[state.scope]:CHANNELS.find(c=>c.k===ck).color;
+  const color=ck==="all"?COLORS[state.scope]:channels().find(c=>c.k===ck).color;
   let s='<svg viewBox="0 0 '+W+' '+H+'">'+grid(max,H,v=>nf.format(Math.round(v)))+xLabels(days,H,posf,axisN);
   for(let j=0;j<days.length;j++){
     const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
@@ -874,7 +875,7 @@ function renderLeadDaily(days,codes){
   s+='</svg>';
   $("leadchart").innerHTML=s;
   $("lead-note").textContent="Cột nhạt = Lead (L0 mới) · cột đậm = QL (chạm L3+) · "+ (state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))
-    +(ck==="all"?"":" · kênh "+CHANNELS.find(c=>c.k===ck).label)+".";
+    +(ck==="all"?"":" · kênh "+channels().find(c=>c.k===ck).label)+".";
   $("leadchart").querySelectorAll("rect[data-i]").forEach(r=>{
     r.onmousemove=ev=>{const j=+r.dataset.i;
       const pq=L[j]?(Q[j]/L[j]*100).toFixed(1)+"%":"—";
@@ -916,13 +917,29 @@ function renderCplDaily(days,codes){
   });
 }
 
-const CHANNELS=[
-  {k:"fbi",label:"Facebook Inbox",color:"#2563eb",bud:"Inbox"},
-  {k:"fbc",label:"Facebook Conversion",color:"#8b5cf6",bud:"FB Conv"},
-  {k:"gs",label:"Google Search",color:"#f59e0b",bud:"GG Search"},
-  {k:"kol",label:"KOLs",color:"#ec4899",bud:null},
-  {k:"op",label:"Paid Other (+TikTok)",color:"#64748b",bud:null}
-];
+// Có dòng dữ liệu nào (mọi tháng/SP) chứa mảng `field` không → để hiện kênh mới đúng lúc.
+// VN không có sp_g_gdn/sp_tt → GDN/TikTok KHÔNG hiện, bảng VN giữ nguyên.
+function dataHas(field){
+  for(const m in DATA.months){const L=DATA.months[m].lines||{};
+    for(const c in L){if(Array.isArray(L[c][field])&&L[c][field].length)return true;}}
+  return false;
+}
+// Danh sách kênh — 5 kênh cơ sở + GDN/TikTok chèn khi data có chi phí tương ứng.
+// GDN: chi phí tách theo loại campaign (Google Display/Demand Gen); lead nằm ở dòng Google Search
+// (BI không tách Search/GDN). TikTok: chi phí riêng; lead nằm ở Paid Other.
+function channels(){
+  const hasGdn=dataHas("sp_g_gdn"),hasTt=dataHas("sp_tt");
+  const out=[
+    {k:"fbi",label:"Facebook Inbox",color:"#2563eb",bud:"Inbox"},
+    {k:"fbc",label:"Facebook Conversion",color:"#8b5cf6",bud:"FB Conv"},
+    {k:"gs",label:"Google Search",color:"#f59e0b",bud:"GG Search"},
+  ];
+  if(hasGdn)out.push({k:"gdn",label:"Google GDN",color:"#d97706",bud:"GDN"});
+  out.push({k:"kol",label:"KOLs",color:"#ec4899",bud:null});
+  if(hasTt)out.push({k:"tt",label:"TikTok",color:"#0ea5e9",bud:null});
+  out.push({k:"op",label:hasTt?"Paid Other":"Paid Other (+TikTok)",color:"#64748b",bud:null});
+  return out;
+}
 function chVal(d,code,ck,kind){ // kind: 'ld' | 'ql'
   const m=DATA.months[d.m].lines[code]||{};
   const src=(kind==="ld"?m.ch_ld:m.ch_ql)||{};
@@ -932,12 +949,14 @@ function chCo(d,code,ck,kind){ // cohort theo ngày SINH lead: kind 'ql' | 'won'
   const m=DATA.months[d.m].lines[code]||{};
   return (((m.ch_co||{})[ck]||{})[kind]||[])[d.i]||0;
 }
-function chSpendDay(d,code,ck){ // chi phí kênh/ngày: fbi = Meta − Conv, fbc = Conv, gs = Google
+function chSpendDay(d,code,ck){ // chi phí kênh/ngày: fbi = Meta − Conv, fbc = Conv, gs = Google Search, gdn/tt riêng
   const m=DATA.months[d.m].lines[code]||{};
   const fbc=(m.sp_fbc||[])[d.i]||0;
   if(ck==="fbc")return fbc;
   if(ck==="fbi")return Math.max(((m.sp_meta||[])[d.i]||0)-fbc,0);
-  if(ck==="gs")return (m.sp_g||[])[d.i]||0;
+  if(ck==="gs")return ((m.sp_g_search||m.sp_g)||[])[d.i]||0; // Thái: Search riêng; VN: tổng Google (fallback)
+  if(ck==="gdn")return (m.sp_g_gdn||[])[d.i]||0;
+  if(ck==="tt")return (m.sp_tt||[])[d.i]||0;
   return null; // kol/op chưa có nguồn chi phí
 }
 function renderChannels(days,codes){
@@ -947,7 +966,8 @@ function renderChannels(days,codes){
       const ch=(((KPI&&KPI[d.m])||{})[c]||{}).channels;
       if(ch&&ch[key]!=null){any=true;v+=ch[key]*dayShare(d.m,c,"wk_spend",d.i);}}
     return any?v:null;};
-  const rows=CHANNELS.map(ch=>{
+  const CH=channels();
+  const rows=CH.map(ch=>{
     let ld=0,ql=0,won=0,rev=0,sp=null;
     for(const d of days)for(const c of codes){ld+=chVal(d,c,ch.k,"ld");
       ql+=chCo(d,c,ch.k,"ql");won+=chCo(d,c,ch.k,"won");rev+=chCo(d,c,ch.k,"rev");}
@@ -1001,7 +1021,7 @@ function renderChannels(days,codes){
     for(let j=0;j<days.length;j++){
       let y=H-PAD.b,tip_=[],tot=0;
       const x=PAD.l+j*bw+bw*0.14,w=bw*0.72;
-      for(const ch of CHANNELS){
+      for(const ch of CH){
         if(!keys.includes(ch.k))continue;
         const v=valf(days[j],ch.k);
         if(v<=0)continue;
@@ -1023,16 +1043,22 @@ function renderChannels(days,codes){
   }
   const spf=(d,k)=>sum(codes.map(c=>chSpendDay(d,c,k)||0));
   const ldf=(d,k)=>sum(codes.map(c=>chVal(d,c,k,"ld")));
-  const SPK=["fbi","fbc","gs"],LDK=CHANNELS.map(ch=>ch.k);
+  // Chart chi phí: kênh có chi phí (thêm gdn/tt nếu có). Chart lead: kênh có lead (gdn/tt không có → loại).
+  const SPK=["fbi","fbc","gs"];
+  if(dataHas("sp_g_gdn"))SPK.push("gdn");
+  if(dataHas("sp_tt"))SPK.push("tt");
+  const LDK=CH.filter(ch=>ch.k!=="gdn"&&ch.k!=="tt").map(ch=>ch.k);
   const maxSp=Math.max(...days.map(d=>sum(SPK.map(k=>spf(d,k)))),1)*1.12;
   const maxLd=Math.max(...days.map(d=>sum(LDK.map(k=>ldf(d,k)))),1)*1.12;
   chanStack("chanchart",SPK,spf,maxSp,short,"đ");
   chanStack("chanchart-ld",LDK,ldf,maxLd,v=>nf.format(Math.round(v)),"lead");
-  $("chan-legend").innerHTML=CHANNELS.map(ch=>'<span><i style="background:'+ch.color+'"></i>'+esc(ch.label)+'</span>').join("");
+  $("chan-legend").innerHTML=CH.map(ch=>'<span><i style="background:'+ch.color+'"></i>'+esc(ch.label)+'</span>').join("");
   // Rút gọn theo yêu cầu user 21/07 — chi tiết định nghĩa (FB Conv = Meta − Inbox, nguồn chi phí,
   // thành phần Paid Other, tỷ giá cohort, ngân sách tuần) giữ trong code/memory, không hiện UI.
   $("chan-note").textContent="QL / Đơn / Doanh thu đếm trên lead SINH TRONG KỲ chọn (dạng A1+A3) "
-    +"— trạng thái tính đến lần cập nhật gần nhất.";
+    +"— trạng thái tính đến lần cập nhật gần nhất."
+    +(dataHas("sp_g_gdn")?" · Google tách Search/GDN theo loại campaign; lead GDN nằm ở dòng Google Search (BI không tách).":"")
+    +(dataHas("sp_tt")?" · TikTok tách chi phí riêng; lead TikTok nằm ở dòng Paid Other.":"");
 }
 
 /* ---------- 2 bảng chi tiết Inbox & UTM (mkt-YYYYMM.json, grain THÁNG — user duyệt 19/07) ---------- */
