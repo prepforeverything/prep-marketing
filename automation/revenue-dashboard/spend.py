@@ -249,6 +249,157 @@ def google_daily(customer_id, since, until, creds, login_customer_id, target="VN
         return None
 
 
+def google_daily_by_type(customer_id, since, until, creds, login_customer_id, target="VND", _tok_cache={}):
+    """{'search':{day:<target>}, 'gdn':{day:<target>}} — chi phí Google/ngày TÁCH theo campaign type
+    (advertising_channel_type = SEARCH → search; DISPLAY/DEMAND_GEN/DISCOVERY/VIDEO... → gdn). None nếu lỗi.
+    Cũng log số dòng để chẩn đoán (0 dòng = TK không có campaign chạy trong kỳ)."""
+    cid = customer_id.replace("-", "").strip()
+    try:
+        if "t" not in _tok_cache:
+            _tok_cache["t"] = _google_access_token(creds)
+        headers = {"Authorization": f"Bearer {_tok_cache['t']}",
+                   "developer-token": creds["GOOGLE_ADS_DEVELOPER_TOKEN"], "Content-Type": "application/json"}
+        if login_customer_id:
+            headers["login-customer-id"] = login_customer_id.replace("-", "").strip()
+        q = ("SELECT segments.date, metrics.cost_micros, campaign.advertising_channel_type, "
+             f"customer.currency_code FROM campaign WHERE segments.date BETWEEN '{since}' AND '{until}'")
+        raw = None
+        for ver in ([_tok_cache["ver"]] if "ver" in _tok_cache else GOOGLE_VERSIONS):
+            try:
+                raw = _http(f"https://googleads.googleapis.com/{ver}/customers/{cid}/googleAds:searchStream",
+                            data=json.dumps({"query": q}).encode(), headers=headers)
+                _tok_cache["ver"] = ver
+                break
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    continue
+                raise
+        if raw is None:
+            print(f"[WARN] Google Ads {customer_id} (by type): mọi version 404", flush=True)
+            return None
+        search, gdn, rate, rows = {}, {}, None, 0
+        for chunk in json.loads(raw):
+            for r in chunk.get("results", []):
+                rows += 1
+                if rate is None:
+                    rate = rate_to(target, (r.get("customer") or {}).get("currencyCode") or target)
+                    if rate is None:
+                        return None
+                day = (r.get("segments") or {}).get("date")
+                cost = int(round(int((r.get("metrics") or {}).get("costMicros") or 0) / 1e6 * rate))
+                ct = (r.get("campaign") or {}).get("advertisingChannelType") or ""
+                b = search if ct == "SEARCH" else gdn
+                b[day] = b.get(day, 0) + cost
+        print(f"[INFO] Google {customer_id}: {rows} campaign-day rows — "
+              f"search {sum(search.values()):,} / gdn {sum(gdn.values()):,} {target}", flush=True)
+        return {"search": search, "gdn": gdn}
+    except Exception as e:  # noqa: BLE001
+        detail = ""
+        if isinstance(e, urllib.error.HTTPError):
+            try:
+                detail = " " + e.read().decode("utf-8", "replace")[:400].replace("\n", " ")
+            except Exception:  # noqa: BLE001
+                pass
+        print(f"[WARN] Google Ads {customer_id} (by type): {e}{detail}", flush=True)
+        return None
+
+
+def google_split_month(accounts, line_code, since, until, n_days, target="VND"):
+    """({'search':[..], 'gdn':[..]}, ok) — chi phí Google/ngày của 1 dòng, tách Search/GDN (× vat_multiplier)."""
+    import datetime as dt
+    d0 = dt.date.fromisoformat(since)
+    days = [(d0 + dt.timedelta(days=i)).isoformat() for i in range(n_days)]
+    line = accounts.get(line_code, {})
+    ga = accounts.get("google_ads") or {}
+    res = {"search": [0] * n_days, "gdn": [0] * n_days}
+    ok = True
+    creds = google_creds()
+    if creds and line.get("google") and n_days > 0:
+        login = ga.get("login_customer_id", "")
+        vat = float(ga.get("vat_multiplier") or 1.0)
+        for cid in line["google"]:
+            got = google_daily_by_type(cid, since, until, creds, login, target)
+            if got is None:
+                ok = False
+            else:
+                for key in ("search", "gdn"):
+                    for i, day in enumerate(days):
+                        res[key][i] += int(round(got[key].get(day, 0) * vat))
+    elif line.get("google"):
+        ok = False  # có cấu hình Google nhưng thiếu creds → caller giữ số cũ
+    return res, ok
+
+
+# ---------------- TikTok Ads (Marketing API v1.3) ----------------
+
+TIKTOK_BASE = "https://business-api.tiktok.com/open_api/v1.3"
+
+
+def tiktok_daily(advertiser_id, since, until, token, target="VND"):
+    """{'YYYY-MM-DD': <target>} spend/ngày 1 advertiser TikTok (report/integrated BASIC, dim stat_time_day).
+    Spend theo currency của advertiser → quy đổi target. None nếu lỗi."""
+    adv = str(advertiser_id).strip()
+    try:
+        cur = target
+        try:  # currency của advertiser (để quy đổi đúng)
+            info = _http(f"{TIKTOK_BASE}/advertiser/info/?" + urllib.parse.urlencode(
+                {"advertiser_ids": json.dumps([adv]), "fields": json.dumps(["currency"])}),
+                headers={"Access-Token": token})
+            lst = ((json.loads(info).get("data") or {}).get("list") or [])
+            if lst and lst[0].get("currency"):
+                cur = lst[0]["currency"]
+        except Exception:  # noqa: BLE001 — không lấy được currency thì coi như đã là target
+            pass
+        rate = rate_to(target, cur)
+        if rate is None:
+            return None
+        out, page = {}, 1
+        while True:
+            params = {"advertiser_id": adv, "report_type": "BASIC", "data_level": "AUCTION_ADVERTISER",
+                      "dimensions": json.dumps(["stat_time_day"]), "metrics": json.dumps(["spend"]),
+                      "start_date": since, "end_date": until, "page_size": 1000, "page": page}
+            d = json.loads(_http(f"{TIKTOK_BASE}/report/integrated/get/?" + urllib.parse.urlencode(params),
+                                 headers={"Access-Token": token}))
+            if d.get("code") not in (0, None):
+                print(f"[WARN] TikTok {adv}: {d.get('message')}", flush=True)
+                return None
+            data = d.get("data") or {}
+            for r in data.get("list", []):
+                day = str((r.get("dimensions") or {}).get("stat_time_day") or "")[:10]
+                sp = float((r.get("metrics") or {}).get("spend") or 0)
+                if day:
+                    out[day] = out.get(day, 0) + int(round(sp * rate))
+            pi = data.get("page_info") or {}
+            if page >= int(pi.get("total_page") or 1):
+                return out
+            page += 1
+    except Exception as e:  # noqa: BLE001
+        print(f"[WARN] TikTok {adv}: {e}", flush=True)
+        return None
+
+
+def tiktok_month(accounts, line_code, since, until, n_days, target="VND"):
+    """([spend/ngày], ok) TikTok của 1 dòng. advertiser IDs ở accounts[line].tiktok; token env TIKTOK_ACCESS_TOKEN."""
+    import datetime as dt
+    d0 = dt.date.fromisoformat(since)
+    days = [(d0 + dt.timedelta(days=i)).isoformat() for i in range(n_days)]
+    line = accounts.get(line_code, {})
+    arr, ok = [0] * n_days, True
+    token = os.environ.get("TIKTOK_ACCESS_TOKEN", "").strip()
+    advs = line.get("tiktok") or []
+    if token and advs and n_days > 0:
+        for adv in advs:
+            got = tiktok_daily(adv, since, until, token, target)
+            if got is None:
+                ok = False
+            else:
+                for i, day in enumerate(days):
+                    arr[i] += got.get(day, 0)
+    elif advs and not token:
+        ok = False  # có advertiser nhưng thiếu token → caller giữ số cũ
+    return arr, ok
+
+
 # ---------------- Google Sheet (Ads Script của team ghi ra — dùng khi CHƯA có API) ----------------
 
 def _vnd_cell(s):
