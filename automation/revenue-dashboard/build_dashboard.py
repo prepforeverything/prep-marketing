@@ -38,14 +38,23 @@ import spend  # noqa: E402
 VN_TZ = dt.timezone(dt.timedelta(hours=7))
 
 
-def cfg():
-    return json.loads((HERE / "config.json").read_text(encoding="utf-8"))
+# Thư mục chứa config đang dùng — accounts.json luôn nằm CẠNH config (VN: HERE; Thái: HERE/th).
+CONFIG_DIR = HERE
+
+
+def cfg(path=None):
+    """Đọc config; `path` cho phép chạy nhiều thị trường từ 1 codebase (VD --config th/config.json).
+    Ghi lại thư mục config để accounts() lấy đúng accounts.json cạnh nó."""
+    global CONFIG_DIR
+    p = Path(path).resolve() if path else (HERE / "config.json")
+    CONFIG_DIR = p.parent
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def accounts():
-    """Sổ tài khoản quảng cáo (accounts.json) — thiếu/hỏng thì coi như không có nguồn spend."""
+    """Sổ tài khoản quảng cáo (accounts.json cạnh config) — thiếu/hỏng thì coi như không có nguồn spend."""
     try:
-        return json.loads((HERE / "accounts.json").read_text(encoding="utf-8"))
+        return json.loads((CONFIG_DIR / "accounts.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         print("[WARN] accounts.json thiếu/hỏng — bỏ qua chi phí", file=sys.stderr)
         return {}
@@ -196,7 +205,7 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
         acc = accounts()
         until = (dt.date(int(month[:4]), int(month[4:6]), 1) + dt.timedelta(days=max(n_days - 1, 0))).isoformat()
         for line in c["lines"]:
-            meta_arr, g_arr, ok = spend.month_spend(acc, line["code"], since, until, n_days)
+            meta_arr, g_arr, ok = spend.month_spend(acc, line["code"], since, until, n_days, c["currency"])
             pl = ((prev or {}).get("lines") or {}).get(line["code"], {})
             if not ok["meta"] and pl.get("sp_meta"):  # nguồn lỗi → giữ số cũ, KHÔNG ghi 0 đè
                 o = pl["sp_meta"][:n_days]
@@ -255,7 +264,7 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
         else:
             arr, okc = spend.month_meta_conv(accounts(), line["code"], since,
                                              (dt.date(int(month[:4]), int(month[4:6]), 1)
-                                              + dt.timedelta(days=max(n - 1, 0))).isoformat(), n)
+                                              + dt.timedelta(days=max(n - 1, 0))).isoformat(), n, c["currency"])
         if not okc and pl.get("sp_fbc"):
             o = pl["sp_fbc"][:n]
             arr = o + [0] * (n - len(o))
@@ -296,16 +305,16 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                 chl["fbc"] = [max(a - b, 0) for a, b in zip(raw["mg"][0], raw["fbi"][0])]
                 chq["fbc"] = [max(a - b, 0) for a, b in zip(raw["mg"][1], raw["fbi"][1])]
         per["ch_ld"], per["ch_ql"] = chl, chq
-        # 3) Cohort theo kênh — lead sinh ngày i → ql/won/rev (VND) đến as_of hôm chạy.
+        # 3) Cohort theo kênh — lead sinh ngày i → ql/won/rev (tiền tệ báo cáo) đến as_of hôm chạy.
         #    rev BI trả USD (currency chưa ăn — đã báo) → quy đổi 1 tỷ giá/run; lỗi nguồn nào giữ số cũ.
         cho, cfail = {}, False
         if fixture_dir or n == 0:
             for ck in ("fbi", "fbc", "gs", "kol", "op"):
                 cho[ck] = {"ql": [0] * n, "won": [0] * n, "rev": [0] * n}
         else:
-            usd = spend.rate_to_vnd("USD")
+            rate = spend.rate_to(c["currency"], "USD")  # USD → tiền tệ báo cáo (VN: VND, Thái: THB)
             rawc = {}
-            if usd is None:
+            if rate is None:
                 cfail = True
             else:
                 until_c = (dt.date(int(month[:4]), int(month[4:6]), 1)
@@ -322,7 +331,7 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                         if 0 <= i < n:
                             ql_[i] = int(q.get("ql") or 0)
                             won_[i] = int(q.get("won") or 0)
-                            rev_[i] = int(round((q.get("revenue_usd") or 0) * usd))
+                            rev_[i] = int(round((q.get("revenue_usd") or 0) * rate))
                     rawc[ck] = {"ql": ql_, "won": won_, "rev": rev_}
             if cfail:
                 if pl.get("ch_co"):
@@ -377,6 +386,8 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
     return {
         "generated_at": now.strftime("%Y-%m-%d %H:%M (GMT+7)"),
         "currency": c["currency"],
+        "fx_to_vnd": c.get("fx_to_vnd"),  # tỷ giá cố định để frontend cho phép xem quy đổi VND (Thái); null = không có toggle
+        "title": c.get("dashboard_title"),  # tiêu đề riêng (Thái); null = frontend giữ tiêu đề mặc định VN
         "market": c["market_label"],
         "lines": [{"code": l["code"], "label": l["label"]} for l in c["lines"]],
         "spend_sources": {"meta": True, "google": False} if fixture_dir else spend.sources_active(accounts()),
@@ -387,7 +398,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 def ensure_kpi(c, publish_dir, months):
     """kpi.json: thêm khung tháng mới (null), KHÔNG bao giờ đè số người dùng đã điền."""
     f = publish_dir / "kpi.json"
-    kpi = {"_note": "KPI doanh thu A1+B1 theo tháng (VND) — điền số cho từng dòng; null = chưa có KPI."}
+    kpi = {"_note": f"KPI doanh thu A1+B1 theo tháng ({c['currency']}) — điền số cho từng dòng; null = chưa có KPI."}
     if f.exists():
         try:
             kpi = json.loads(f.read_text(encoding="utf-8"))
@@ -404,7 +415,13 @@ def ensure_kpi(c, publish_dir, months):
 
 
 def find_or_create_dir(c, repo_root):
-    """Thư mục dashboard `bi-<token>` trong repo publish — nhận diện qua publish-meta.json marker."""
+    """Thư mục dashboard trong repo publish. Nếu config chỉ định `dir_name` (VD 'bi-th-mkt-paid')
+    thì dùng thẳng tên cố định đó; ngược lại nhận diện `bi-<token>` qua publish-meta.json marker."""
+    fixed = c["publish"].get("dir_name")
+    if fixed:
+        d = repo_root / fixed
+        d.mkdir(exist_ok=True)
+        return d
     marker = c["publish"]["marker"]
     for d in sorted(repo_root.glob(c["publish"]["dir_prefix"] + "*")):
         meta = d / "publish-meta.json"
@@ -462,8 +479,10 @@ def main():
                     help="bỏ cache, kéo lại toàn bộ lịch sử từ start_month (khi BI điều chỉnh số cũ)")
     ap.add_argument("--skip-if-fresh", action="store_true",
                     help="đã có số đến hết hôm qua thì thoát ngay (dùng cho các lượt cron dự phòng)")
+    ap.add_argument("--config", help="đường dẫn config.json (mặc định config.json cạnh script — VN). "
+                                     "Thái: automation/revenue-dashboard/th/config.json")
     a = ap.parse_args()
-    c = cfg()
+    c = cfg(a.config)
 
     token = os.environ.get("PUBLISH_REPO_TOKEN", "").strip()
     push = not a.dry_run and not a.from_fixture

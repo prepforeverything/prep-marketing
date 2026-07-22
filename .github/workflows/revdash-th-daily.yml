@@ -1,0 +1,67 @@
+name: Dashboard doanh thu A1+B1 — Thái Lan hằng ngày
+
+# Bản Thái Lan của revdash-daily.yml: dùng CHUNG engine build_dashboard.py với --config th/config.json.
+# Fetch Prep BI (market Thái, THB) → build → push repo PRIVATE prepedu-landing (thư mục bi-th-mkt-paid).
+# Số liệu KHÔNG ghi vào repo public này. Lịch lệch VN vài phút để không chạy trùng lúc.
+# concurrency group DÙNG CHUNG với VN → 2 build không push đồng thời vào prepedu-landing.
+# META_TOKEN_THAILAND: token BM Thái cho tài khoản IEThai 01 (accounts.json khai per-account).
+# ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
+on:
+  schedule:
+    - cron: "55 0 * * *"   # 07:55 VN
+    - cron: "25 1 * * *"   # 08:25 VN
+    - cron: "55 1 * * *"   # 08:55 VN
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — build ra artifact, KHÔNG push repo publish"
+        type: boolean
+        default: false
+      force_backfill:
+        description: "Kéo lại TOÀN BỘ lịch sử (khi BI điều chỉnh số tháng cũ đã đóng băng)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: revenue-dashboard
+  cancel-in-progress: false
+
+permissions:
+  contents: read           # KHÔNG cần write ở repo này — push sang repo khác bằng PUBLISH_REPO_TOKEN
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      PREP_BI_API_KEY: ${{ secrets.PREP_BI_API_KEY }}
+      PUBLISH_REPO_TOKEN: ${{ secrets.PUBLISH_REPO_TOKEN }}
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      META_TOKEN_THAILAND: ${{ secrets.META_TOKEN_THAILAND }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build & publish dashboard (Thái Lan)
+        run: |
+          CFG=automation/revenue-dashboard/th/config.json
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/revenue-dashboard/build_dashboard.py --config "$CFG" --dry-run --out out
+          elif [ "${{ github.event.inputs.force_backfill }}" = "true" ]; then
+            python3 automation/revenue-dashboard/build_dashboard.py --config "$CFG" --force-backfill
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            python3 automation/revenue-dashboard/build_dashboard.py --config "$CFG" --skip-if-fresh
+          else
+            python3 automation/revenue-dashboard/build_dashboard.py --config "$CFG"
+          fi
+
+      - name: Upload artifact (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: revenue-dashboard-th-dry-run
+          path: out/
+          retention-days: 3

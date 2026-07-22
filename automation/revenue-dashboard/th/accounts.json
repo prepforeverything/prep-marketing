@@ -1,0 +1,26 @@
+{
+  "_huong_dan": [
+    "Sổ tài khoản quảng cáo cho dashboard Thái Lan — pipeline spend đọc file này mỗi sáng.",
+    "Giống accounts.json VN, thêm 'meta_tokens': map account_id → TÊN BIẾN SECRET nếu tài khoản đó",
+    "dùng token khác token mặc định META_ACCESS_TOKEN (VD IEThai 01 nằm ở Business Manager Thái).",
+    "Tài khoản không khai trong meta_tokens → dùng META_ACCESS_TOKEN mặc định.",
+    "File này chỉ chứa ID định danh (không phải secret, không phải số liệu). Token nằm trong GitHub Secrets."
+  ],
+  "IELTS": {
+    "meta": [
+      "553262224077942",
+      "1907161559943907",
+      "2863366577353491"
+    ],
+    "meta_tokens": {
+      "1907161559943907": "META_TOKEN_THAILAND"
+    },
+    "google": [],
+    "_ghi_chu": "IELTS Thái — Meta: IELTS Thái 1 (553262224077942) / IEThai 01 (1907161559943907, BM Thái → token META_TOKEN_THAILAND) / IELTS Thái 2 (2863366577353491). Nguồn: config ad-ops ielts-thai (Inbox) + ielts-thai-conv (Conversion). Nếu TK nào rỗng chi phí ở dry-run → gán thêm token vào meta_tokens."
+  },
+  "google_ads": {
+    "login_customer_id": "",
+    "vat_multiplier": 1.08,
+    "_ghi_chu": "IELTS Thái chưa chạy Google Ads. Khi chạy: thêm customer ID vào IELTS.google + login_customer_id (MCC) — engine tự bật khi đủ secrets GOOGLE_ADS_*."
+  }
+}

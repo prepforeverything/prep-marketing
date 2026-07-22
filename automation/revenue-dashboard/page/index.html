@@ -121,6 +121,7 @@
   <header>
     <h1>VN1 Paid Marketing Performance</h1>
     <span class="subtitle" id="updated"></span>
+    <div class="chips" id="cur-chips" style="display:none;margin:6px 0 0"></div>
     <div class="timebar">
       <div id="dp-btn">📅 <span id="dp-label"></span> <span class="car">▼</span></div>
       <div id="dp-panel">
@@ -246,21 +247,28 @@ const SHOW_LEADS=true;
 const SHOW_CHANNELS=true; // phương án (a): chỉ số kênh grain THÁNG (user duyệt xem thử 17/07)
  // nhóm chỉ số lead — logic chỉ-Paid, user duyệt 16/07 (khớp màn BI)
 let DATA=null,KPI=null,DAYS=[]; // DAYS: mỗi ngày có dữ liệu, phẳng qua các tháng
-let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev"};
+let state={mode:"month",month:null,from:null,to:null,scope:"ALL",tab:"rev",cur:null};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
 const sum=a=>a.reduce((x,y)=>x+y,0);
 const nf=new Intl.NumberFormat("vi-VN");
 const pad2=n=>String(n).padStart(2,"0");
-function vnd(n){return nf.format(Math.round(n));}
+// ---- Tiền tệ hiển thị: data.json luôn theo tiền tệ bản địa (VN=VND, Thái=THB). state.cur là tiền tệ
+// đang hiển thị; chỉ thị trường THB mới có toggle quy đổi VND (tỷ giá cố định data.fx_to_vnd, VD 850).
+// fx()=hệ số nhân áp cho MỌI giá trị TIỀN (vnd/short/short2 chỉ dùng cho tiền — số đếm dùng nf.format,
+// nên VN luôn fx()=1, tuyệt đối không đổi). csym()=ký hiệu tiền hiện hành.
+function fx(){return (state.cur===DATA.currency)?1:(DATA.currency==="THB"&&state.cur==="VND"?(DATA.fx_to_vnd||1):1);}
+function csym(){return state.cur==="VND"?"đ":(state.cur==="THB"?"฿":state.cur);}
+function vnd(n){return nf.format(Math.round(n*fx()));}
 function short(n){
-  const s=n<0?"-":"";n=Math.abs(n);
+  n=n*fx();const s=n<0?"-":"";n=Math.abs(n);
   if(n>=1e9)return s+(n/1e9).toLocaleString("vi-VN",{maximumFractionDigits:2})+" tỷ";
   if(n>=1e6)return s+(n/1e6).toLocaleString("vi-VN",{maximumFractionDigits:0})+" tr";
   return s+nf.format(Math.round(n));
 }
 function short2(n){ // như short() nhưng giữ 2 số lẻ ở bậc triệu — cho CPO/AOV (giá trị nhỏ, cần chi tiết)
+  n=n*fx();
   if(n>=1e9)return (n/1e9).toLocaleString("vi-VN",{maximumFractionDigits:2})+" tỷ";
   if(n>=1e6)return (n/1e6).toLocaleString("vi-VN",{maximumFractionDigits:2})+" tr";
   return nf.format(Math.round(n));
@@ -378,7 +386,7 @@ function renderRev(days,codes){
     const pace=attMonth!=null?attMonth-timePct:null;
     const proj=elapsed?tot/elapsed*m.days_in_month:0;
     cards=[
-      card("Doanh thu A1+B1",short(tot),esc(scopeName)+" · "+vnd(tot)+" đ",GRAD.rev,false,revTrend),
+      card("Doanh thu A1+B1",short(tot),esc(scopeName)+" · "+vnd(tot)+" "+csym(),GRAD.rev,false,revTrend),
       card("KPI tháng",kpiFull!=null?short(kpiFull):"—","A1+B1 gộp",GRAD.kpi),
       card("% đạt KPI",attMonth!=null?attMonth.toFixed(1)+"%":"—",
            "thời gian trôi qua "+timePct.toFixed(0)+"%",GRAD.att),
@@ -389,7 +397,7 @@ function renderRev(days,codes){
     ];
   } else {
     cards=[
-      card("Doanh thu A1+B1",short(tot),esc(scopeName)+" · "+vnd(tot)+" đ",GRAD.rev,false,revTrend),
+      card("Doanh thu A1+B1",short(tot),esc(scopeName)+" · "+vnd(tot)+" "+csym(),GRAD.rev,false,revTrend),
       card("KPI kỳ chọn",kpi.total!=null?short(kpi.total):"—","KPI tháng rải đều "+days.length+" ngày",GRAD.kpi),
       card("% đạt",attain!=null?attain.toFixed(1)+"%":"—","so với KPI rải đều",GRAD.att,attain!=null&&attain<100),
       card("Trung bình/ngày",short(tot/days.length),"A1 "+short(sum(a1)/days.length)+" · B1 "+short(sum(b1)/days.length),GRAD.proj)
@@ -522,8 +530,8 @@ function renderCum(days,a1,b1,kpi){
     r.onmousemove=ev=>{const j=+r.dataset.i;
       const kc=state.mode==="month"?kpiEnd:sum(kpi.daily.slice(0,j+1));
       const pct=kc?" · "+(cum[j]/(state.mode==="month"?kpiEnd:kc)*100).toFixed(1)+"% KPI":"";
-      const cmp=ccum&&ccum[j]!=null?"<br>Kỳ so sánh: "+vnd(ccum[j])+" đ":"";
-      tip("<b>"+esc(days[j].label)+"</b><br>Lũy kế: "+vnd(cum[j])+" đ"+pct+cmp,ev);};
+      const cmp=ccum&&ccum[j]!=null?"<br>Kỳ so sánh: "+vnd(ccum[j])+" "+csym():"";
+      tip("<b>"+esc(days[j].label)+"</b><br>Lũy kế: "+vnd(cum[j])+" "+csym()+pct+cmp,ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
@@ -546,7 +554,7 @@ function renderDaily(days,codes){
         const h=(H-PAD.t-PAD.b)*(v/max);y-=h;
         s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(h,0)
           +'" rx="2" fill="'+COLORS[c]+'" opacity="'+op+'"/>';
-        rows.push(lineLabel(c)+" "+b.toUpperCase()+": "+vnd(v)+" đ");
+        rows.push(lineLabel(c)+" "+b.toUpperCase()+": "+vnd(v)+" "+csym());
       }
     }
     s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
@@ -556,7 +564,7 @@ function renderDaily(days,codes){
   $("dailychart").innerHTML=s;
   $("dailychart").querySelectorAll("rect[data-i]").forEach(r=>{
     r.onmousemove=ev=>{const j=+r.dataset.i;
-      tip("<b>"+esc(days[j].label)+" · "+vnd(dayTot[j])+" đ</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
+      tip("<b>"+esc(days[j].label)+" · "+vnd(dayTot[j])+" "+csym()+"</b><br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
@@ -611,6 +619,18 @@ function renderBasisChips(){
     +(cur===k?' style="background:#111827"':'')+'><span class="dot" style="background:#111827"></span>'+l+'</span>').join("");
   for(const el of $("basis-chips").children)el.onclick=()=>{state.basis=el.dataset.k;render();};
 }
+// Toggle tiền tệ hiển thị — CHỈ hiện với thị trường THB (data.fx_to_vnd có giá trị). VN không có → ẩn.
+// Đổi state.cur rồi render() lại toàn bộ; mọi giá trị tiền tự quy đổi qua fx()/csym().
+function renderCurChips(){
+  const el=$("cur-chips");
+  if(!el)return;
+  if(DATA.currency!=="THB"||!DATA.fx_to_vnd){el.style.display="none";return;}
+  el.style.display="";
+  const items=[["THB","฿ THB (bản địa)"],["VND","đ VND (quy đổi ×"+DATA.fx_to_vnd+")"]];
+  el.innerHTML=items.map(([k,l])=>'<span class="chip'+(state.cur===k?" on":"")+'" data-k="'+k+'"'
+    +(state.cur===k?' style="background:#111827"':'')+'><span class="dot" style="background:#111827"></span>'+l+'</span>').join("");
+  for(const c of el.children)c.onclick=()=>{state.cur=c.dataset.k;renderCurChips();render();};
+}
 function renderEff(days,codes){
   renderBasisChips();
   const sp=spendSeries(days,codes);
@@ -652,8 +672,8 @@ function renderEff(days,codes){
       tr.crql=trendHtml(totOrd/totQl*100-pord/pql*100,true," điểm");
   }
   $("eff-summary").innerHTML=[
-    card("Chi phí (Spent)",short(totSp),esc(srcLabel())+" · "+vnd(totSp)+" đ",GRAD.sp,false,tr.sp,sp),
-    card("Doanh thu Paid",short(totRev),(state.basis==="a1b1"?"chỉ A1+B1":"A1+B1+A3+B3")+" · "+vnd(totRev)+" đ",GRAD.rev,false,tr.rev,rev),
+    card("Chi phí (Spent)",short(totSp),esc(srcLabel())+" · "+vnd(totSp)+" "+csym(),GRAD.sp,false,tr.sp,sp),
+    card("Doanh thu Paid",short(totRev),(state.basis==="a1b1"?"chỉ A1+B1":"A1+B1+A3+B3")+" · "+vnd(totRev)+" "+csym(),GRAD.rev,false,tr.rev,rev),
     card("ME/RE",mere!=null?mere.toFixed(1)+"%":"—","chi phí ÷ doanh thu Paid",GRAD.pace,false,tr.mere,
       days.map((d,j)=>rev[j]>0?sp[j]/rev[j]*100:null)),
     card("Đơn (Order)",nf.format(totOrd),"đơn A1+B1+A3+B3",GRAD.att,false,tr.ord,ord),
@@ -719,7 +739,7 @@ function renderSpendDaily(days,codes){
       const h=(H-PAD.t-PAD.b)*(v/max);y-=h;
       s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(h,0)
         +'" rx="2" fill="'+COLORS[c]+'"/>';
-      rows.push(lineLabel(c)+": "+vnd(v)+" đ"+(g>0?" (Meta "+vnd(m)+" · Google "+vnd(g)+")":""));
+      rows.push(lineLabel(c)+": "+vnd(v)+" "+csym()+(g>0?" (Meta "+vnd(m)+" · Google "+vnd(g)+")":""));
     }
     s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
     rowsBy[j]=rows;
@@ -730,8 +750,8 @@ function renderSpendDaily(days,codes){
   $("spendchart").querySelectorAll("rect[data-i]").forEach(r=>{
     r.onmousemove=ev=>{const j=+r.dataset.i;
       const mr=revTot[j]?(dayTot[j]/revTot[j]*100).toFixed(0)+"%":"—";
-      tip("<b>"+esc(days[j].label)+"</b><br>Doanh thu: "+vnd(revTot[j])+" đ<br>Chi phí: "+vnd(dayTot[j])
-        +" đ · ME/RE ngày: "+mr+"<br>"+(rowsBy[j]||[]).join("<br>"),ev);};
+      tip("<b>"+esc(days[j].label)+"</b><br>Doanh thu: "+vnd(revTot[j])+" "+csym()+"<br>Chi phí: "+vnd(dayTot[j])
+        +" "+csym()+" · ME/RE ngày: "+mr+"<br>"+(rowsBy[j]||[]).join("<br>"),ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
@@ -758,7 +778,7 @@ function renderMere(days,sp,rev){
   $("merechart").querySelectorAll("rect[data-i]").forEach(r=>{
     r.onmousemove=ev=>{const j=+r.dataset.i;
       tip("<b>"+esc(days[j].label)+"</b><br>ME/RE lũy kế: "+(mere[j]!=null?mere[j].toFixed(1)+"%":"—")
-        +"<br>Chi lũy kế: "+vnd(cumSp[j])+" đ<br>DT lũy kế: "+vnd(cumRev[j])+" đ",ev);};
+        +"<br>Chi lũy kế: "+vnd(cumSp[j])+" "+csym()+"<br>DT lũy kế: "+vnd(cumRev[j])+" "+csym(),ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
@@ -890,8 +910,8 @@ function renderCplDaily(days,codes){
   $("cplchart").innerHTML=s;
   $("cplchart").querySelectorAll("rect[data-i]").forEach(r=>{
     r.onmousemove=ev=>{const j=+r.dataset.i;
-      tip("<b>"+esc(days[j].label)+"</b><br>CPL: "+(cpl[j]!=null?vnd(cpl[j])+" đ":"—")
-        +"<br>CPQL: "+(cpql[j]!=null?vnd(cpql[j])+" đ":"—"),ev);};
+      tip("<b>"+esc(days[j].label)+"</b><br>CPL: "+(cpl[j]!=null?vnd(cpl[j])+" "+csym():"—")
+        +"<br>CPQL: "+(cpql[j]!=null?vnd(cpql[j])+" "+csym():"—"),ev);};
     r.onmouseleave=()=>tip(null);
   });
 }
@@ -988,7 +1008,7 @@ function renderChannels(days,codes){
         tot+=v;
         const hh=(H-PAD.t-PAD.b)*(v/maxv);y-=hh;
         s+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(hh,0)+'" rx="2" fill="'+ch.color+'"/>';
-        tip_.push(ch.label+": "+(unit==="đ"?vnd(v)+" đ":nf.format(v)+" lead"));
+        tip_.push(ch.label+": "+(unit==="đ"?vnd(v)+" "+csym():nf.format(v)+" lead"));
       }
       s+='<rect x="'+(PAD.l+j*bw)+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
       rowsBy[j]=tip_;tots[j]=tot;
@@ -996,7 +1016,7 @@ function renderChannels(days,codes){
     $(elId).innerHTML=s+'</svg>';
     $(elId).querySelectorAll("rect[data-i]").forEach(r=>{
       r.onmousemove=ev=>{const j=+r.dataset.i;
-        tip("<b>"+esc(days[j].label)+" · "+(unit==="đ"?vnd(tots[j])+" đ":nf.format(tots[j])+" lead")+"</b><br>"
+        tip("<b>"+esc(days[j].label)+" · "+(unit==="đ"?vnd(tots[j])+" "+csym():nf.format(tots[j])+" lead")+"</b><br>"
           +(rowsBy[j]||[]).join("<br>"),ev);};
       r.onmouseleave=()=>tip(null);
     });
@@ -1354,6 +1374,8 @@ async function boot(){
     fetch("./kpi.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>({}))
   ]);
   DATA=d;KPI=k;
+  state.cur=d.currency;  // tiền tệ hiển thị mặc định = tiền tệ bản địa của data.json
+  if(d.title)document.querySelector("header h1").textContent=d.title;  // Thái đặt tiêu đề riêng; VN giữ mặc định
   const months=Object.keys(d.months).sort();
   for(const m of months){
     const md=d.months[m];
@@ -1379,6 +1401,7 @@ async function boot(){
     for(const el of $("tabs").children)el.classList.toggle("on",el.dataset.t===state.tab);
     render();};
   $("updated").textContent="Cập nhật: "+d.generated_at+" · "+d.market;
+  renderCurChips();
   render();
 }
 boot().catch(e=>{document.body.innerHTML="<p style='padding:40px;font-family:sans-serif'>Không tải được dữ liệu ("
