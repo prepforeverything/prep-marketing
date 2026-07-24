@@ -202,6 +202,7 @@
     </div>
     <div class="card" id="chan-card">
       <h3>Hiệu quả theo kênh</h3>
+      <div class="chips" id="chan-lens" style="margin:8px 0 4px"></div>
       <div class="note" id="chan-note"></div>
       <div style="display:flex;gap:20px;flex-wrap:wrap">
         <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">Chi phí theo kênh</div><div id="chanchart"></div></div>
@@ -949,6 +950,10 @@ function chCo(d,code,ck,kind){ // cohort theo ngày SINH lead: kind 'ql' | 'won'
   const m=DATA.months[d.m].lines[code]||{};
   return (((m.ch_co||{})[ck]||{})[kind]||[])[d.i]||0;
 }
+function chBk(d,code,ck,kind){ // BOOKING theo ngày GHI NHẬN (booking_series 24/07): 'ql'|'od'|'rv'
+  const m=DATA.months[d.m].lines[code]||{};
+  return (((m.ch_bk||{})[ck]||{})[kind]||[])[d.i]||0;
+}
 function chSpendDay(d,code,ck){ // chi phí kênh/ngày: fbi = Meta − Conv, fbc = Conv, gs = Google Search, gdn/tt riêng
   const m=DATA.months[d.m].lines[code]||{};
   const fbc=(m.sp_fbc||[])[d.i]||0;
@@ -966,11 +971,19 @@ function renderChannels(days,codes){
       const ch=(((KPI&&KPI[d.m])||{})[c]||{}).channels;
       if(ch&&ch[key]!=null){any=true;v+=ch[key]*dayShare(d.m,c,"wk_spend",d.i);}}
     return any?v:null;};
+  // Toggle lens (user duyệt 24/07): cohort = lead sinh trong kỳ mang về gì; booking = kỳ này
+  // GHI NHẬN gì theo kênh (gồm cả lead cũ chốt) — booking tổng kênh khớp card tổng từng đồng.
+  const lens=state.chanLens||"cohort";
+  $("chan-lens").innerHTML=[["cohort","Cohort — lead sinh trong kỳ"],["booking","Booking — ghi nhận trong kỳ"]]
+    .map(([k,l])=>'<span class="chip'+(lens===k?" on":"")+'" data-k="'+k+'"'
+      +(lens===k?' style="background:#111827"':'')+'><span class="dot" style="background:#111827"></span>'+l+'</span>').join("");
+  for(const el of $("chan-lens").children)el.onclick=()=>{state.chanLens=el.dataset.k;render();};
   const CH=channels();
   const rows=CH.map(ch=>{
     let ld=0,ql=0,won=0,rev=0,sp=null;
     for(const d of days)for(const c of codes){ld+=chVal(d,c,ch.k,"ld");
-      ql+=chCo(d,c,ch.k,"ql");won+=chCo(d,c,ch.k,"won");rev+=chCo(d,c,ch.k,"rev");}
+      if(lens==="booking"){ql+=chBk(d,c,ch.k,"ql");won+=chBk(d,c,ch.k,"od");rev+=chBk(d,c,ch.k,"rv");}
+      else{ql+=chCo(d,c,ch.k,"ql");won+=chCo(d,c,ch.k,"won");rev+=chCo(d,c,ch.k,"rev");}}
     if(ch.k!=="kol"&&ch.k!=="op"){sp=0;
       for(const d of days)for(const c of codes)sp+=chSpendDay(d,c,ch.k)||0;}
     const bud=budT(ch.bud);
@@ -1055,8 +1068,11 @@ function renderChannels(days,codes){
   $("chan-legend").innerHTML=CH.map(ch=>'<span><i style="background:'+ch.color+'"></i>'+esc(ch.label)+'</span>').join("");
   // Rút gọn theo yêu cầu user 21/07 — chi tiết định nghĩa (FB Conv = Meta − Inbox, nguồn chi phí,
   // thành phần Paid Other, tỷ giá cohort, ngân sách tuần) giữ trong code/memory, không hiện UI.
-  $("chan-note").textContent="QL / Đơn / Doanh thu đếm trên lead SINH TRONG KỲ chọn (dạng A1+A3) "
-    +"— trạng thái tính đến lần cập nhật gần nhất."
+  $("chan-note").textContent=(lens==="booking"
+      ?"QL / Đơn / Doanh thu GHI NHẬN TRONG KỲ chọn theo kênh (gồm cả lead kỳ trước chốt trong kỳ "
+       +"— đủ A1+B1+A3+B3, tổng kênh khớp card tổng)."
+      :"QL / Đơn / Doanh thu đếm trên lead SINH TRONG KỲ chọn (dạng A1+A3) "
+       +"— trạng thái tính đến lần cập nhật gần nhất.")
     +(dataHas("sp_g_gdn")?" · Google tách Search/GDN theo loại campaign; lead GDN nằm ở dòng Google Search (BI không tách).":"")
     +(dataHas("sp_tt")?" · TikTok tách chi phí riêng; lead TikTok nằm ở dòng Paid Other.":"");
 }
@@ -1136,7 +1152,9 @@ function renderMi(m,codes){
     +"chi tiêu thì theo bảng kênh.";
 }
 
-/* --- UTM Explorer: drill-down kiểu GA4, chi phí ghép 2 chiều ≥95% (thà '—' còn hơn số sai) --- */
+/* --- UTM Explorer: drill-down kiểu GA4, chi phí ghép 2 chiều ≥95% (thà '—' còn hơn số sai).
+   LƯU Ý 24/07: BI đã thêm spend trên row (mkt_campaigns) nhưng chia lead-credit KHÔNG chuẩn hóa
+   theo sản phẩm (vd 4 lead IELTS dính 121tr campaign gs-toeic) — ĐÃ BÁO BI, giữ heuristic chờ fix. --- */
 const MU_DIMS=["s","m","c","ct"],MU_LBL={s:"Source",m:"Medium",c:"Campaign",ct:"Content"};
 let muState={group:"s",path:[],q:"",sort:{k:"ld",d:-1}};
 const MU_COLS=[["key",""],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["crql","CR/QL"],["rv","Doanh thu"]];
