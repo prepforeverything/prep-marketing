@@ -160,11 +160,15 @@ def mere_pct(spend7, revenue7):
     return spend7 / revenue7 * 100.0
 
 
-def mere_applies(orders7, revenue7, *, min_orders=3):
-    """ME/RE đáng tin khi đủ mẫu đơn (orders7 ≥ min_orders) VÀ có doanh thu — KHÔNG phụ thuộc ngày tuổi.
-    Chi 7d và doanh thu 7d đều tính CẢ 7 ngày (không reset theo age), nên ad vừa BẬT LẠI (age nhỏ) mà đã ≥3 đơn
-    vẫn chấm ME/RE bình thường. age chỉ để canh pha ở khung CPL 3 ngày. Chưa đạt ⇒ False ⇒ về luật CPL/lead."""
-    return orders7 >= min_orders and (revenue7 or 0) > 0
+def mere_applies(orders7, revenue7, *, min_orders=3, age=None, min_age_days=None):
+    """ME/RE đáng tin khi có doanh thu VÀ ad đủ chín. "Đủ chín" mặc định = đủ mẫu đơn (orders7 ≥ min_orders).
+    Khi khai min_age_days (spec IELTS Thái): đủ chín nếu ad đủ tuổi (age ≥ min_age_days) HOẶC đủ đơn — 1 trong 2.
+    PTE gọi như cũ (age=None, min_age_days=None) → chỉ theo đơn, hành vi không đổi. Chưa đạt ⇒ False ⇒ về CPL/lead."""
+    if (revenue7 or 0) <= 0:
+        return False
+    if min_age_days is not None and age is not None and age >= min_age_days:
+        return True
+    return orders7 >= min_orders
 
 
 def mere_band(mere):
@@ -204,6 +208,22 @@ def recommend_mere(cpl_zone, mere, *, hard_loss=100.0):
     return "TẮT · ME/RE ≥80% & CPL kém"
 
 
+def recommend_mere_band(mere, *, scale=50, watch=70, hard_loss=100):
+    """Đề xuất ME/RE THUẦN theo band (spec IELTS Thái) — chỉ nhìn ME/RE, KHÔNG phụ thuộc vùng CPL.
+    Gọi CHỈ KHI mere_applies()==True. Ngưỡng (mặc định Thái): <scale → SCALE; scale–watch → THEO DÕI;
+    watch–hard_loss → ĐỀ XUẤT TẮT (yếu); ≥hard_loss → TẮT bắt buộc (lỗ, thắng CPL). Trả tiền tố chuẩn cho bucket."""
+    if mere is None:
+        return None
+    s, w, h = round(scale), round(watch), round(hard_loss)
+    if mere >= hard_loss:
+        return f"TẮT bắt buộc · ME/RE ≥{h}% (lỗ: chi > doanh thu)"
+    if mere < scale:
+        return f"SCALE · ME/RE <{s}% (doanh thu tốt)"
+    if mere < watch:
+        return f"THEO DÕI · ME/RE {s}–{w}%"
+    return f"ĐỀ XUẤT TẮT · ME/RE {w}–{h}% (yếu)"
+
+
 def _is_kill_rec(rec):
     """Đề xuất mang nghĩa TẮT (tắt hẳn hoặc xem xét tắt) — dùng cho merge final + baseline EOD."""
     return bool(rec) and (rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"))
@@ -219,6 +239,61 @@ def merge_final(cpl3_rec, mere_rec, mere, mere_on, *, keep_loss_pct=60.0):
     if mere_on and mere_rec:
         return mere_rec, special_keep
     return (cpl3_rec or "—"), special_keep
+
+
+def mere_tier(mere, *, scale=50, watch=70, hard_loss=100):
+    """4 tầng ME/RE (khớp band, để làm trục ma trận 4×4): 'tot' <scale · 'tb' scale–watch ·
+    'yeu' watch–hard_loss · 'rat_te' ≥hard_loss (vi phạm trần lỗ). None ⇒ chưa chấm được."""
+    if mere is None:
+        return None
+    if mere < scale:
+        return "tot"
+    if mere < watch:
+        return "tb"
+    if mere < hard_loss:
+        return "yeu"
+    return "rat_te"
+
+
+def recommend_mere_matrix(cpl_zone, mere, *, scale=50, watch=70, hard_loss=100):
+    """Ma trận 4×4 CPL × ME/RE cho CHECKLIST (spec Quân 2026-07-23, dùng chung VSTEP + IELTS Thái).
+    cpl_zone = vùng CPL 3 ngày (TỐT/TRUNG BÌNH/YẾU/RẤT TỆ) từ classify(); mere = ME/RE 7 ngày (%).
+    ME/RE ≥hard_loss (ô 13–16) = vi phạm trần lỗ → auto TẮT bất kể CPL. Gọi CHỈ KHI mere_applies()==True.
+    Trả tiền tố chuẩn cho bucket (_ad_bucket / mere_bucket)."""
+    s, w, h = round(scale), round(watch), round(hard_loss)
+    t = mere_tier(mere, scale=scale, watch=watch, hard_loss=hard_loss)
+    if t == "rat_te":                                     # ô 13–16: trần lỗ → auto tắt, bất kể CPL
+        return f"TẮT bắt buộc · ME/RE ≥{h}% (lỗ: chi > doanh thu) — auto, bất kể CPL"
+    good = cpl_zone == "TỐT"; mid = cpl_zone == "TRUNG BÌNH"; weak = cpl_zone == "YẾU"
+    if t == "tot":                                        # ME/RE <scale — doanh thu tốt (ô 1–4)
+        if good:                                          # ô 1
+            return f"SCALE MẠNH +50% · CPL tốt & ME/RE <{s}%"
+        if mid:                                           # ô 2
+            return f"SCALE +20% · ME/RE <{s}% (CPL nhỉnh trên KPI)"
+        if weak:                                          # ô 3
+            return f"GIẢM 20% · theo dõi thêm & tối ưu lại (CPL yếu dù ME/RE <{s}%)"
+        return f"CÂN NHẮC TẮT ngắn hạn · test lại sau (CPL rất tệ, ME/RE <{s}% cứu tạm)"  # ô 4
+    if t == "tb":                                         # ME/RE scale–watch — chấp nhận, không scale (ô 5–8)
+        if good or mid:                                   # ô 5, 6
+            return f"GIỮ · ME/RE {s}–{w}% (chưa scale)"
+        if weak:                                          # ô 7
+            return f"GIẢM 20% · ME/RE {s}–{w}% + CPL yếu"
+        return f"GIẢM 20% · theo dõi sát / cân nhắc tắt, test lại sau (CPL rất tệ)"  # ô 8
+    # t == "yeu": ME/RE watch–hard_loss — doanh thu kém hiệu quả (ô 9–12)
+    if good:                                              # ô 9
+        return f"GIẢM 20% · xem lại tệp (ME/RE {w}–{h}% dù CPL tốt)"
+    return f"TẮT · ME/RE {w}–{h}% + CPL {'TB' if mid else 'yếu' if weak else 'rất tệ'} (doanh thu kém hiệu quả)"  # ô 10–12
+
+
+def merge_matrix(cpl3_rec, cpl_zone, mere, mere_on, *, scale=50, watch=70, hard_loss=100):
+    """Checklist band-matrix (VSTEP + IELTS Thái): final = ma trận CPL×ME/RE khi đủ cổng (mere_on);
+    chưa đủ cổng → theo CPL 3 ngày. exception = CPL 3 ngày ĐÒI TẮT (cảnh báo tắt ở tab CPL) NHƯNG
+    ma trận GIỮ lại (final không phải lệnh tắt) → cần XIN DUYỆT NGOẠI LỆ. Trả (final_rec, exception)."""
+    if not mere_on:
+        return (cpl3_rec or "—"), False
+    final = recommend_mere_matrix(cpl_zone, mere, scale=scale, watch=watch, hard_loss=hard_loss)
+    exception = _is_kill_rec(cpl3_rec) and not _is_kill_rec(final)
+    return final, exception
 
 
 def decide_1_3_7(z1, z3, z7, lead3, spend3, spend7, order3, thr, rules, min_leads):

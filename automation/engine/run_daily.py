@@ -185,7 +185,11 @@ def build_adid_message_checklist(cfg, summary):
     ME/RE thắng khi đủ gate. Nhóm theo bucket của final_rec; mục ⚠️ ĐẶC BIỆT (special_keep) nêu riêng ở đầu.
     Mỗi ad kèm '· ME/RE {mere}% ({orders7}đơn)' khi có doanh thu. Cắt < 4096 ký tự ở ranh giới dòng."""
     def _sfx(f):
-        return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn)" if f.get("mere") is not None else ""
+        if f.get("mere") is None:
+            return " · chưa đủ cổng ME/RE (0 đơn) → theo CPL"
+        if not f.get("mere_on"):
+            return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn) — chưa đủ cổng → theo CPL"
+        return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn)"
     finals = [(acct, f) for acct, a in summary["accounts"].items() for f in (a.get("adid_final") or [])]
     L = [f"🎯 <b>{cfg.display} — Checklist tổng hợp theo Ad ID (3 ngày CPL × 7 ngày ME/RE){channel_tag(cfg)}</b>",
          "<i>ME/RE thắng khi ad đủ chín &amp; đủ đơn; else theo CPL 3 ngày. Thao tác theo TỪNG ad id.</i>"]
@@ -274,6 +278,78 @@ def build_adid_message(cfg, summary):
     return "\n".join(L) if any_item else ""
 
 
+def build_caption_conv(cfg, s, doc_fmt="html"):
+    """Caption cho engine 'conv' (FB Conversion — grain CAMPAIGN, join utm_content) — summary mode='conv'."""
+    w, t, k = s["window"], s["totals"], s["kpi"]
+    L = [f"📊 <b>{cfg.display} — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]}) · nền 7d + tín hiệu 1d</b>", ""]
+    for _w in s.get("kpi_warn") or []:
+        L.append(f"⚠️ <b>{_esc(_w)}</b>")
+    if k.get("cpl"):
+        L.append(f"🎯 KPI CPL {vnd(k['cpl'])} · CPQL {vnd(k['cpql'])}" + (f" (tab {k['tab']})" if k.get("tab") else ""))
+    L.append(f"• 1 ngày: chi {vnd(t['s1'])} · {t['l1']} lead · CPL {vnd(t['cpl1'])}")
+    L.append(f"• 3 ngày: chi {vnd(t['s3'])} · {t['l3']} lead · CPL {vnd(t['cpl3'])} · QL {t['ql3']} (CPQL {vnd(t['cpql3'])})")
+    L.append(f"• 7 ngày: chi {vnd(t['s7'])} · {t['l7']} lead · CPL {vnd(t['cpl7'])} · QL {t['ql7']} (CPQL {vnd(t['cpql7'])})")
+    if k.get("kpi_week"):
+        st = {"UNDER": "⚠️ under-spend", "OVER": "⚠️ over-spend", "OK": "✅ đúng nhịp"}.get(k.get("day_status"), "")
+        L.append(f"\n💰 KPI {k['week_name']}: {vnd(k['kpi_week'])} · đã chi <b>{vnd(k['spent_week'])} ({k['pct_week']}%)</b>"
+                 f" · cần {vnd(k['need_day'])}/ngày")
+        L.append(f"📅 Hôm qua chi {vnd(k['spent_1d'])} vs KPI ngày {vnd(k['kpi_day'])} → <b>{st}</b>")
+    for f in k.get("week_flags") or []:
+        L.append(_esc(f))
+    order = [("scale", "🟢 SCALE +20%"), ("giam", "🟠 GIẢM"), ("tat", "🔴 TẮT"), ("xemxet", "🟠 0 LEAD, chi cao")]
+    named = False
+    for kk, label in order:
+        names = [i["name"] for i in s["items"] if i["bucket"] == kk]
+        if names:
+            named = True
+            head = ", ".join(_esc(_cn(n, 30)) for n in names[:3])
+            L.append(f"{label}: <b>{len(names)} camp</b> — {head}{'…' if len(names) > 3 else ''}")
+    if not named:
+        L.append("Không có camp cần thao tác hôm nay — giữ nguyên, theo dõi.")
+    if s.get("unmapped"):
+        n_utm = len(s["unmapped"]); n_lead = sum(u["leads"] for u in s["unmapped"])
+        L.append(f"⚠️ {n_utm} UTM chưa có trong mapping ({n_lead} lead 3d) — bổ sung Sheet mapping")
+    if doc_fmt == "html":
+        L.append("📂 Mở file HTML bằng trình duyệt — từng camp có CPL/QL 1·3·7 ngày + phân tích chiến lược. Camp cần thao tác ở tin dưới ⬇️")
+    else:
+        L.append("⚠️ Chỉ đề xuất — NV tự thao tác trên Meta. Camp cần thao tác ở tin dưới ⬇️")
+    return "\n".join(L)
+
+
+def build_camp_message_conv(cfg, s):
+    """Tin thao tác cho engine 'conv' — theo CAMPAIGN (Conversion chỉnh ngân sách/tắt ở cấp camp).
+    Campaign ID bọc <code> để tap-copy. Cắt gọn dưới 4096."""
+    order = [("scale", "🟢 SCALE +20% (chỉnh ngân sách campaign)"), ("giam", "🟠 GIẢM ngân sách"),
+             ("tat", "🔴 TẮT camp"), ("xemxet", "🟠 0 LEAD chi cao — soi rồi quyết")]
+    L = [f"🎯 <b>{cfg.display} — Camp theo đề xuất (copy nhanh)</b>"]
+    any_item = False
+    for kk, label in order:
+        items = [i for i in s["items"] if i["bucket"] == kk]
+        if not items:
+            continue
+        any_item = True
+        L.append(f"\n<b>{label}</b>")
+        for it in sorted(items, key=lambda x: -(x.get("cpl") or 0) if kk != "scale" else (x.get("cpl") or 0)):
+            c = vnd(it["cpl"]) if it.get("cpl") else ("0 lead" if not it.get("lead") else "—")
+            L.append(f"• {_esc(_cn(it['name'], 44))} · CPL {c} [{it['cls3']}/{it['cls7']}] · {_esc(it['rec'])}")
+            ids = " ".join(f"{cid}" for cid in (it.get("ids") or {}).values() if cid)
+            if ids:
+                L.append(f"<code>{ids}</code>")
+    fw = s.get("freq_warns") or []
+    if fw:
+        any_item = True
+        L.append("\n<b>📣 Frequency cao (7d) — nguy cơ bão hoà audience</b>")
+        for f in fw[:5]:
+            L.append(f"• {'🔴' if f.get('high') else '🟠'} {_esc(_cn(f['camp'], 34))} · {_esc(_cn(f['adset'], 24))}: freq {f['freq']}"
+                     + (f" ({_esc(f['aud'])})" if f.get("aud") else ""))
+    L.append("\nℹ️ Conversion thao tác ở CẤP CAMPAIGN (ngân sách camp / tắt camp). Chỉ đề xuất — NV tự thao tác trên Meta.")
+    msg = "\n".join(L)
+    if len(msg) > 4000:  # Telegram giới hạn 4096 — cắt ở ranh giới dòng
+        cut = msg[:3900]
+        msg = cut[:cut.rfind("\n")] + "\n… (dài quá — xem đủ trong file HTML)"
+    return msg if any_item else ""
+
+
 def build_caption_inbox(cfg, s, doc_fmt="html"):
     """Caption cho engine 'inbox' (gộp Nhóm QC, 1d×3d×7d) — summary mode='inbox'."""
     w, t, bud = s["window"], s["totals"], s["budget"]
@@ -285,6 +361,12 @@ def build_caption_inbox(cfg, s, doc_fmt="html"):
         if names:
             head = ", ".join(n[:26] for n in names[:3])
             L.append(f"{label}: <b>{len(names)} nhóm</b> — {head}{'…' if len(names) > 3 else ''}")
+    cl = s.get("checklist") or []
+    if cl:
+        _c = {b: sum(1 for f in cl if f.get("mere_on") and not f.get("special_keep") and f.get("final_bucket") == b) for b in ("scale", "theodoi", "giam", "detat", "tat")}
+        _sp = sum(1 for f in cl if f.get("special_keep"))
+        L.append(f"📈 Checklist: 🟢 {_c['scale']} scale · 🟡 {_c['theodoi']} giữ/theo dõi · 🟠 {_c['giam']} giảm · 🟠 {_c['detat']} cân nhắc/đề xuất tắt · 🔴 {_c['tat']} tắt"
+                 + (f" · ⚠️ {_sp} ngoại lệ xin duyệt" if _sp else ""))
     if t.get("lead_noid"):
         L.append(f"⚠️ {t['lead_noid']} lead CHƯA gắn AD ID (đối soát thiếu) — chưa tính vào camp/nhóm nào")
     if bud.get("kpi_day"):
@@ -313,7 +395,57 @@ def build_adid_message_inbox(cfg, s):
             L.append(f"• {_cn(it['name'], 40)} · CPL {cpl}")
             ads = " ".join(it.get("ads", []))
             L.append(f"<code>{ads}</code>" if ads else "<i>(không còn ad đang chi)</i>")
-    L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách campaign (CBO). TẮT: tắt ad/nhóm. Chỉ đề xuất — NV tự thao tác trên Meta.")
+    # Checklist ME/RE (7 ngày) — quyết định cuối theo TỪNG ad id (chỉ khi PER_AD_MERE có dữ liệu)
+    cl = s.get("checklist") or []
+    if cl:
+        def _sfx(f):
+            return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn)" if f.get("mere") is not None else ""
+        L.append("\n———— ✅ <b>Checklist tổng hợp — quyết định cuối (CPL 3 ngày × ME/RE 7 ngày)</b> ————")
+        sp = [f for f in cl if f.get("special_keep")]
+        if sp:
+            any_item = True
+            L.append("\n<b>⚠️ NGOẠI LỆ — cần XIN DUYỆT (CPL 3 ngày rất tệ nhưng ME/RE giữ lại; ĐỪNG tắt vội)</b>")
+            for f in sorted(sp, key=lambda f: (f.get("mere") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))}{_sfx(f)}".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+        order2 = [("tat", "🔴 TẮT"), ("detat", "🟠 CÂN NHẮC / ĐỀ XUẤT TẮT"), ("giam", "🟠 GIẢM ngân sách"),
+                  ("scale", "🟢 SCALE"), ("theodoi", "🟡 GIỮ / THEO DÕI")]
+        for k, label in order2:
+            items = [f for f in cl if not f.get("special_keep") and f.get("mere_on") and f.get("final_bucket") == k]
+            if not items:
+                continue
+            any_item = True
+            L.append(f"\n<b>{label} — {len(items)} ad</b>")
+            for f in items:
+                L.append(f"• {_esc(_cn(f['name'], 40))} · {_esc(f['final_rec'])}{_sfx(f)}".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+        # CHI CAO CHƯA RA ĐƠN — ad chưa có doanh thu BI, đủ tuổi + chi đáng kể + sheet 0 đơn → xem xét tắt (soát inbox)
+        xx = [f for f in cl if f.get("norev_bucket") == "xemxet"]
+        if xx:
+            any_item = True
+            L.append(f"\n<b>🟠 CHI CAO CHƯA RA ĐƠN — xem xét tắt ({len(xx)} ad)</b>")
+            L.append("<i>Chưa có doanh thu, sheet cũng 0 đơn sau nhiều ngày — soi inbox/Pancake trước khi tắt.</i>")
+            for f in sorted(xx, key=lambda f: -(f.get("spend7") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))} · chi {vnd(f.get('spend7') or 0)}₫/7d".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+        # ad chưa có doanh thu BI nhưng SHEET có đơn → BI nghi gán nhầm, soát CRM (không tắt)
+        sc = [f for f in cl if f.get("norev_bucket") == "soat"]
+        if sc:
+            any_item = True
+            L.append(f"\n<b>⚠️ SHEET CÓ ĐƠN — BI chưa ghi doanh thu, soát CRM ({len(sc)} ad)</b>")
+            for f in sorted(sc, key=lambda f: -(f.get("sheet_l6") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))} · sheet {f.get('sheet_l6_7d') or 0}đ/7d ({f.get('sheet_l6') or 0} tổng)".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+        # THAM KHẢO — có ME/RE nhưng CHƯA đủ tin (ít đơn / BI≠sheet) → KHÔNG auto quyết, soát CRM trước
+        tk = [f for f in cl if not f.get("special_keep") and f.get("mere_on") and not f.get("mere_decide")]
+        if tk:
+            any_item = True
+            L.append(f"\n<b>⚠️ THAM KHẢO — soát CRM trước khi thao tác ({len(tk)} ad)</b>")
+            L.append("<i>ME/RE tính được nhưng ít đơn / BI lệch sheet — theo tab CPL, đừng auto tắt.</i>")
+            for f in sorted(tk, key=lambda f: -(f.get("mere") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))}{_sfx(f)} · sheet {f.get('sheet_l6_7d') or 0}đ(7d)/{f.get('sheet_l6') or 0}đ".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+    L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách campaign (CBO). TẮT: tắt ad/nhóm. ME/RE ≥100% = tắt bắt buộc (chỉ khi đủ tin). THAM KHẢO = soát CRM. Chỉ đề xuất — NV tự thao tác trên Meta.")
     msg = "\n".join(L)
     if len(msg) > 4000:  # Telegram giới hạn 4096 — cắt ở ranh giới dòng, chừa chỗ cho dòng chú thích
         cut = msg[:3900]
@@ -328,13 +460,14 @@ def run_report(cfg, target):
     html = cfg.report_html(today)
     html.parent.mkdir(parents=True, exist_ok=True)
     doc_fmt = (cfg.get("report") or {}).get("telegram_doc", "pdf")  # "html" gửi HTML (cuộn ngang được) | "pdf"
-    engine = (cfg.get("report") or {}).get("engine", "adops")       # "inbox" (IELTS Thái, gộp Nhóm QC) | "adops"
-    script = "adops_inbox.py" if engine == "inbox" else "adops.py"
+    engine = (cfg.get("report") or {}).get("engine", "adops")       # "inbox" (gộp Nhóm QC) | "conv" (FB Conversion, theo camp) | "adops"
+    script = {"inbox": "adops_inbox.py", "conv": "adops_conv.py"}.get(engine, "adops.py")
 
-    if subprocess.run([PY, str(ENGINE / "build_meta.py")], env=env).returncode != 0:
+    # engine "conv" tự fetch Meta (campaign-level theo ngày) — không đi qua build_meta (grain ad-level)
+    if engine != "conv" and subprocess.run([PY, str(ENGINE / "build_meta.py")], env=env).returncode != 0:
         return fail(cfg, "build_meta.py (Meta Graph API) thất bại sau nhiều lần thử lại — kiểm tra mạng/Graph API hoặc META_ACCESS_TOKEN")
     env2 = {**env, "ADOPS_SUMMARY_JSON": str(cfg.summary_json)}
-    if not DRY:  # baseline đối soát cuối ngày — engine adops + inbox (IELTS Thái) đều ghi
+    if not DRY and engine != "conv":  # baseline đối soát cuối ngày — engine adops + inbox (conv theo camp: chưa hỗ trợ)
         env2["ADOPS_BASELINE_JSON"] = str(cfg.state / f"baseline-{target.isoformat()}.json")
     if subprocess.run([PY, str(ENGINE / script), str(meta_json), str(html)], env=env2).returncode != 0:
         return fail(cfg, f"{script} thất bại")
@@ -357,6 +490,9 @@ def run_report(cfg, target):
         if summary.get("mode") == "inbox":
             caption = build_caption_inbox(cfg, summary, doc_fmt)
             adid_msg = build_adid_message_inbox(cfg, summary)
+        elif summary.get("mode") == "conv":
+            caption = build_caption_conv(cfg, summary, doc_fmt)
+            adid_msg = build_camp_message_conv(cfg, summary)
         else:
             caption = build_caption(cfg, summary, doc_fmt)
             adid_msg = build_adid_message(cfg, summary)
