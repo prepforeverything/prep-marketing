@@ -18,6 +18,18 @@ THR = {"kpi": 1000000, "tb": 1250000, "yeu": 1500000, "zero_inbox": 450000}
 THR.update(PCFG["kpi_sheet"].get("thresholds") or {})
 RULES = PCFG.get("rules", {}) or {}
 MIN_LEADS = PCFG.get("min_leads", 3)
+REP = PCFG.get("report", {}) or {}
+PER_AD_MERE = bool(REP.get("per_ad_mere"))     # bật trục ME/RE (chi7d ÷ doanh thu7d từ Prep BI, gắn qua ads_overlay)
+_MERE = REP.get("mere", {}) or {}              # ngưỡng + cổng ME/RE theo SP (IELTS Thái: 50/70/100, cổng 7d hoặc ≥2 đơn)
+MERE_SCALE = _MERE.get("scale", 50); MERE_WATCH = _MERE.get("watch", 70); MERE_HARD = _MERE.get("hard_loss", 100)
+MERE_MIN_ORDERS = _MERE.get("min_orders", 2); MERE_MIN_AGE = _MERE.get("min_age_days", 7)
+# Cổng ĐỘ TIN để ME/RE được QUYẾT (không chỉ hiển thị): BI đủ ≥N đơn VÀ sheet lead (L6) xác nhận ad có đơn.
+# Lý do: doanh thu BI gán theo first_paid có thể gán nhầm đơn sang ad khác → ad ít đơn (1 đơn) hoặc BI≠sheet
+# chỉ để THAM KHẢO, không auto scale/tắt (đối chiếu CRM trước). Xem lỗi đối soát 2026-07-23.
+MERE_RELIABLE_MIN = _MERE.get("reliable_min_orders", 2)
+# Checklist theo MA TRẬN 4×4 CPL × ME/RE (spec Quân 2026-07-23) thay band-thuần. Opt-in `mere.matrix`.
+# Tab ME/RE (7d) vẫn band-thuần; chỉ CHECKLIST đổi sang ma trận. CPL rất tệ nhưng ME/RE giữ → ngoại lệ (xin duyệt), gom cuối.
+MERE_MATRIX = PER_AD_MERE and bool(_MERE.get("matrix"))
 DISPLAY = PCFG.display
 BRAND = PCFG.brand  # dải màu brand theo SP — chọn trong file KPI Master (bảng tra cứu line)
 LS = PCFG["lead_sheet"]
@@ -65,12 +77,35 @@ def cpl(s, l):
     return round(s / l) if l else 0
 def zone(s, l):
     return R.classify(s, l, THR)[0]
+def mere_bucket(rec):
+    """Gom đề xuất ME/RE (recommend_mere_band) về nhóm hành động cho caption/Telegram/baseline."""
+    if not rec:
+        return None
+    if rec.startswith("SCALE"): return "scale"
+    if rec.startswith("THEO DÕI"): return "theodoi"
+    if rec.startswith("TẮT bắt buộc"): return "tat"
+    if rec.startswith("ĐỀ XUẤT TẮT"): return "detat"
+    return None
+
+
+def final_bucket_tg(rec):
+    """Gom QUYẾT ĐỊNH CUỐI (band HOẶC ma trận 4×4) về nhóm Telegram: scale/theodoi/giam/detat/tat.
+    Dùng cho caption + tin Ad ID checklist inbox — khớp final_rec hiển thị trong HTML."""
+    r = rec or ""
+    if r.startswith("SCALE"): return "scale"
+    if r.startswith("TẮT"): return "tat"
+    if r.startswith("GIẢM"): return "giam"
+    if r.startswith("CÂN NHẮC TẮT") or r.startswith("ĐỀ XUẤT TẮT") or r.startswith("XEM XÉT TẮT") or r.startswith("ĐỌC INBOX"): return "detat"
+    if r.startswith("THEO DÕI") or r.startswith("GIỮ"): return "theodoi"
+    return "theodoi"
 
 
 cfg = json.load(open(META))
 WIN3 = cfg["window"]
 WIN7 = cfg.get("window_7d") or WIN3
 WIN1 = [WIN3[-1]]
+BI_REV7_TOTAL = cfg.get("bi_revenue7_total")   # doanh thu 7d TOÀN SP (mọi ad BI) — để đối soát với báo cáo team
+BI_REV7_ADS = cfg.get("bi_revenue7_ads")
 def mk_wset(dates):
     return {(int(d[8:10]), int(d[5:7]), int(d[:4])) for d in dates}  # (ngày, tháng, năm)
 WS1, WS3, WS7 = mk_wset(WIN1), mk_wset(WIN3), mk_wset(WIN7)
@@ -101,7 +136,27 @@ for acct, a in cfg["accounts"].items():
                   "camp": m.get("camp", ""), "camp_id": m.get("camp_id") or m.get("camp", ""),
                   "active": (k in active) if active else True,
                   "s1": s1.get(k, 0), "s3": s3.get(k, 0), "s7": s7.get(k, 0),
-                  "l1": 0, "l3": 0, "l7": 0, "q3": 0, "o3": 0}
+                  "l1": 0, "l3": 0, "l7": 0, "q3": 0, "o3": 0, "o7": 0, "o_sheet": 0,
+                  "revenue7": 0, "orders7": 0, "age": None}       # o7=đơn L6 sheet 7d · o_sheet=L6 mọi ngày (đối chiếu BI). ME/RE gắn bên dưới
+
+# ---- gắn doanh thu/đơn (Prep BI 7 ngày) + tuổi per ad_id từ build_meta ----
+# join=ad_id (Thái): revenue_by_code_7d/orders_by_code_7d + age_by_code (khoá ad_id). join=code: ads_overlay (fallback).
+_rev_all, _ord_all, _age_all, _ov_all = {}, {}, {}, {}
+for acct, a in cfg["accounts"].items():
+    for k, v in (a.get("revenue_by_code_7d") or {}).items():
+        _rev_all[norm(k)] = v
+    for k, v in (a.get("orders_by_code_7d") or {}).items():
+        _ord_all[norm(k)] = v
+    for k, v in (a.get("age_by_code") or {}).items():
+        _age_all[norm(k)] = v
+    for ov in a.get("ads_overlay", []) or []:
+        _ov_all[norm(ov.get("id") or "")] = ov
+for k, ad in ads.items():
+    ov = _ov_all.get(k)
+    if ov:
+        ad["revenue7"] = ov.get("revenue7") or 0; ad["orders7"] = ov.get("orders7") or 0; ad["age"] = ov.get("age")
+    else:
+        ad["revenue7"] = _rev_all.get(k, 0); ad["orders7"] = _ord_all.get(k, 0); ad["age"] = _age_all.get(k)
 
 # ---- lead từ lead_feed (ad_id | ngày | status) ----
 lurl = f"https://docs.google.com/spreadsheets/d/{LS['id']}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(LS['phone_tab'])}"
@@ -115,6 +170,7 @@ oset = tuple(LS.get("order_statuses", []))
 # Dòng KHÔNG có ad_id (đối soát AD ID final chưa làm) → đếm riêng lead_noid để cảnh báo thiếu dữ liệu
 # (chỉ thấy được khi lead_feed trả cả dòng thiếu ad_id — hiện QUERY lọc `O is not null` nên thường = 0).
 lead_total = lead_paused = lead_noid = 0
+l6_all = defaultdict(int)   # L6 (đơn) theo ad_id — ĐẾM MỌI NGÀY (không lọc cửa sổ) để đối chiếu độ tin BI (sheet có đơn không)
 for r in list(csv.reader(io.StringIO(fetch(lurl))))[1:]:
     if len(r) <= ca or not r[ca].strip():
         _dt = r[cd] if len(r) > cd else ""
@@ -122,14 +178,17 @@ for r in list(csv.reader(io.StringIO(fetch(lurl))))[1:]:
             lead_noid += 1
         continue
     k = norm(r[ca])
+    if oset and (r[cq].strip() if (cq is not None and len(r) > cq) else "").startswith(oset):
+        l6_all[k] += 1           # đơn L6 mọi ngày cho ad này (corroboration nguồn sheet)
     dt = r[cd] if len(r) > cd else ""
     in1, in3, in7 = indates(dt, WS1), indates(dt, WS3), indates(dt, WS7)
     if not (in1 or in3 or in7):
         continue
     if k not in ads:  # ad không còn chi trong cửa sổ (đã tắt) nhưng có lead Inbox trễ → nhóm riêng
         ads[k] = {"id": k, "acct": "-", "name": k, "adset": "(Ad đã tắt / 0 chi trong cửa sổ)", "adset_id": "(paused)",
-                  "camp": "", "camp_id": "",
-                  "s1": 0, "s3": 0, "s7": 0, "l1": 0, "l3": 0, "l7": 0, "q3": 0, "o3": 0}
+                  "camp": "", "camp_id": "", "active": False,
+                  "s1": 0, "s3": 0, "s7": 0, "l1": 0, "l3": 0, "l7": 0, "q3": 0, "o3": 0, "o7": 0, "o_sheet": 0,
+                  "revenue7": 0, "orders7": 0, "age": None}
         if in3:
             lead_paused += 1
     _st = r[cq].strip() if (cq is not None and len(r) > cq) else ""
@@ -138,9 +197,13 @@ for r in list(csv.reader(io.StringIO(fetch(lurl))))[1:]:
     if in3:
         ads[k]["l3"] += 1; ads[k]["q3"] += (1 if isql else 0); ads[k]["o3"] += (1 if isord else 0); lead_total += 1
     if in7:
-        ads[k]["l7"] += 1
+        ads[k]["l7"] += 1; ads[k]["o7"] += (1 if isord else 0)
     if in1:
         ads[k]["l1"] += 1
+# gắn tổng đơn L6 (mọi ngày) từ sheet vào ad để đối chiếu độ tin ME/RE (BI đơn vs sheet có đơn)
+for _k, _c in l6_all.items():
+    if _k in ads:
+        ads[_k]["o_sheet"] = _c
 
 # ---- gộp theo Nhóm QC (khoá = adset_id, KHÔNG dùng tên — tên trùng nhau giữa các camp) ----
 groups = defaultdict(lambda: {"ads": [], "name": "", "camp": "", "camp_id": ""})
@@ -185,6 +248,42 @@ for _ckey, _c in camps.items():
                   "cpl1": cpl(cs1, cl1), "cpl3": cpl(cs3, cl3), "cpl7": cpl(cs7, cl7),
                   "z1": zone(cs1, cl1), "z3": zone(cs3, cl3), "z7": zone(cs7, cl7), "n_ads": cads})
 CAMPS.sort(key=lambda c: (c["s3"] == 0, -c["s3"]))   # camp chi nhiều trước; khối "đã tắt/0 chi" xuống cuối
+
+# ---- lớp ME/RE per ad_id (7 ngày) — chỉ khi PER_AD_MERE + build_meta đã gắn doanh thu qua ads_overlay ----
+# Mỗi ad ĐANG active, chi 7d>0: cpl3_rec (CPL 3 ngày cấp AD, tái dùng decide_1_3_7) × mere_rec (band ME/RE 7 ngày).
+# merge_final: ME/RE THẮNG khi đủ cổng (đủ tuổi HOẶC ≥2 đơn + có doanh thu); special_keep = CPL đòi tắt nhưng ME/RE<scale.
+MERE_ADS = []
+if PER_AD_MERE:
+    for a in ads.values():
+        if a["s7"] <= 0 or not a.get("active", True):
+            continue
+        z1a, z3a, z7a = zone(a["s1"], a["l1"]), zone(a["s3"], a["l3"]), zone(a["s7"], a["l7"])
+        cpl3_rec = R.decide_1_3_7(z1a, z3a, z7a, a["l3"], a["s3"], a["s7"], a["o3"], THR, RULES, MIN_LEADS)
+        if cpl3_rec == "GIỮ":
+            cpl3_rec = "GIỮ + tối ưu"
+        rev7, ord7, age = a["revenue7"], a["orders7"], a["age"]
+        mere = R.mere_pct(a["s7"], rev7)
+        mere_on = R.mere_applies(ord7, rev7, min_orders=MERE_MIN_ORDERS, age=age, min_age_days=MERE_MIN_AGE)
+        # ĐỘ TIN để QUYẾT (không chỉ hiển thị): doanh thu BI gán theo first_paid có thể lệch CRM ở ad ít đơn.
+        # Chỉ auto scale/tắt khi BI đủ ≥N đơn VÀ sheet lead (L6) xác nhận ad THỰC có đơn; else → THAM KHẢO (soát CRM).
+        sheet_l6, sheet_l6_7d = a.get("o_sheet", 0), a.get("o7", 0)
+        mere_reliable = (ord7 >= MERE_RELIABLE_MIN) and (sheet_l6 >= 1)
+        mere_decide = mere_on and mere_reliable
+        mere_rec = R.recommend_mere_band(mere, scale=MERE_SCALE, watch=MERE_WATCH, hard_loss=MERE_HARD) if mere_on else None
+        # Checklist: MA TRẬN 4×4 (CPL 3 ngày × ME/RE) khi bật; else band-thuần "ME/RE thắng". Tab ME/RE (7d) vẫn band.
+        # Cổng QUYẾT = mere_decide (đủ tin); chưa đủ tin ⇒ merge coi như gate tắt → lùi về CPL 3 ngày.
+        if MERE_MATRIX:
+            final_rec, special_keep = R.merge_matrix(cpl3_rec, z3a, mere, mere_decide,
+                                                     scale=MERE_SCALE, watch=MERE_WATCH, hard_loss=MERE_HARD)
+        else:
+            final_rec, special_keep = R.merge_final(cpl3_rec, mere_rec, mere, mere_decide, keep_loss_pct=MERE_SCALE)
+        MERE_ADS.append({"id": a["id"], "acct": a["acct"], "name": a["name"], "camp": a["camp"], "adset": a["adset"],
+                         "s7": a["s7"], "s3": a["s3"], "revenue7": rev7, "orders7": ord7, "age": age, "cpl_zone": z3a,
+                         "mere": round(mere) if mere is not None else None, "mere_on": mere_on,
+                         "mere_reliable": mere_reliable, "mere_decide": mere_decide,
+                         "sheet_l6": sheet_l6, "sheet_l6_7d": sheet_l6_7d,
+                         "cpl3_rec": cpl3_rec, "mere_rec": mere_rec, "final_rec": final_rec, "special_keep": special_keep})
+    MERE_ADS.sort(key=lambda x: (x["mere"] is None, x["mere"] if x["mere"] is not None else 999))
 
 # ---- KPI ngân sách Inbox/ngày (sheet KPI) ----
 kpi_day = 0
@@ -274,6 +373,16 @@ for c in CAMPS:
         print(f"  ▶ {x['name'][:52]}  [{x['z3']}/{x['z7']} · 1d {x['z1']}]  → {x['rec']}")
         print(f"     3d: chi {vnd(x['s3'])} · lead {x['l3']} · CPL {vnd(x['cpl3'])} | 7d CPL {vnd(x['cpl7'])} | 1d CPL {vnd(x['cpl1'])} | %QL {round(x['qlr3']*100)}% · CR đơn {round(x['crdon3']*100)}%")
 
+if PER_AD_MERE:
+    _on = [m for m in MERE_ADS if m["mere_on"]]
+    _decided = [m for m in _on if m["mere_decide"]]                       # đủ TIN để auto quyết
+    _tk = [m for m in _on if not m["mere_decide"]]                        # tính được ME/RE nhưng chưa đủ tin → tham khảo
+    _cnt = {b: sum(1 for m in _decided if not m["special_keep"] and mere_bucket(m["mere_rec"]) == b) for b in ("scale", "theodoi", "detat", "tat")}
+    print(f"\n----- ME/RE 7 ngày (chi ÷ doanh thu Prep BI, THB×850) · {len(_decided)}/{len(_on)} ad đủ TIN để quyết ({len(MERE_ADS)} ad có chi 7d) -----")
+    print(f"  🟢 SCALE {_cnt['scale']} · 🟡 THEO DÕI {_cnt['theodoi']} · 🟠 ĐỀ XUẤT TẮT {_cnt['detat']} · 🔴 TẮT bắt buộc {_cnt['tat']}"
+          + f" · ⚠️ THAM KHẢO (soát CRM) {len(_tk)}"
+          + (f" · ME/RE cứu {sum(1 for m in MERE_ADS if m['special_keep'])}" if any(m['special_keep'] for m in MERE_ADS) else ""))
+
 # ---- tóm tắt máy-đọc (opt-in qua env ADOPS_SUMMARY_JSON) — cho caption + tin Ad ID Telegram ----
 _summary_path = os.environ.get("ADOPS_SUMMARY_JSON")
 if _summary_path:
@@ -302,6 +411,21 @@ if _summary_path:
                            "kpi_status": ("VƯỢT" if proj_day > kpi_day else "trong ngưỡng") if kpi_day else None,
                            "kpi_pct": round((proj_day / kpi_day - 1) * 100, 1) if kpi_day else None},
                 "items": _items}
+    if PER_AD_MERE:
+        # checklist tổng hợp per ad — chỉ ad ĐANG chạy có link Meta; tin Telegram + caption lọc theo bucket final.
+        _cl = []
+        for m in MERE_ADS:
+            if m["acct"] not in ACCOUNT_IDS:
+                continue
+            _cl.append({"id": m["id"], "name": clean_name(m["name"]), "camp": m["camp"],
+                        "mere": m["mere"], "mere_on": m["mere_on"], "orders7": m["orders7"], "revenue7": m["revenue7"],
+                        "mere_decide": m["mere_decide"], "mere_reliable": m["mere_reliable"],
+                        "sheet_l6": m["sheet_l6"], "sheet_l6_7d": m["sheet_l6_7d"],
+                        "cpl3_rec": m["cpl3_rec"], "mere_rec": m["mere_rec"], "final_rec": m["final_rec"],
+                        "special_keep": m["special_keep"],
+                        # chỉ gán bucket hành động ME/RE khi ĐỦ TIN; chưa đủ tin ⇒ None (Telegram không auto liệt kê, chỉ tham khảo)
+                        "final_bucket": ((final_bucket_tg(m["final_rec"]) if MERE_MATRIX else mere_bucket(m["mere_rec"])) if m["mere_decide"] else None)})
+        _summary["checklist"] = _cl
     json.dump(_summary, open(_summary_path, "w", encoding="utf-8"), ensure_ascii=False)
 
 # ---- HTML ----
@@ -358,6 +482,141 @@ for c in CAMPS:
     </div>'''
 
 kpi_line = (f'<span class="chip">💰 KPI Inbox/ngày {vnd(kpi_day)}₫ → dự kiến {vnd(proj_day)}₫ <b>({"VƯỢT" if proj_day > kpi_day else "trong ngưỡng"})</b></span>') if kpi_day else ""
+
+# ---- Tab ME/RE (khung 7 ngày) + Checklist tổng hợp (chỉ khi PER_AD_MERE có dữ liệu) --------------
+mere_html = checklist_html = ""
+if PER_AD_MERE and MERE_ADS:
+    def mere_actb(rec):
+        return {"scale": "act-scale", "theodoi": "act-warn", "detat": "z-weak", "tat": "act-off"}.get(mere_bucket(rec), "act-hold")
+    def mere_cell(m):
+        if m["mere"] is None:
+            return '<span class="pct">—</span>'
+        v = m["mere"]; col = "#15803d" if v < MERE_SCALE else "#b45309" if v < MERE_WATCH else "#c2410c" if v < MERE_HARD else "#b91c1c"
+        return f'<b style="color:{col}">{v}%</b>'
+    _rows = ""
+    for m in MERE_ADS:
+        link = ads_link(m["acct"], m["id"]); age_txt = f'{m["age"]}d' if m["age"] is not None else "—"
+        rev = f'{vnd(m["revenue7"])}₫' if m["revenue7"] else "—"
+        if m["mere_on"] and m.get("mere_decide"):
+            rec_html = f'<span class="badge {mere_actb(m["mere_rec"])}">{m["mere_rec"]}</span>'
+        elif m["mere_on"]:   # tính được ME/RE nhưng CHƯA đủ tin (ít đơn / BI≠sheet) → chỉ tham khảo, soát CRM
+            rec_html = (f'<span class="badge z-off">{m["mere_rec"]} · THAM KHẢO</span>'
+                        f'<div class="pct">⚠️ soát CRM: BI {m["orders7"]} đơn vs sheet {m.get("sheet_l6_7d",0)} đơn (7d) — chưa auto quyết</div>')
+        else:
+            reason = "chưa có doanh thu" if not m["revenue7"] else f'chưa đủ cổng (tuổi {age_txt} &amp; {m["orders7"]} đơn)'
+            rec_html = f'<span class="pct">{reason}</span>'
+        _sheet_cell = f'{m.get("sheet_l6_7d",0)}' + (f' <span class="pct">/{m.get("sheet_l6",0)}</span>' if m.get("sheet_l6",0) != m.get("sheet_l6_7d",0) else '')
+        _sheet_col = 'color:#b91c1c;font-weight:600' if (m["mere_on"] and m.get("orders7",0) and not m.get("sheet_l6")) else ''
+        _rows += (f'<tr><td><div class="content-name">{clean_name(m["name"])}</div>'
+                  f'<div class="code"><code>{m["id"]}</code>{(" " + link) if link else ""}</div></td>'
+                  f'<td class="num">{age_txt}</td><td class="num">{vnd(m["s7"])}</td>'
+                  f'<td class="num">{rev}</td><td class="num">{m["orders7"]}</td>'
+                  f'<td class="num" style="{_sheet_col}">{_sheet_cell}</td>'
+                  f'<td class="num">{mere_cell(m)}</td><td>{rec_html}</td></tr>')
+    _rev_shown = sum(m["revenue7"] for m in MERE_ADS)   # doanh thu của ad ĐANG CHẠY (bảng ME/RE) — subset toàn SP
+    _recon = ""
+    if BI_REV7_TOTAL:
+        _pct = round(_rev_shown / BI_REV7_TOTAL * 100) if BI_REV7_TOTAL else 0
+        _recon = (f'<div class="note" style="border-left-color:{BRAND["primary"]}"><b>Đối soát doanh thu 7 ngày:</b> '
+                  f'Toàn sản phẩm (MỌI ad, gồm đã tắt/đơn trễ, Prep BI THB×850) ≈ <b>{vnd(BI_REV7_TOTAL)}₫</b> ({BI_REV7_ADS} ad). '
+                  f'Bảng dưới CHỈ chấm ME/RE cho <b>{len(MERE_ADS)} ad đang chạy</b> (chi 7d&gt;0) = <b>{vnd(_rev_shown)}₫</b> ({_pct}% tổng). '
+                  f'Phần chênh là ad đã tắt / đơn trễ / đơn gán về ad không còn chi — không nằm trong tập cần thao tác.</div>')
+    mere_html = (f'<h2 class="mere-h">📈 Khung 7 ngày — ME/RE (chi ÷ doanh thu) theo từng Ad ID</h2>'
+                 f'{_recon}'
+                 f'<div class="note">ME/RE = chi 7 ngày (Meta) ÷ doanh thu 7 ngày (Prep BI, quy đổi THB×850 khớp chi). '
+                 f'Ngưỡng: 🟢 &lt;{MERE_SCALE}% scale · 🟡 {MERE_SCALE}–{MERE_WATCH}% theo dõi · 🟠 {MERE_WATCH}–{MERE_HARD}% yếu (đề xuất tắt) · 🔴 ≥{MERE_HARD}% tắt bắt buộc. '
+                 f'<b>Chỉ auto quyết</b> khi <b>BI ≥{MERE_RELIABLE_MIN} đơn VÀ sheet L6 xác nhận ad có đơn</b> (doanh thu BI gán theo first_paid có thể lệch CRM ở ad ít đơn). '
+                 f'Cột <b>Sheet L6</b> = số đơn ad này theo sheet lead (7d/tổng); <b>BI có đơn mà sheet = 0</b> (đỏ) ⇒ nghi gán nhầm → THAM KHẢO, soát CRM trước khi tắt.</div>'
+                 f'<div class="scroll"><table><thead><tr><th>Ad (content)</th><th class="num">Tuổi</th><th class="num">Chi 7d</th>'
+                 f'<th class="num">Doanh thu 7d</th><th class="num">Đơn 7d (BI)</th><th class="num">Sheet L6 (7d/tổng)</th><th class="num">ME/RE%</th><th>Đề xuất ME/RE</th></tr></thead><tbody>{_rows}</tbody></table></div>')
+
+    # Checklist tổng hợp: gộp quyết định cuối per ad. Nhóm theo hành động. Matrix: ngoại lệ gom ở CUỐI (không lên đầu).
+    def _final_group(m):
+        if m["special_keep"] and not MERE_MATRIX:
+            return (0, "⚠️ Cần người quyết — ME/RE 7 ngày cứu ad mà CPL đòi tắt")
+        r = m["final_rec"] or ""
+        if r.startswith("TẮT"): return (1, "🔴 TẮT")
+        if r.startswith("ĐỀ XUẤT TẮT"): return (2, "🟠 ĐỀ XUẤT TẮT (ME/RE yếu)")
+        if r.startswith("CÂN NHẮC TẮT"): return (2, "🟠 CÂN NHẮC TẮT ngắn hạn (test lại sau)")
+        if r.startswith("GIẢM"): return (3, "🟠 GIẢM ngân sách")
+        if r.startswith("XEM XÉT TẮT") or r.startswith("ĐỌC INBOX"): return (4, "🟠 0 lead — soi inbox Pancake")
+        if r.startswith("SCALE"): return (5, "🟢 SCALE")
+        if r.startswith("THEO DÕI"): return (6, "🟡 THEO DÕI (ME/RE)")
+        return (7, "⚪ Giữ / theo dõi (CPL)")
+    def final_actb(m):
+        if m["special_keep"] and not MERE_MATRIX: return "act-warn"
+        r = m["final_rec"] or ""
+        if r.startswith("TẮT"): return "act-off"
+        if (r.startswith("ĐỀ XUẤT TẮT") or r.startswith("CÂN NHẮC TẮT") or r.startswith("GIẢM")
+                or r.startswith("XEM XÉT TẮT") or r.startswith("ĐỌC INBOX")): return "act-warn"
+        if r.startswith("SCALE"): return "act-scale"
+        return "act-hold"
+    _cl = sorted(MERE_ADS, key=lambda m: (_final_group(m)[0], m["mere"] if m["mere"] is not None else 999))
+    _body = ""; _last = None
+    for m in _cl:
+        _gi, gl = _final_group(m)
+        if gl != _last:
+            _body += f'<tr><td colspan="2" class="cl-sub">{gl}</td></tr>'; _last = gl
+        link = ads_link(m["acct"], m["id"])
+        sfx = f' <span class="pct">· ME/RE {m["mere"]}% ({m["orders7"]} đơn)</span>' if m["mere"] is not None else ""
+        _exc_mark = ' <span class="badge act-warn">⚠️ ngoại lệ — xin duyệt</span>' if (MERE_MATRIX and m["special_keep"]) else ""
+        note = (f'<div class="pct">CPL 3 ngày: {m["cpl3_rec"]} → ME/RE cứu, đừng tắt vội</div>' if (m["special_keep"] and not MERE_MATRIX)
+                else (f'<div class="pct">CPL 3 ngày: {m["cpl3_rec"]}</div>' if m["mere_on"] and m["cpl3_rec"] != m["final_rec"] else ""))
+        _body += (f'<tr><td><div class="content-name">{clean_name(m["name"])}</div>'
+                  f'<div class="code"><code>{m["id"]}</code>{(" " + link) if link else ""}</div></td>'
+                  f'<td><span class="badge {final_actb(m)}">{m["final_rec"]}</span>{sfx}{_exc_mark}{note}</td></tr>')
+    # Matrix: danh sách ad id NGOẠI LỆ gom ở CUỐI — CPL 3 ngày rất tệ (tab CPL đòi tắt) nhưng ME/RE giữ → xin duyệt.
+    _exc_block = ""
+    if MERE_MATRIX:
+        _exc = ""
+        for m in sorted(MERE_ADS, key=lambda x: (x["mere"] if x["mere"] is not None else 999)):
+            if not m["special_keep"]:
+                continue
+            link = ads_link(m["acct"], m["id"])
+            _exc += (f'<tr><td><div class="content-name">{clean_name(m["name"])}</div>'
+                     f'<div class="code"><code>{m["id"]}</code>{(" " + link) if link else ""}</div></td>'
+                     f'<td>{m.get("cpl_zone") or "—"} · {m["cpl3_rec"]}</td>'
+                     f'<td><span class="badge {final_actb(m)}">{m["final_rec"]}</span></td>'
+                     f'<td class="num">{m["mere"] if m["mere"] is not None else "—"}% ({m["orders7"]} đơn)</td></tr>')
+        _exc_block = (f'<div class="note" style="border-left-color:#d97706"><b>⚠️ Ad cần XIN DUYỆT NGOẠI LỆ:</b> CPL 3 ngày rất tệ '
+                      f'(tab CPL đòi tắt) nhưng ME/RE giữ lại — phải được duyệt mới giữ, nếu không thì tắt theo CPL.</div>'
+                      f'<div class="scroll"><table><thead><tr><th>Ad (content)</th><th>CPL 3 ngày</th><th>Quyết định (ME/RE)</th>'
+                      f'<th class="num">ME/RE</th></tr></thead><tbody>{_exc}</tbody></table></div>') if _exc else ""
+    _cl_note = (f'Gộp tab CPL (3 ngày) + tab ME/RE (7 ngày) theo <b>ma trận 4×4 CPL × ME/RE</b>. ME/RE ≥{MERE_HARD}% ⇒ '
+                f'<b>TẮT bất kể CPL</b>. Ad "ngoại lệ" (CPL rất tệ nhưng ME/RE giữ) gom ở cuối — cần xin duyệt. '
+                f'<b>Chỉ đề xuất — NV tự thao tác Meta.</b>'
+                if MERE_MATRIX else
+                f'Gộp tab CPL (3 ngày) + tab ME/RE (7 ngày). <b>ME/RE thắng</b> khi ad đủ cổng; ME/RE ≥{MERE_HARD}% ⇒ '
+                f'<b>TẮT bất kể CPL</b>. Chưa đủ cổng thì theo CPL. <b>Chỉ đề xuất — NV tự thao tác Meta.</b>')
+    checklist_html = (f'<h2 class="mere-h">✅ Checklist tổng hợp — quyết định cuối theo từng Ad ID</h2>'
+                      f'<div class="note">{_cl_note}</div>'
+                      f'<div class="scroll"><table><thead><tr><th>Ad (content)</th><th>Quyết định cuối</th></tr></thead><tbody>{_body}</tbody></table></div>'
+                      f'{_exc_block}')
+
+# ---- thân báo cáo: 3 TAB (Lead/CPL · Doanh thu ME/RE · Checklist) khi có dữ liệu ME/RE; else 1 trang cũ ----
+_cards = (f'<div class="cards">'
+          f'<div class="card"><div class="lbl">Chi 3 ngày (Inbox)</div><div class="val">{vnd(tot_s3)} <small>₫</small></div></div>'
+          f'<div class="card"><div class="lbl">Lead 3 ngày</div><div class="val">{tot_l3}</div></div>'
+          f'<div class="card"><div class="lbl">CPL bình quân 3 ngày</div><div class="val">{vnd(cpl(tot_s3, tot_l3))} <small>₫</small></div></div>'
+          f'<div class="card"><div class="lbl">Camp · nhóm QC · ad</div><div class="val">{len(CAMPS)} · {len(G)} · {len(ads)}</div></div></div>')
+_leadnoid = (f'<div class="note" style="border-left-color:#dc2626"><b>⚠️ Thiếu dữ liệu đối soát:</b> {lead_noid} lead trong cửa sổ 3 ngày CHƯA gắn AD ID final trong sheet cào lead → không tính được vào camp/nhóm nào (CPL thực tế TỐT hơn số trong báo cáo). Nhờ team đối soát bổ sung cột AD ID.</div>' if lead_noid else '')
+_readnote = ('<div class="note"><b>Cách đọc (tab Lead/CPL):</b> Thanh xanh đậm = <b>CHIẾN DỊCH</b> (trạng thái vùng 3d/7d + tổng chi/lead/CPL — Thái chạy CBO '
+             'nên ngân sách chỉnh ở cấp này). Mỗi khối trắng = 1 <b>Nhóm quảng cáo</b> (vùng 3d/7d, đề xuất + vì sao; <b>%QL</b> = lead chất (đã '
+             'tư vấn trở lên, L3+)/tổng lead — tham khảo; <b>CR đơn</b> = lead ra đơn L5 Confirmed + L6 Purchased/lead — dùng cho luật giữ ≥20% của SOP). '
+             'Bảng trong khối = từng <b>AD</b> với CPL 1/3/7 ngày tô màu theo vùng + % so KPI <b>1.000.000₫</b>. '
+             'Đề xuất nghiêng 3 ngày, 7 ngày xác nhận nền, 1 ngày cảnh báo sớm. <b>Chỉ đề xuất</b> — staff tự thao tác Meta.</div>')
+if mere_html and checklist_html:
+    _n_mere = sum(1 for m in MERE_ADS if m["mere_on"])
+    body_html = (f'<div class="tabs">'
+                 f'<input type="radio" name="rtab" id="rtab1" checked><input type="radio" name="rtab" id="rtab2"><input type="radio" name="rtab" id="rtab3">'
+                 f'<div class="tabbar"><label for="rtab1">🎯 Lead / CPL</label><label for="rtab2">💰 Doanh thu · ME/RE ({_n_mere})</label><label for="rtab3">✅ Checklist tổng hợp</label></div>'
+                 f'<div class="panel" id="rpanel1">{_cards}{_leadnoid}{sections}{_readnote}</div>'
+                 f'<div class="panel" id="rpanel2">{mere_html}</div>'
+                 f'<div class="panel" id="rpanel3">{checklist_html}</div>'
+                 f'</div>')
+else:
+    body_html = f'{_cards}{_leadnoid}{sections}{_readnote}'
+
 html = f'''<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{DISPLAY} Inbox — Nhóm QC · 1/3/7 ngày {WIN3[0]}→{WIN3[-1]}</title>
 <style>
@@ -388,6 +647,18 @@ th{{background:#fafbfc;font-size:10.5px;text-transform:uppercase;letter-spacing:
 .cpl-wrap{{min-width:120px}} .pct{{font-size:11px;color:#64748b}} .cpl-bar{{height:5px;border-radius:3px;background:#eef2f6;margin-top:4px;overflow:hidden}} .cpl-fill{{height:100%}}
 .note{{background:#fff;border:1px solid #e2e8f0;border-left:4px solid {BRAND["primary"]};border-radius:10px;padding:13px 16px;margin:14px 0;font-size:12.5px}}
 .why{{font-size:11.5px;color:#334155;margin-top:5px;line-height:1.45;white-space:normal;overflow-wrap:break-word;font-weight:400}}
+h2.mere-h{{font-size:17px;margin:30px 0 8px;padding-top:18px;border-top:2px solid #e2e8f0}}
+.cl-sub{{background:#f1f5f9;font-weight:700;font-size:12px;color:#334155;text-transform:uppercase;letter-spacing:.03em}}
+.card.mere .val{{color:{BRAND["dark"]}}}
+.tabs input[type=radio]{{position:absolute;opacity:0;pointer-events:none}}
+.tabbar{{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 0;border-bottom:2px solid #e2e8f0}}
+.tabbar label{{cursor:pointer;padding:9px 15px;font-weight:700;font-size:13.5px;color:#64748b;border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;user-select:none}}
+.tabbar label:hover{{color:{BRAND["dark"]}}}
+#rtab1:checked~.tabbar label[for="rtab1"],#rtab2:checked~.tabbar label[for="rtab2"],#rtab3:checked~.tabbar label[for="rtab3"]{{color:{BRAND["primary"]};background:#fff;border-color:#e2e8f0;box-shadow:0 -2px 0 {BRAND["primary"]} inset}}
+.panel{{display:none;padding-top:6px}}
+#rtab1:checked~#rpanel1,#rtab2:checked~#rpanel2,#rtab3:checked~#rpanel3{{display:block}}
+.panel>h2.mere-h:first-child{{border-top:none;padding-top:2px;margin-top:14px}}
+@media print{{.panel{{display:block!important}} .tabbar{{display:none}}}}
 .ads-link{{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-size:10.5px;font-weight:600;text-decoration:none;white-space:nowrap}}
 @media print{{.ads-link{{color:#0369a1;-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
 footer{{margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b}}
@@ -399,20 +670,7 @@ footer{{margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:
 <div class="meta"><span class="chip">📅 3 ngày: <b>{WIN3[0]}→{WIN3[-1]}</b></span><span class="chip">7 ngày: {WIN7[0]}→{WIN7[-1]}</span><span class="chip">1 ngày: {WIN1[0]}</span>
 <span class="chip">Ngưỡng: TỐT&lt;1tr · TB&lt;1,25tr · YẾU&lt;1,5tr</span>{kpi_line}</div></div></header>
 <div class="wrap">
-<div class="cards">
-  <div class="card"><div class="lbl">Chi 3 ngày (Inbox)</div><div class="val">{vnd(tot_s3)} <small>₫</small></div></div>
-  <div class="card"><div class="lbl">Lead 3 ngày</div><div class="val">{tot_l3}</div></div>
-  <div class="card"><div class="lbl">CPL bình quân 3 ngày</div><div class="val">{vnd(cpl(tot_s3, tot_l3))} <small>₫</small></div></div>
-  <div class="card"><div class="lbl">Camp · nhóm QC · ad</div><div class="val">{len(CAMPS)} · {len(G)} · {len(ads)}</div></div>
-</div>
-{f'<div class="note" style="border-left-color:#dc2626"><b>⚠️ Thiếu dữ liệu đối soát:</b> {lead_noid} lead trong cửa sổ 3 ngày CHƯA gắn AD ID final trong sheet cào lead → không tính được vào camp/nhóm nào (CPL thực tế TỐT hơn số trong báo cáo). Nhờ team đối soát bổ sung cột AD ID.</div>' if lead_noid else ''}
-{sections}
-<div class="note"><b>Cách đọc (3 lớp):</b> Thanh xanh đậm = <b>CHIẾN DỊCH</b> (trạng thái vùng 3d/7d + tổng chi/lead/CPL — Thái chạy CBO
-nên ngân sách chỉnh ở cấp này). Mỗi khối trắng = 1 <b>Nhóm quảng cáo</b> (vùng 3d/7d, đề xuất + vì sao; <b>%QL</b> = lead chất (đã
-tư vấn trở lên, L3+)/tổng lead — tham khảo; <b>CR đơn</b> = lead ra đơn L5 Confirmed + L6 Purchased/lead — dùng cho luật giữ ≥20% của SOP).
-Bảng trong khối = từng <b>AD</b> với CPL 1/3/7 ngày tô màu theo vùng + % so KPI <b>1.000.000₫</b>.
-Đề xuất nghiêng 3 ngày, 7 ngày xác nhận nền, 1 ngày cảnh báo sớm. Chi từ Meta (chỉ camp tên "Inbox"), lead từ lead_feed (gắn ad_id).
-<b>Chỉ đề xuất</b> — staff tự thao tác Meta.</div>
+{body_html}
 <footer>{DISPLAY} Inbox · chi Meta + lead lead_feed · 3d {WIN3[0]}→{WIN3[-1]} / 7d {WIN7[0]}→{WIN7[-1]} / 1d {WIN1[0]} · VND.</footer>
 </div></body></html>'''
 open(OUT, "w").write(html)
@@ -441,6 +699,8 @@ if _baseline_path:
         _owner_of[_acct] = _m
     _acc = defaultdict(lambda: {"codes": [], "kill_ads": [], "scale_track": []})
     _seen = set()
+    # PER_AD_MERE: ad được ME/RE 7 ngày CỨU (special_keep) → KHÔNG vào danh sách TẮT EOD (để người quyết, không phải lệnh tắt).
+    _spared = {(m["acct"], m["id"]) for m in MERE_ADS if m["special_keep"]} if PER_AD_MERE else set()
     for g in G:
         if g["s3"] <= 0:                          # nhóm không chi 3 ngày → không có gì để thao tác
             continue
@@ -450,7 +710,7 @@ if _baseline_path:
         d = _dir(g["rec"])
         if d == "off":
             for a in g["ads"]:
-                if a.get("active", True) and a["id"] and (_acct, a["id"]) not in _seen:
+                if a.get("active", True) and a["id"] and (_acct, a["id"]) not in _seen and (_acct, a["id"]) not in _spared:
                     _seen.add((_acct, a["id"]))
                     _acc[_acct]["kill_ads"].append({"id": a["id"], "code": "", "name": clean_name(a.get("name")),
                                                     "rec": g["rec"], "src": "nhóm TẮT"})
@@ -460,6 +720,18 @@ if _baseline_path:
             if _own:
                 _acc[_acct]["scale_track"].append({"owner_id": _own["owner_id"], "budget": _own["budget"],
                                                    "dir": d, "name": (g["camp"] or g["name"]), "code": ""})
+    # PER_AD_MERE: ad có quyết định cuối TẮT theo ME/RE (band "TẮT bắt buộc" ≥trần, hoặc ma trận ô 10–16)
+    # dù nhóm CPL không đòi tắt → thêm vào kill EOD. Ad ngoại lệ (special_keep) đã loại qua _spared.
+    if PER_AD_MERE:
+        for m in MERE_ADS:
+            _acct = m["acct"]
+            if _acct not in ACCOUNT_IDS or not (m["final_rec"] or "").startswith("TẮT"):
+                continue
+            if (_acct, m["id"]) in _seen or (_acct, m["id"]) in _spared:
+                continue
+            _seen.add((_acct, m["id"]))
+            _acc[_acct]["kill_ads"].append({"id": m["id"], "code": "", "name": clean_name(m["name"]),
+                                            "rec": m["final_rec"], "src": "ME/RE (checklist)"})
     _bl = {"window": [WIN3[0], WIN3[-1]], "kpi_day": kpi_day, "per_ad_action": True,
            "accounts": {_acct: _entry for _acct, _entry in _acc.items()}}
     json.dump(_bl, open(_baseline_path, "w", encoding="utf-8"), ensure_ascii=False)

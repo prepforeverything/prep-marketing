@@ -443,6 +443,7 @@ def main():
     per_ad_mere = bool(rep.get("per_ad_mere"))            # nạp doanh thu/đơn theo ad_id (ME/RE) từ Prep BI (opt-in)
     bi_product = rep.get("bi_product")                    # product key trên Prep BI (PTE → 10 PrepTalk English)
     bi_market = rep.get("bi_market")                      # (tuỳ chọn) market key BI để thu hẹp phạm vi đơn
+    bi_currency = rep.get("bi_currency")                  # vd "THB": kéo doanh thu BI ở THB rồi ×tỷ giá team (currency_to_vnd) — KHỚP chi Meta, tránh lệch tỷ giá BI tự đổi (~783 vs 850)
     join = (cfg.get("lead_sheet") or {}).get("join", "code")  # 'code' (TOEIC) | 'ad_id' (IELTS Thái)
     objectives = cfg["meta"].get("objectives")            # vd ["OUTCOME_ENGAGEMENT","OUTCOME_LEADS"] (lọc theo objective)
     name_include = cfg["meta"].get("campaign_name_include")  # vd "Inbox" → chỉ camp có 'Inbox' trong tên (rule team Thái)
@@ -557,24 +558,48 @@ def main():
                 _r = _ad.pop("reactivation", None)
                 _ad["age"] = _age(_r) if _r else None
 
-    # Doanh thu/đơn theo ad_id (ME/RE) từ Prep BI — cửa sổ 7 ngày (khớp spend7). Gắn vào ads_overlay.
+    # Doanh thu/đơn theo ad_id (ME/RE) từ Prep BI — cửa sổ 7 ngày (khớp spend7).
+    # join=code (PTE): gắn vào ads_overlay. join=ad_id (IELTS Thái, không có overlay): map revenue_by_code_7d/orders_by_code_7d.
     # Thiếu key / lỗi API ⇒ ad_revenue trả {} → không gắn gì → engine tự lùi về luật CPL/lead (gate ME/RE tắt).
+    doc_bi_total = doc_bi_ads = None
     if per_ad_mere and bi_product is not None and win7_dates:
         import prep_bi
+        # Tỷ giá: nếu khai bi_currency (vd THB) → kéo BI ở tiền đó rồi ×tỷ giá TEAM (currency_to_vnd) để KHỚP chi Meta.
+        # Không khai → để BI tự đổi VND (tỷ giá BI qua USD, có thể lệch tỷ giá cố định của team).
+        _bi_ccy = bi_currency or "VND"
+        _bi_rate = (rates_cfg.get(bi_currency) or 1) if bi_currency else 1
         rev = prep_bi.ad_revenue([bi_product], win7_dates[0], win7_dates[-1],
-                                 markets=([bi_market] if bi_market is not None else None))
+                                 markets=([bi_market] if bi_market is not None else None), currency=_bi_ccy)
         _hit = 0
         for _a in out_accounts.values():
-            for _ad in _a.get("ads_overlay", []):
-                r = rev.get(norm(_ad.get("id") or ""))
-                if r:
-                    _ad["revenue7"] = r["revenue"]; _ad["orders7"] = r["orders"]; _hit += 1
-        print(f"  Prep BI ME/RE: {'không có key/API lỗi → bỏ qua (lùi CPL)' if not rev else f'gắn doanh thu cho {_hit} ad (7 ngày {win7_dates[0]}→{win7_dates[-1]}, product={bi_product})'}")
+            ov = _a.get("ads_overlay")
+            if ov:                                  # sản phẩm join=code (PTE): gắn per ad_id vào overlay
+                for _ad in ov:
+                    r = rev.get(norm(_ad.get("id") or ""))
+                    if r:
+                        _ad["revenue7"] = round(r["revenue"] * _bi_rate); _ad["orders7"] = r["orders"]; _hit += 1
+            else:                                   # sản phẩm join=ad_id: spend đã theo ad_id → map doanh thu/đơn theo mã
+                _rv, _od = {}, {}
+                for _code in set(_a.get("spend_by_code_7d") or {}) | set(_a.get("spend_by_code") or {}):
+                    r = rev.get(norm(_code))
+                    if r:
+                        _rv[_code] = round(r["revenue"] * _bi_rate); _od[_code] = r["orders"]; _hit += 1
+                if _rv:
+                    _a["revenue_by_code_7d"] = _rv; _a["orders_by_code_7d"] = _od
+        _rate_note = f", {bi_currency}×{_bi_rate}→VND" if bi_currency else ""
+        print(f"  Prep BI ME/RE: {'không có key/API lỗi → bỏ qua (lùi CPL)' if not rev else f'gắn doanh thu cho {_hit} ad (7 ngày {win7_dates[0]}→{win7_dates[-1]}, product={bi_product}{_rate_note})'}")
+        # Tổng doanh thu 7d TOÀN sản phẩm (MỌI ad BI, gồm ad đã tắt/đơn trễ) — để đối soát với báo cáo team.
+        # Bảng ME/RE chỉ chấm ad đang chạy nên tổng bảng < tổng này; lưu để engine hiển thị dòng đối soát.
+        if rev:
+            doc_bi_total = round(sum((r.get("revenue") or 0) for r in rev.values()) * _bi_rate)
+            doc_bi_ads = sum(1 for r in rev.values() if (r.get("revenue") or 0) > 0)
     doc = {"anchor": anchor, "window": win_dates,
            "note": f"Dựng tự động bằng build_meta.py (Graph API {ver}, ad-level KHÔNG lọc trạng thái).",
            "accounts": out_accounts}
     if win7_dates:
         doc["window_7d"] = win7_dates
+    if doc_bi_total is not None:
+        doc["bi_revenue7_total"] = doc_bi_total; doc["bi_revenue7_ads"] = doc_bi_ads
     if errors:
         doc["account_errors"] = errors
         print(f"\n⚠️ {len(errors)} tài khoản KHÔNG truy cập được: " + ", ".join(f"{k} ({v})" for k, v in errors.items()) + " — cấp ads_read cho token rồi chạy lại.")
