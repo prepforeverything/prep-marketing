@@ -364,7 +364,7 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                            + dt.timedelta(days=max(n - 1, 0))).isoformat()
                 for ck, flt in COHORT_SRC.items():
                     pay = prep_bi.lead_cohort(line["products"], since, until_c,
-                                              markets=c["market_keys"], **flt)
+                                              markets=c["market_keys"], currency=c["currency"], **flt)
                     if pay is None:
                         cfail = True
                         break

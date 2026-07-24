@@ -135,16 +135,17 @@ def booking_series(products, date_from, date_to, *, markets=None, channel_groups
 
 
 def lead_cohort(products, date_from, date_to, *, markets=None, channel_groups=None,
-                channel_names=None, attr="first_paid", key=None):
+                channel_names=None, attr="first_paid", currency="VND", key=None):
     """Raw payload lead_cohort (BI thêm 17/07 theo yêu cầu Digital) — LĂNG KÍNH COHORT:
-    lead SINH trong [from,to] → đến as_of (mặc định hôm nay) đã có bao nhiêu ql/won/revenue_usd,
-    kèm days[] theo NGÀY SINH. ⚠️ revenue trả USD (currency chưa ăn — đã báo BI); caller tự quy đổi.
-    channel_groups dùng bộ tên màn Conversion ("Meta Ads","Google Ads",…); tên sai trả 400.
+    lead SINH trong [from,to] → đến as_of (mặc định hôm nay) đã có bao nhiêu ql/won/revenue,
+    kèm days[] theo NGÀY SINH. currency BI đã ăn từ 24/07 (trường `revenue` theo tiền tệ yêu cầu,
+    `revenue_usd` giữ để tương thích). channel_groups dùng bộ tên màn Conversion; tên sai trả 400.
     Trả None nếu thiếu key/API lỗi."""
     key = key or _key()
     if not key:
         return None
-    body = {"products": list(products), "from": date_from, "to": date_to, "attr": attr}
+    body = {"products": list(products), "from": date_from, "to": date_to, "attr": attr,
+            "currency": currency}
     if markets:
         body["markets"] = list(markets)
     if channel_groups:

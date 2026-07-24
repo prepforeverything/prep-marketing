@@ -1152,28 +1152,38 @@ function renderMi(m,codes){
     +"chi tiêu thì theo bảng kênh.";
 }
 
-/* --- UTM Explorer: drill-down kiểu GA4 — chi phí CHÍNH CHỦ từ BI trên từng row (24/07,
-   join ad_id tại warehouse, additive) — bỏ heuristic mã + luật 2 chiều 95%. --- */
+/* --- UTM Explorer: drill-down kiểu GA4, chi phí ghép 2 chiều ≥95% (thà '—' còn hơn số sai).
+   LƯU Ý 24/07: BI đã thêm spend trên row (mkt_campaigns) nhưng chia lead-credit KHÔNG chuẩn hóa
+   theo sản phẩm (vd 4 lead IELTS dính 121tr campaign gs-toeic) — ĐÃ BÁO BI, giữ heuristic chờ fix. --- */
 const MU_DIMS=["s","m","c","ct"],MU_LBL={s:"Source",m:"Medium",c:"Campaign",ct:"Content"};
 let muState={group:"s",path:[],q:"",sort:{k:"ld",d:-1}};
 const MU_COLS=[["key",""],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["crql","CR/QL"],["rv","Doanh thu"]];
-function muData(m,codes){ // gộp rows các SP đã chọn
-  const rows=[];
+function muData(m,codes){ // gộp các SP đã chọn; prefix sp_key theo SP để mã không va nhau giữa SP
+  const rows=[],map={},src={};
   for(const cd of codes){const L=(MKTC[m].lines||{})[cd];if(!L)continue;
-    for(const r of L.utm)rows.push(r);}
-  return rows;
+    for(const r of L.utm)rows.push({...r,k:r.k?cd+"|"+r.k:null});
+    for(const[k,v]of Object.entries(L.sp_map||{}))map[cd+"|"+k]=v;
+    for(const[k,v]of Object.entries(L.src_sp||{}))src[k]=(src[k]||0)+v;}
+  return {rows,map,src};
 }
 function renderMu(m,codes){
-  const f=muData(m,codes).filter(r=>muState.path.every(p=>String(r[p.d]??"")===p.v)
+  const DD=muData(m,codes);
+  const spleads={};for(const r of DD.rows)if(r.k)spleads[r.k]=(spleads[r.k]||0)+r.ld;
+  const f=DD.rows.filter(r=>muState.path.every(p=>String(r[p.d]??"")===p.v)
     &&(!muState.q||MU_DIMS.some(d=>String(r[d]??"").toLowerCase().includes(muState.q))));
   const by={};
   for(const r of f){
     const k=String(r[muState.group]??"");
-    const g=by[k]=by[k]||{key:k,ld:0,ql:0,od:0,rv:0,sp:0};
-    g.ld+=r.ld;g.ql+=r.ql;g.od+=r.od;g.rv+=r.rv||0;g.sp+=r.sp||0;
+    const g=by[k]=by[k]||{key:k,ld:0,ql:0,od:0,rv:0,_sp:{}};
+    g.ld+=r.ld;g.ql+=r.ql;g.od+=r.od;g.rv+=r.rv||0;
+    if(r.k)g._sp[r.k]=(g._sp[r.k]||0)+r.ld;
   }
   const rows=Object.values(by).map(g=>{
-    const sp=g.sp>0?g.sp:null; // row không resolve được ad_id → BI trả 0 → hiện "—"
+    let sp=0,cov=0;
+    for(const[k,ld]of Object.entries(g._sp))
+      if(ld>=(spleads[k]||1)*0.95){sp+=DD.map[k]||0;cov+=ld;}
+    if(!(sp>0&&cov>=g.ld*0.95))sp=null;
+    if(muState.group==="s"&&!muState.path.length&&DD.src[g.key])sp=DD.src[g.key];
     return {...g,sp,cpl:sp&&g.ld?sp/g.ld:null,pql:g.ld?g.ql/g.ld*100:null,
       cr:g.ld?g.od/g.ld*100:null,crql:g.ql?g.od/g.ql*100:null};
   }).sort((a,b)=>muState.sort.d*((a[muState.sort.k]??-1)>(b[muState.sort.k]??-1)?1:-1));
@@ -1201,8 +1211,8 @@ function renderMu(m,codes){
     h+="<tr"+(drill?" class='camp' data-k='"+esc2(r.key)+"'":"")+"><td style='text-align:left;white-space:normal;min-width:200px'>"
       +(r.key?esc2(r.key):"<i>(trống"+(muState.group==="s"?" — chủ yếu inbox":"")+")</i>")
       +"<div style='height:4px;border-radius:2px;background:#e0e7ff;width:"+(r.ld/maxL*100).toFixed(0)+"%;max-width:150px;margin-top:4px'></div></td>"
-      +"<td>"+(r.sp!=null?vnd(r.sp):"—")+"</td><td>"+nf.format(r.ld)+"</td>"
-      +"<td>"+(r.cpl!=null?vnd(r.cpl):"—")+"</td><td>"+nf.format(r.ql)+"</td>"
+      +"<td>"+(r.sp!=null?"~"+vnd(r.sp):"—")+"</td><td>"+nf.format(r.ld)+"</td>"
+      +"<td>"+(r.cpl!=null?"~"+vnd(r.cpl):"—")+"</td><td>"+nf.format(r.ql)+"</td>"
       +"<td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td><td>"+nf.format(r.od)+"</td>"
       +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td>"
       +"<td>"+(r.crql!=null?r.crql.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td></tr>";
@@ -1217,8 +1227,8 @@ function renderMu(m,codes){
     const k=el.dataset.k;if(k==="key")return;
     if(muState.sort.k===k)muState.sort.d*=-1;else muState.sort={k,d:-1};renderMu(m,codes);});
   $("mu-note").textContent=grainNote(m)+" Bấm dòng để khoan sâu (Source → Medium → Campaign → Content), chip ✕ để lùi · "
-    +"dòng '(trống)' = lead không gắn UTM (inbox — xem bảng trên) · Chi phí: BI join ad_id tại warehouse "
-    +"(chính chủ, cộng dồn được — BI bổ sung 24/07); dòng không resolve được ad hiện '—' · "
+    +"dòng '(trống)' = lead không gắn UTM (inbox — xem bảng trên) · Chi phí (dấu ~) ghép UTM ↔ campaign qua mã trong "
+    +"utm_content / ID campaign, CHỈ hiện khi khớp trọn vẹn hai chiều ≥95% — lát cắt lẻ hiện '—' thay vì số sai · "
     +"đơn/doanh thu = lead chốt trong kỳ.";
 }
 
