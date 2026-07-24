@@ -124,6 +124,9 @@ COHORT_SRC = {
     "op":  {"channel_groups": ["TikTok Ads", "Paid (other)"]},
 }
 
+# 5 nhóm kênh paid (bộ tên màn Conversion) — dùng cho booking_series (lens booking, BI 24/07)
+BOOKING_GROUPS = ["Meta Ads", "Google Ads", "TikTok Ads", "KOLs", "Paid (other)"]
+
 
 def fetch_month(c, month, fixture_dir=None, prev=None):
     """{'days_in_month': n, 'as_of_day': n, 'lines': {code: {'a1': [...], 'b1': [...]}}} hoặc None nếu API hỏng.
@@ -187,10 +190,27 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                 b = mo.get("buckets", {})
                 rev = round((b.get("A3", {}).get("revenue") or 0) + (b.get("B3", {}).get("revenue") or 0))
                 ords = int((b.get("A3", {}).get("orders") or 0) + (b.get("B3", {}).get("orders") or 0))
-        s = series_from_payload(selfp) if selfp else {"daily": [], "orders": []}
-        sd = (s["daily"][:cut] if cut is not None else s["daily"])[:n]
-        so = (s["orders"][:cut] if cut is not None else s["orders"])[:n]
-        sd, so = sd + [0] * (n - len(sd)), so + [0] * (n - len(so))
+        # Nhịp phân bổ ngày: từ 24/07 ưu tiên booking_series (self CỦA LEAD KÊNH PAID — sát A3B3
+        # nhất, chỉ dư nhóm E nhỏ) thay nhịp "self toàn bộ"; tổng kỳ vẫn = A3+B3 chính xác
+        # (định nghĩa đã duyệt không đổi). BI lỗi → dùng nhịp cũ.
+        sd = so = None
+        if not fixture_dir and n:
+            until_bk = (dt.date(int(month[:4]), int(month[4:6]), 1) + dt.timedelta(days=n - 1)).isoformat()
+            bk = prep_bi.booking_series(line["products"], since, until_bk, markets=c["market_keys"],
+                                        channel_groups=BOOKING_GROUPS, bucket=["self"],
+                                        currency=c["currency"])
+            if bk is not None:
+                sd, so = [0] * n, [0] * n
+                for q in bk.get("days") or []:
+                    i = int(str(q.get("date"))[6:8]) - 1
+                    if 0 <= i < n:
+                        sd[i] = int(round(q.get("revenue") or 0))
+                        so[i] = int(q.get("orders") or 0)
+        if sd is None:
+            s = series_from_payload(selfp) if selfp else {"daily": [], "orders": []}
+            sd = (s["daily"][:cut] if cut is not None else s["daily"])[:n]
+            so = (s["orders"][:cut] if cut is not None else s["orders"])[:n]
+            sd, so = sd + [0] * (n - len(sd)), so + [0] * (n - len(so))
         per["a3b3"] = distribute(rev, sd)
         per["o_a3b3"] = distribute(ords, so)
     if fixture_dir:
@@ -354,7 +374,9 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                         if 0 <= i < n:
                             ql_[i] = int(q.get("ql") or 0)
                             won_[i] = int(q.get("won") or 0)
-                            rev_[i] = int(round((q.get("revenue_usd") or 0) * rate))
+                            # BI đã trả trường revenue theo currency (fix 24/07) — ưu tiên; thiếu thì quy đổi USD
+                            rev_[i] = (int(round(q["revenue"])) if q.get("revenue") is not None
+                                       else int(round((q.get("revenue_usd") or 0) * rate)))
                     rawc[ck] = {"ql": ql_, "won": won_, "rev": rev_}
             if cfail:
                 if pl.get("ch_co"):
@@ -370,6 +392,46 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
                 cho["fbc"] = {kk: [max(a - b, 0) for a, b in zip(rawc["mg"][kk], rawc["fbi"][kk])]
                               for kk in ("ql", "won", "rev")}
         per["ch_co"] = cho
+        # 4) BOOKING theo kênh (booking_series — BI thêm 24/07): QL/đơn/doanh thu GHI NHẬN ngày i,
+        #    kênh = first-paid của lead gốc, bucket A1+B1+self (Paid đầy đủ). Tổng kênh = card tổng
+        #    (đã kiểm chứng khớp tuyệt đối). fbc = Meta − Inbox. Lỗi → giữ số cũ.
+        chb, bfail = {}, False
+        if fixture_dir or n == 0:
+            for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                chb[ck] = {"ql": [0] * n, "od": [0] * n, "rv": [0] * n}
+        else:
+            rawb = {}
+            until_b = (dt.date(int(month[:4]), int(month[4:6]), 1)
+                       + dt.timedelta(days=max(n - 1, 0))).isoformat()
+            for ck, flt in COHORT_SRC.items():
+                pay = prep_bi.booking_series(line["products"], since, until_b,
+                                             markets=c["market_keys"], currency=c["currency"],
+                                             bucket=["paid-a1", "paid-b1", "self"], **flt)
+                if pay is None:
+                    bfail = True
+                    break
+                ql_, od_, rv_ = [0] * n, [0] * n, [0] * n
+                for q in pay.get("days") or []:
+                    i = int(str(q.get("date"))[6:8]) - 1
+                    if 0 <= i < n:
+                        ql_[i] = int(q.get("ql") or 0)
+                        od_[i] = int(q.get("orders") or 0)
+                        rv_[i] = int(round(q.get("revenue") or 0))
+                rawb[ck] = {"ql": ql_, "od": od_, "rv": rv_}
+            if bfail:
+                if pl.get("ch_bk"):
+                    print(f"[WARN] {month} {line['code']}: booking BI lỗi — giữ số cũ", file=sys.stderr)
+                    chb = {k: {kk: (vv[:n] + [0] * n)[:n] for kk, vv in v.items()}
+                           for k, v in pl["ch_bk"].items()}
+                else:
+                    for ck in ("fbi", "fbc", "gs", "kol", "op"):
+                        chb[ck] = {"ql": [0] * n, "od": [0] * n, "rv": [0] * n}
+            else:
+                for ck in ("fbi", "gs", "kol", "op"):
+                    chb[ck] = rawb[ck]
+                chb["fbc"] = {kk: [max(a - b, 0) for a, b in zip(rawb["mg"][kk], rawb["fbi"][kk])]
+                              for kk in ("ql", "od", "rv")}
+        per["ch_bk"] = chb
     return {"days_in_month": days_in_month, "as_of_day": as_of, "lines": lines}
 
 
@@ -391,7 +453,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "fbc" in (v.get("ch_ld") or {}) and "fbi" in (v.get("ch_co") or {}) for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "fbc" in (v.get("ch_ld") or {}) and "fbi" in (v.get("ch_co") or {}) and "fbi" in (v.get("ch_bk") or {}) for v in ls.values())
 
     out_months = {}
     for m in months:

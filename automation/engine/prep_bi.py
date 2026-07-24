@@ -106,6 +106,34 @@ def leads_series(products, month, *, markets=None, channel_groups=None, channel_
         return None
 
 
+def booking_series(products, date_from, date_to, *, markets=None, channel_groups=None,
+                   channel_names=None, bucket=None, group_by=None, currency="VND", key=None):
+    """Raw payload booking_series (BI thêm 24/07 theo yêu cầu Digital đợt 2) — LENS BOOKING:
+    QL đạt L3+ / đơn / doanh thu GHI NHẬN trong [from,to] theo NGÀY (cửa sổ ≤92 ngày), gồm cả
+    đơn từ lead sinh kỳ trước. bucket: paid-a1/paid-b1/organic/old/self; group_by="channel" trả
+    thêm cells ngày × nhóm kênh (kênh = first-paid của lead gốc). Đã kiểm chứng 24/07: filter
+    5 nhóm paid + bucket a1+b1+self khớp dashboard tuyệt đối (102 đơn/606 QL IELTS 13–19/7).
+    Trả None nếu lỗi."""
+    key = key or _key()
+    if not key:
+        return None
+    body = {"products": list(products), "from": date_from, "to": date_to, "currency": currency}
+    if markets:
+        body["markets"] = list(markets)
+    if channel_groups:
+        body["channel_groups"] = list(channel_groups)
+    if channel_names:
+        body["channel_names"] = list(channel_names)
+    if bucket:
+        body["bucket"] = list(bucket)
+    if group_by:
+        body["group_by"] = group_by
+    try:
+        return _post("booking_series", body, key)
+    except Exception:  # noqa: BLE001 — lỗi mạng/timeout/HTTP: trả None, caller lùi an toàn
+        return None
+
+
 def lead_cohort(products, date_from, date_to, *, markets=None, channel_groups=None,
                 channel_names=None, attr="first_paid", key=None):
     """Raw payload lead_cohort (BI thêm 17/07 theo yêu cầu Digital) — LĂNG KÍNH COHORT:

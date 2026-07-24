@@ -5,7 +5,6 @@
 File tháng cũ (< tháng trước) giữ nguyên; fetch lỗi dòng nào giữ file cũ (không ghi đè thiếu)."""
 import datetime as dt
 import json
-import re
 import sys
 
 import prep_bi
@@ -63,33 +62,17 @@ def _camps(payload, top=40, top_ads=15):
 
 
 def _utm(payload, camps_payload):
-    """Rows UTM + sp_key (khớp campaign) + spend_map + tổng chi phí theo source platform."""
-    all_camps = camps_payload.get("campaigns") or []
-    g_by_code, spend_map = {}, {}
-    for c in all_camps:
-        cid, sp = str(c.get("campaign_id")), c.get("spend_usd") or 0
-        spend_map["m:" + cid] = round(sp)
-        if c.get("platform") == "google":
-            for code in set(re.findall(r"\d{6}", c.get("campaign") or "")):
-                g_by_code.setdefault(code, 0)
-                g_by_code[code] += sp
-    for code, sp in g_by_code.items():
-        spend_map["g:" + code] = round(sp)
+    """Rows UTM. Chi phí: từ 24/07 BI trả `spend` NGAY TRÊN ROW (join ad_id tại warehouse,
+    additive theo lead credit — cộng dồn được) → bỏ toàn bộ heuristic mã-trong-utm_content
+    và luật 2-chiều 95% phía UI. Row không resolve được ad_id có spend 0 → UI hiện '—'."""
     rows = []
     for r in payload.get("rows") or []:
-        m = re.search(r"\d{6}", str(r.get("utm_content") or ""))
-        key = None
-        if m and ("g:" + m.group(0)) in spend_map:
-            key = "g:" + m.group(0)
-        elif ("m:" + str(r.get("utm_campaign"))) in spend_map:
-            key = "m:" + str(r.get("utm_campaign"))
         rows.append({"s": r.get("utm_source"), "m": r.get("utm_medium"),
                      "c": r.get("utm_campaign"), "ct": r.get("utm_content"),
                      "ld": r.get("leads") or 0, "ql": r.get("ql") or 0,
-                     "od": r.get("orders") or 0, "rv": round(r.get("revenue") or 0), "k": key})
-    src_sp = {"google": round(sum(c.get("spend_usd") or 0 for c in all_camps
-                                  if c.get("platform") == "google"))}
-    return rows, spend_map, src_sp
+                     "od": r.get("orders") or 0, "rv": round(r.get("revenue") or 0),
+                     "sp": round(r.get("spend") or 0)})
+    return rows
 
 
 def build_mkt(c, dash_dir, today, force=False):
@@ -119,9 +102,7 @@ def build_mkt(c, dash_dir, today, force=False):
             if ap is None or up is None:
                 fail = True
                 break
-            rows, spend_map, src_sp = _utm(up, ap)
-            lines[line["code"]] = {"camps": _camps(ap), "utm": rows,
-                                   "sp_map": spend_map, "src_sp": src_sp}
+            lines[line["code"]] = {"camps": _camps(ap), "utm": _utm(up, ap)}
         if fail:
             print(f"[WARN] mkt-{month}: BI lỗi — giữ file cũ" if f.exists()
                   else f"[WARN] mkt-{month}: BI lỗi — bỏ qua tháng này", file=sys.stderr)
