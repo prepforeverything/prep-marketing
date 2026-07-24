@@ -419,6 +419,23 @@ def build_adid_message_inbox(cfg, s):
             for f in items:
                 L.append(f"• {_esc(_cn(f['name'], 40))} · {_esc(f['final_rec'])}{_sfx(f)}".rstrip())
                 L.append(f"<code>{f['id']}</code>")
+        # CHI CAO CHƯA RA ĐƠN — ad chưa có doanh thu BI, đủ tuổi + chi đáng kể + sheet 0 đơn → xem xét tắt (soát inbox)
+        xx = [f for f in cl if f.get("norev_bucket") == "xemxet"]
+        if xx:
+            any_item = True
+            L.append(f"\n<b>🟠 CHI CAO CHƯA RA ĐƠN — xem xét tắt ({len(xx)} ad)</b>")
+            L.append("<i>Chưa có doanh thu, sheet cũng 0 đơn sau nhiều ngày — soi inbox/Pancake trước khi tắt.</i>")
+            for f in sorted(xx, key=lambda f: -(f.get("spend7") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))} · chi {vnd(f.get('spend7') or 0)}₫/7d".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+        # ad chưa có doanh thu BI nhưng SHEET có đơn → BI nghi gán nhầm, soát CRM (không tắt)
+        sc = [f for f in cl if f.get("norev_bucket") == "soat"]
+        if sc:
+            any_item = True
+            L.append(f"\n<b>⚠️ SHEET CÓ ĐƠN — BI chưa ghi doanh thu, soát CRM ({len(sc)} ad)</b>")
+            for f in sorted(sc, key=lambda f: -(f.get("sheet_l6") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))} · sheet {f.get('sheet_l6_7d') or 0}đ/7d ({f.get('sheet_l6') or 0} tổng)".rstrip())
+                L.append(f"<code>{f['id']}</code>")
         # THAM KHẢO — có ME/RE nhưng CHƯA đủ tin (ít đơn / BI≠sheet) → KHÔNG auto quyết, soát CRM trước
         tk = [f for f in cl if not f.get("special_keep") and f.get("mere_on") and not f.get("mere_decide")]
         if tk:

@@ -277,11 +277,23 @@ if PER_AD_MERE:
                                                      scale=MERE_SCALE, watch=MERE_WATCH, hard_loss=MERE_HARD)
         else:
             final_rec, special_keep = R.merge_final(cpl3_rec, mere_rec, mere, mere_decide, keep_loss_pct=MERE_SCALE)
+        # Ad CHƯA có doanh thu BI (không tính được ME/RE) — vẫn ĐÁNH GIÁ theo ĐƠN SHEET (tin cậy hơn BI) + tuổi + chi.
+        # Tránh bẫy: BI 0 doanh thu KHÔNG có nghĩa ad không ra đơn (attribution lệch) → phải nhìn sheet L6.
+        norev_bucket = norev_text = None
+        if not rev7:
+            _sig = a["s7"] >= (RULES.get("zero_lead_read") or 500000)   # chi đáng kể
+            if sheet_l6_7d > 0 or sheet_l6 > 0:                          # sheet có đơn → BI chỉ chưa ghi
+                norev_bucket = "soat"; norev_text = f"Sheet có {sheet_l6_7d} đơn/7d ({sheet_l6} tổng), BI chưa ghi doanh thu → soát CRM, chưa tắt"
+            elif age is not None and age >= MERE_MIN_AGE and _sig:       # đủ tuổi + chi đáng kể + sheet 0 đơn → xem xét tắt
+                norev_bucket = "xemxet"; norev_text = f"chi {vnd(a['s7'])}₫/7d sau {age}d, 0 doanh thu &amp; 0 đơn (sheet) → xem xét tắt (soát inbox/Pancake trước)"
+            else:
+                norev_bucket = "theodoi"; norev_text = f"chi {vnd(a['s7'])}₫, {age}d tuổi — chưa đủ cơ sở, theo dõi" if age is not None else f"chi {vnd(a['s7'])}₫ — theo dõi"
         MERE_ADS.append({"id": a["id"], "acct": a["acct"], "name": a["name"], "camp": a["camp"], "adset": a["adset"],
                          "s7": a["s7"], "s3": a["s3"], "revenue7": rev7, "orders7": ord7, "age": age, "cpl_zone": z3a,
                          "mere": round(mere) if mere is not None else None, "mere_on": mere_on,
                          "mere_reliable": mere_reliable, "mere_decide": mere_decide,
                          "sheet_l6": sheet_l6, "sheet_l6_7d": sheet_l6_7d,
+                         "norev_bucket": norev_bucket, "norev_text": norev_text,
                          "cpl3_rec": cpl3_rec, "mere_rec": mere_rec, "final_rec": final_rec, "special_keep": special_keep})
     MERE_ADS.sort(key=lambda x: (x["mere"] is None, x["mere"] if x["mere"] is not None else 999))
 
@@ -417,10 +429,11 @@ if _summary_path:
         for m in MERE_ADS:
             if m["acct"] not in ACCOUNT_IDS:
                 continue
-            _cl.append({"id": m["id"], "name": clean_name(m["name"]), "camp": m["camp"],
+            _cl.append({"id": m["id"], "name": clean_name(m["name"]), "camp": m["camp"], "spend7": m["s7"],
                         "mere": m["mere"], "mere_on": m["mere_on"], "orders7": m["orders7"], "revenue7": m["revenue7"],
                         "mere_decide": m["mere_decide"], "mere_reliable": m["mere_reliable"],
                         "sheet_l6": m["sheet_l6"], "sheet_l6_7d": m["sheet_l6_7d"],
+                        "norev_bucket": m.get("norev_bucket"), "norev_text": m.get("norev_text"),
                         "cpl3_rec": m["cpl3_rec"], "mere_rec": m["mere_rec"], "final_rec": m["final_rec"],
                         "special_keep": m["special_keep"],
                         # chỉ gán bucket hành động ME/RE khi ĐỦ TIN; chưa đủ tin ⇒ None (Telegram không auto liệt kê, chỉ tham khảo)
@@ -502,6 +515,10 @@ if PER_AD_MERE and MERE_ADS:
         elif m["mere_on"]:   # tính được ME/RE nhưng CHƯA đủ tin (ít đơn / BI≠sheet) → chỉ tham khảo, soát CRM
             rec_html = (f'<span class="badge z-off">{m["mere_rec"]} · THAM KHẢO</span>'
                         f'<div class="pct">⚠️ soát CRM: BI {m["orders7"]} đơn vs sheet {m.get("sheet_l6_7d",0)} đơn (7d) — chưa auto quyết</div>')
+        elif not m["revenue7"] and m.get("norev_bucket"):   # chưa có doanh thu BI → đánh giá theo đơn sheet + tuổi + chi
+            _nb = {"xemxet": "act-off", "soat": "act-warn", "theodoi": "z-off"}.get(m["norev_bucket"], "z-off")
+            _nl = {"xemxet": "⚠️ XEM XÉT TẮT", "soat": "Sheet có đơn — soát CRM", "theodoi": "Theo dõi"}.get(m["norev_bucket"], "—")
+            rec_html = f'<span class="badge {_nb}">{_nl}</span><div class="pct">{m["norev_text"]}</div>'
         else:
             reason = "chưa có doanh thu" if not m["revenue7"] else f'chưa đủ cổng (tuổi {age_txt} &amp; {m["orders7"]} đơn)'
             rec_html = f'<span class="pct">{reason}</span>'
@@ -534,6 +551,9 @@ if PER_AD_MERE and MERE_ADS:
     def _final_group(m):
         if m["special_keep"] and not MERE_MATRIX:
             return (0, "⚠️ Cần người quyết — ME/RE 7 ngày cứu ad mà CPL đòi tắt")
+        # Ad chưa có doanh thu BI: đánh giá theo đơn sheet (tin cậy) — chi cao/0 đơn → xem xét; sheet có đơn → soát CRM.
+        if m.get("norev_bucket") == "xemxet": return (2, "🟠 CHI CAO CHƯA RA ĐƠN — xem xét tắt (soát inbox trước)")
+        if m.get("norev_bucket") == "soat": return (4, "⚠️ Sheet có đơn nhưng BI chưa ghi doanh thu — soát CRM")
         r = m["final_rec"] or ""
         if r.startswith("TẮT"): return (1, "🔴 TẮT")
         if r.startswith("ĐỀ XUẤT TẮT"): return (2, "🟠 ĐỀ XUẤT TẮT (ME/RE yếu)")
@@ -560,11 +580,18 @@ if PER_AD_MERE and MERE_ADS:
         link = ads_link(m["acct"], m["id"])
         sfx = f' <span class="pct">· ME/RE {m["mere"]}% ({m["orders7"]} đơn)</span>' if m["mere"] is not None else ""
         _exc_mark = ' <span class="badge act-warn">⚠️ ngoại lệ — xin duyệt</span>' if (MERE_MATRIX and m["special_keep"]) else ""
-        note = (f'<div class="pct">CPL 3 ngày: {m["cpl3_rec"]} → ME/RE cứu, đừng tắt vội</div>' if (m["special_keep"] and not MERE_MATRIX)
-                else (f'<div class="pct">CPL 3 ngày: {m["cpl3_rec"]}</div>' if m["mere_on"] and m["cpl3_rec"] != m["final_rec"] else ""))
+        if m.get("norev_bucket") in ("xemxet", "soat"):   # ad chưa có doanh thu BI — badge + lý do theo đơn sheet
+            _blab = {"xemxet": "⚠️ XEM XÉT TẮT", "soat": "Soát CRM (BI chưa ghi)"}[m["norev_bucket"]]
+            _bcls = {"xemxet": "act-off", "soat": "act-warn"}[m["norev_bucket"]]
+            badge_html = f'<span class="badge {_bcls}">{_blab}</span> <span class="pct">· chi {vnd(m["s7"])}₫/7d</span>'
+            note = f'<div class="pct">{m["norev_text"]}</div>'
+        else:
+            badge_html = f'<span class="badge {final_actb(m)}">{m["final_rec"]}</span>{sfx}{_exc_mark}'
+            note = (f'<div class="pct">CPL 3 ngày: {m["cpl3_rec"]} → ME/RE cứu, đừng tắt vội</div>' if (m["special_keep"] and not MERE_MATRIX)
+                    else (f'<div class="pct">CPL 3 ngày: {m["cpl3_rec"]}</div>' if m["mere_on"] and m["cpl3_rec"] != m["final_rec"] else ""))
         _body += (f'<tr><td><div class="content-name">{clean_name(m["name"])}</div>'
                   f'<div class="code"><code>{m["id"]}</code>{(" " + link) if link else ""}</div></td>'
-                  f'<td><span class="badge {final_actb(m)}">{m["final_rec"]}</span>{sfx}{_exc_mark}{note}</td></tr>')
+                  f'<td>{badge_html}{note}</td></tr>')
     # Matrix: danh sách ad id NGOẠI LỆ gom ở CUỐI — CPL 3 ngày rất tệ (tab CPL đòi tắt) nhưng ME/RE giữ → xin duyệt.
     _exc_block = ""
     if MERE_MATRIX:
