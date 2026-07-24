@@ -86,7 +86,22 @@
     "short_days": 1,
     "cbo_campaign_budget": true,
     "engine": "inbox",
-    "telegram_doc": "html"
+    "telegram_doc": "html",
+    "adid_overlay": true,
+    "age_lookback_days": 30,
+    "per_ad_mere": true,
+    "bi_product": 1,
+    "bi_market": 2,
+    "bi_currency": "THB",
+    "mere": {
+      "scale": 50,
+      "watch": 70,
+      "hard_loss": 100,
+      "min_orders": 2,
+      "min_age_days": 7,
+      "reliable_min_orders": 2,
+      "matrix": true
+    }
   },
   "rules": {
     "zero_lead_kill": 200000,

@@ -185,7 +185,11 @@ def build_adid_message_checklist(cfg, summary):
     ME/RE thắng khi đủ gate. Nhóm theo bucket của final_rec; mục ⚠️ ĐẶC BIỆT (special_keep) nêu riêng ở đầu.
     Mỗi ad kèm '· ME/RE {mere}% ({orders7}đơn)' khi có doanh thu. Cắt < 4096 ký tự ở ranh giới dòng."""
     def _sfx(f):
-        return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn)" if f.get("mere") is not None else ""
+        if f.get("mere") is None:
+            return " · chưa đủ cổng ME/RE (0 đơn) → theo CPL"
+        if not f.get("mere_on"):
+            return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn) — chưa đủ cổng → theo CPL"
+        return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn)"
     finals = [(acct, f) for acct, a in summary["accounts"].items() for f in (a.get("adid_final") or [])]
     L = [f"🎯 <b>{cfg.display} — Checklist tổng hợp theo Ad ID (3 ngày CPL × 7 ngày ME/RE){channel_tag(cfg)}</b>",
          "<i>ME/RE thắng khi ad đủ chín &amp; đủ đơn; else theo CPL 3 ngày. Thao tác theo TỪNG ad id.</i>"]
@@ -357,6 +361,12 @@ def build_caption_inbox(cfg, s, doc_fmt="html"):
         if names:
             head = ", ".join(n[:26] for n in names[:3])
             L.append(f"{label}: <b>{len(names)} nhóm</b> — {head}{'…' if len(names) > 3 else ''}")
+    cl = s.get("checklist") or []
+    if cl:
+        _c = {b: sum(1 for f in cl if f.get("mere_on") and not f.get("special_keep") and f.get("final_bucket") == b) for b in ("scale", "theodoi", "giam", "detat", "tat")}
+        _sp = sum(1 for f in cl if f.get("special_keep"))
+        L.append(f"📈 Checklist: 🟢 {_c['scale']} scale · 🟡 {_c['theodoi']} giữ/theo dõi · 🟠 {_c['giam']} giảm · 🟠 {_c['detat']} cân nhắc/đề xuất tắt · 🔴 {_c['tat']} tắt"
+                 + (f" · ⚠️ {_sp} ngoại lệ xin duyệt" if _sp else ""))
     if t.get("lead_noid"):
         L.append(f"⚠️ {t['lead_noid']} lead CHƯA gắn AD ID (đối soát thiếu) — chưa tính vào camp/nhóm nào")
     if bud.get("kpi_day"):
@@ -385,7 +395,40 @@ def build_adid_message_inbox(cfg, s):
             L.append(f"• {_cn(it['name'], 40)} · CPL {cpl}")
             ads = " ".join(it.get("ads", []))
             L.append(f"<code>{ads}</code>" if ads else "<i>(không còn ad đang chi)</i>")
-    L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách campaign (CBO). TẮT: tắt ad/nhóm. Chỉ đề xuất — NV tự thao tác trên Meta.")
+    # Checklist ME/RE (7 ngày) — quyết định cuối theo TỪNG ad id (chỉ khi PER_AD_MERE có dữ liệu)
+    cl = s.get("checklist") or []
+    if cl:
+        def _sfx(f):
+            return f" · ME/RE {f['mere']}% ({f.get('orders7') or 0}đơn)" if f.get("mere") is not None else ""
+        L.append("\n———— ✅ <b>Checklist tổng hợp — quyết định cuối (CPL 3 ngày × ME/RE 7 ngày)</b> ————")
+        sp = [f for f in cl if f.get("special_keep")]
+        if sp:
+            any_item = True
+            L.append("\n<b>⚠️ NGOẠI LỆ — cần XIN DUYỆT (CPL 3 ngày rất tệ nhưng ME/RE giữ lại; ĐỪNG tắt vội)</b>")
+            for f in sorted(sp, key=lambda f: (f.get("mere") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))}{_sfx(f)}".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+        order2 = [("tat", "🔴 TẮT"), ("detat", "🟠 CÂN NHẮC / ĐỀ XUẤT TẮT"), ("giam", "🟠 GIẢM ngân sách"),
+                  ("scale", "🟢 SCALE"), ("theodoi", "🟡 GIỮ / THEO DÕI")]
+        for k, label in order2:
+            items = [f for f in cl if not f.get("special_keep") and f.get("mere_on") and f.get("final_bucket") == k]
+            if not items:
+                continue
+            any_item = True
+            L.append(f"\n<b>{label} — {len(items)} ad</b>")
+            for f in items:
+                L.append(f"• {_esc(_cn(f['name'], 40))} · {_esc(f['final_rec'])}{_sfx(f)}".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+        # THAM KHẢO — có ME/RE nhưng CHƯA đủ tin (ít đơn / BI≠sheet) → KHÔNG auto quyết, soát CRM trước
+        tk = [f for f in cl if not f.get("special_keep") and f.get("mere_on") and not f.get("mere_decide")]
+        if tk:
+            any_item = True
+            L.append(f"\n<b>⚠️ THAM KHẢO — soát CRM trước khi thao tác ({len(tk)} ad)</b>")
+            L.append("<i>ME/RE tính được nhưng ít đơn / BI lệch sheet — theo tab CPL, đừng auto tắt.</i>")
+            for f in sorted(tk, key=lambda f: -(f.get("mere") or 0)):
+                L.append(f"• {_esc(_cn(f['name'], 40))}{_sfx(f)} · sheet {f.get('sheet_l6_7d') or 0}đ(7d)/{f.get('sheet_l6') or 0}đ".rstrip())
+                L.append(f"<code>{f['id']}</code>")
+    L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách campaign (CBO). TẮT: tắt ad/nhóm. ME/RE ≥100% = tắt bắt buộc (chỉ khi đủ tin). THAM KHẢO = soát CRM. Chỉ đề xuất — NV tự thao tác trên Meta.")
     msg = "\n".join(L)
     if len(msg) > 4000:  # Telegram giới hạn 4096 — cắt ở ranh giới dòng, chừa chỗ cho dòng chú thích
         cut = msg[:3900]
