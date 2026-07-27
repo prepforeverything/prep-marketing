@@ -42,6 +42,26 @@ PER_AD_KILL = PER_AD_KILL or PER_AD_ACTION
 # Đưa ME/RE (chi7d ÷ doanh thu7d, từ Prep BI qua build_meta) vào quyết định TỪNG ad_id. ME/RE THẮNG CPL khi
 # mâu thuẫn; chỉ áp khi ad đủ chín + đủ đơn (R.mere_applies), else lùi luật CPL/lead. Cần overlay ad_id.
 PER_AD_MERE = ADID_OVERLAY and bool((PCFG.get("report") or {}).get("per_ad_mere"))
+# Block `mere` (opt-in per SP, spec IELTS Thái): chấm ME/RE theo BAND thuần (scale/watch/hard_loss)
+# + cổng "đủ tuổi HOẶC đủ đơn" (min_age_days / min_orders). Vắng block ⇒ giữ nguyên hành vi cũ
+# (ma trận ME/RE × vùng CPL, cổng chỉ theo ≥3 đơn) — PTE không đổi.
+_MERE = (PCFG.get("report") or {}).get("mere") or {}
+MERE_BAND = PER_AD_MERE and bool(_MERE)
+MERE_SCALE = _MERE.get("scale", 50); MERE_WATCH = _MERE.get("watch", 70); MERE_HARD = _MERE.get("hard_loss", 100)
+MERE_MIN_ORDERS = _MERE.get("min_orders", 3); MERE_MIN_AGE = _MERE.get("min_age_days")
+# Checklist theo MA TRẬN 4×4 CPL × ME/RE (spec Quân 2026-07-23) thay cho band-thuần. Opt-in `mere.matrix`.
+# ME/RE ≥trần → auto tắt; CPL tab đòi tắt nhưng ma trận giữ → cờ ngoại lệ (xin duyệt), gom cuối checklist.
+MERE_MATRIX = MERE_BAND and bool(_MERE.get("matrix"))
+
+
+def _mere_on(orders7, revenue7, age):
+    """Cổng ME/RE đáng tin. BAND (block mere): đủ tuổi (age≥min_age_days) HOẶC đủ đơn (≥min_orders).
+    Không có block: giữ hành vi cũ — chỉ theo đơn (≥3). Vắng PER_AD_MERE ⇒ False."""
+    if not PER_AD_MERE:
+        return False
+    if MERE_BAND:
+        return R.mere_applies(orders7, revenue7, min_orders=MERE_MIN_ORDERS, age=age, min_age_days=MERE_MIN_AGE)
+    return R.mere_applies(orders7, revenue7)
 # Chế độ "tối ưu theo Ad ID": bảng 🔴 vi phạm / 🟡 theo dõi thêm cột chỉ số 7 ngày + cột trạng thái
 # (🟢 đang chạy / ⚪ đã tắt), KHÔNG lọc bỏ ad đã tắt (nêu kèm nhãn để đối chiếu), và ẨN mục "Chi tiết Ad set".
 # Tin Telegram + baseline EOD vẫn chỉ liệt kê ad ĐANG chạy (khỏi bảo tắt ad đã tắt). Mặc định tắt → SP khác giữ nguyên.
@@ -288,6 +308,9 @@ def _is_reduce(rec):  # mức "giảm/theo dõi" (chưa tắt) — vd 3d tụt n
 def _ad_bucket(rec):
     """Nhóm hành động cho MỘT ad id (PER_AD_ACTION): scale/giam/tat/xemxet/hold."""
     if rec.startswith("SCALE"): return "scale"
+    if rec.startswith("THEO DÕI"): return "hold"           # BAND ME/RE: theo dõi (chưa scale) — không đổi ngân sách
+    if rec.startswith("ĐỀ XUẤT TẮT"): return "tat"          # BAND ME/RE: yếu (watch–hard_loss) → nhóm TẮT
+    if rec.startswith("CÂN NHẮC TẮT"): return "xemxet"      # MA TRẬN ô4: CPL rất tệ + ME/RE tốt → cân nhắc tắt ngắn hạn
     if rec.startswith("XEM XÉT TẮT") or rec.startswith("ĐỌC INBOX"): return "xemxet"
     if rec.startswith("TẮT"): return "tat"
     if _is_reduce(rec): return "giam"
@@ -345,7 +368,7 @@ if ADID_OVERLAY:
             # KHÔNG dùng để quyết ở khung 3 ngày; quyết định ME/RE nằm ở adid_7d + adid_final (checklist).
             revenue7 = ad.get("revenue7"); orders7 = ad.get("orders7") or 0
             mere = R.mere_pct(s7, revenue7) if PER_AD_MERE else None
-            mere_on = PER_AD_MERE and R.mere_applies(orders7, revenue7)
+            mere_on = _mere_on(orders7, revenue7, ad.get("age"))
             row = {"id": ad["id"], "code": acode, "name": ad.get("name", ""),
                    "spend": s3, "lead": ld["lead"], "cpl": round(cpl3) if cpl3 else 0,
                    "spend7": s7, "lead7": ld["lead7"], "cpl7": round(cpl7v) if cpl7v else 0,
@@ -374,7 +397,8 @@ if ADID_OVERLAY:
 
 # ---- KHUNG 7 NGÀY (ME/RE theo vùng CPL 7 ngày) — chỉ PER_AD_MERE. Tập ad RỘNG hơn 3d ----------
 # Mỗi ad có s7>0 & đang active: dùng VÙNG CPL 7 NGÀY (zone7c) làm trục CPL của ma trận ME/RE.
-# mere_rec = recommend_mere(zone7c, mere) khi đủ gate (≥3 đơn & có doanh thu; KHÔNG theo age); else None.
+# mere_rec khi đủ gate: BAND (block mere) = recommend_mere_band + cổng đủ tuổi (≥min_age_days) HOẶC đủ đơn;
+# không block = recommend_mere(zone7c) + cổng ≥3 đơn (không theo age, hành vi cũ PTE). Else None.
 if PER_AD_MERE:
     for acct in cfg["accounts"]:
         _active_ids = {norm(x) for x in (cfg["accounts"][acct].get("active_ad_ids") or [])}
@@ -393,15 +417,23 @@ if PER_AD_MERE:
             revenue7 = ad.get("revenue7"); orders7 = ad.get("orders7") or 0
             age = ad.get("age")
             mere = R.mere_pct(s7, revenue7)
-            mere_on = R.mere_applies(orders7, revenue7)
-            mere_rec = R.recommend_mere(zone7c, mere) if mere_on else None
+            mere_on = _mere_on(orders7, revenue7, age)
+            if mere_on and MERE_BAND:                       # BAND thuần (spec Thái): chỉ nhìn ME/RE, không theo vùng CPL
+                mere_rec = R.recommend_mere_band(mere, scale=MERE_SCALE, watch=MERE_WATCH, hard_loss=MERE_HARD)
+            elif mere_on:                                   # cũ: ma trận ME/RE × vùng CPL 7 ngày (PTE)
+                mere_rec = R.recommend_mere(zone7c, mere)
+            else:
+                mere_rec = None
+            # Đề xuất CPL (khung 7 ngày) — dùng làm FALLBACK cho checklist khi ad CHƯA đủ cổng ME/RE
+            # (SP không bật per_ad_action ⇒ không có cpl3_rec cấp ad). Đảm bảo MỌI dòng checklist có đánh giá + đề xuất.
+            cpl_rec = recommend(zone7c, ld["lead7"], s7, 0, z7=zone7c, cpl=cpl7 or 0, ql=ld["ql7"], age=age)
             adid_7d[acct].append({"id": ad["id"], "code": acode,
                                   "name": ad.get("name") or names7.get(acode, ""),
                                   "spend7": s7, "lead7": ld["lead7"],
                                   "cpl7": round(cpl7) if cpl7 else 0, "zone7c": zone7c,
                                   "revenue7": revenue7 or 0, "orders7": orders7,
                                   "mere": round(mere) if mere is not None else None,
-                                  "mere_on": mere_on, "age": age, "rec": mere_rec})
+                                  "mere_on": mere_on, "age": age, "rec": mere_rec, "cpl_rec": cpl_rec})
 
 # ---- CHECKLIST TỔNG HỢP — merge 3d CPL × 7d ME/RE (ME/RE thắng khi đủ gate) --------------------
 # HỢP của tập có hành động 3 ngày (adid_actions) và tập 7 ngày (adid_7d). final_rec = merge_final().
@@ -413,15 +445,24 @@ if PER_AD_MERE:
         for aid in list(_act_by_id) + [i for i in _7d_by_id if i not in _act_by_id]:
             a3 = _act_by_id.get(aid); a7 = _7d_by_id.get(aid)
             base = a3 or a7
-            cpl3_rec = a3["rec"] if a3 else None           # đề xuất CPL 3 ngày (vắng nếu ad không chi 3d)
+            # Đề xuất CPL: ưu tiên CPL 3 ngày cấp ad (per_ad_action). SP không bật per_ad_action ⇒ lùi CPL 7 ngày
+            # (a7["cpl_rec"]) để MỌI ad trong checklist đều có đánh giá + đề xuất (không để "—").
+            cpl3_rec = a3["rec"] if a3 else ((a7 or {}).get("cpl_rec"))
             mere_rec = a7["rec"] if a7 else None            # đề xuất ME/RE 7 ngày (None nếu chưa đủ đơn)
             mere = a7["mere"] if a7 else base.get("mere")
             mere_on = (a7["mere_on"] if a7 else base.get("mere_on")) or False
             orders7 = (a7["orders7"] if a7 else base.get("orders7")) or 0
             revenue7 = (a7["revenue7"] if a7 else base.get("revenue7")) or 0
-            final_rec, special_keep = R.merge_final(cpl3_rec, mere_rec, mere, mere_on)
+            # Vùng CPL cho ma trận = CPL 3 NGÀY (khớp "cảnh báo tắt ở tab CPL"); lùi CPL 7 ngày nếu ad không chi 3d.
+            cpl_zone = (a3.get("zone") if a3 else (a7.get("zone7c") if a7 else "")) or ""
+            if MERE_MATRIX:
+                final_rec, special_keep = R.merge_matrix(cpl3_rec, cpl_zone, mere, mere_on,
+                                                         scale=MERE_SCALE, watch=MERE_WATCH, hard_loss=MERE_HARD)
+            else:
+                final_rec, special_keep = R.merge_final(cpl3_rec, mere_rec, mere, mere_on,
+                                                        keep_loss_pct=(MERE_SCALE if MERE_BAND else 60.0))
             adid_final[acct].append({"id": base["id"], "code": base["code"], "name": base.get("name", ""),
-                                     "cpl3_rec": cpl3_rec, "mere_rec": mere_rec, "mere": mere,
+                                     "cpl3_rec": cpl3_rec, "mere_rec": mere_rec, "mere": mere, "cpl_zone": cpl_zone,
                                      "mere_on": mere_on, "orders7": orders7, "revenue7": revenue7,
                                      "final_rec": final_rec, "special_keep": special_keep,
                                      "bucket": _ad_bucket(final_rec)})
@@ -676,6 +717,7 @@ ZB = {"TỐT": "z-good", "TRUNG BÌNH": "z-mid", "YẾU": "z-weak", "RẤT TỆ"
 def actb(rec):
     if rec.startswith("SCALE"): return "act-scale"
     if rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"): return "act-off"
+    if rec.startswith("CÂN NHẮC TẮT"): return "act-warn"          # ma trận ô4: cân nhắc tắt ngắn hạn
     if rec.startswith("GIẢM") or rec.startswith("CẢNH BÁO"): return "act-warn"
     return "act-hold"
 
@@ -984,17 +1026,28 @@ if PER_AD_MERE and any(adid_7d.values()):
             rev = f'{vnd(k["revenue7"])} ₫' if k["revenue7"] else "—"
             # ME/RE% hiện cho MỌI ad có doanh thu (kể cả chưa đủ 3 đơn — chỉ là chưa dùng để quyết).
             mere = f'{k["mere"]}%' if k["mere"] is not None else "—"
-            mrec = k["rec"] if k["rec"] else (f"chưa đủ đơn ({k['orders7']}<3)" if (k["revenue7"] and not k["mere_on"]) else "—")
+            if k["rec"]:
+                mrec = k["rec"]
+            elif k["revenue7"] and not k["mere_on"]:
+                mrec = (f"chưa đủ cổng (tuổi <{MERE_MIN_AGE}d &amp; {k['orders7']}<{MERE_MIN_ORDERS} đơn)"
+                        if MERE_BAND else f"chưa đủ đơn ({k['orders7']}<{MERE_MIN_ORDERS})")
+            else:
+                mrec = "—"
             mcls = actb(k["rec"]) if k["rec"] else "act-hold"
             _7r += (f'<tr><td><code>{k["id"]}</code><div>{ads_link(acct, k["id"])}</div></td>'
                     f'<td>{acct} · {k["code"]}<div class="code">{clean_name(k["name"])}</div></td>'
                     f'<td class="num">{vnd(k["spend7"])}</td><td class="num">{k["lead7"]}</td><td class="num">{cpl7}</td>'
                     f'<td class="num">{k["orders7"]}</td><td class="num">{rev}</td><td class="num">{mere}</td>'
                     f'<td><span class="badge {mcls}">{mrec}</span></td></tr>')
+    _gate_note = (f'ME/RE% hiện cho mọi ad có doanh thu; chỉ QUYẾT (đề xuất ME/RE) khi ad đủ chín — '
+                  f'<b>đủ tuổi (≥{MERE_MIN_AGE} ngày) HOẶC đủ đơn (≥{MERE_MIN_ORDERS} đơn/7d)</b> &amp; có doanh thu. '
+                  f'Chưa đủ cổng thì để "N/A" (theo dõi tiếp).'
+                  if MERE_BAND else
+                  'ME/RE% hiện cho mọi ad có doanh thu; chỉ QUYẾT (đề xuất ME/RE) khi đủ đơn (≥3 đơn) &amp; có doanh thu — '
+                  'chưa đủ đơn thì để "N/A" (theo dõi tiếp). KHÔNG phụ thuộc ngày tuổi (ad vừa bật lại vẫn chấm nếu đủ đơn).')
     ad7d_html = (f'<h2><span class="bar"></span>📈 Khung 7 ngày — ME/RE (chi ÷ doanh thu) theo từng Ad ID</h2>'
                  f'<div class="note">ME/RE = chi 7 ngày ÷ doanh thu 7 ngày (Prep BI). Vùng CPL ở đây là <b>CPL 7 ngày</b>. '
-                 f'ME/RE% hiện cho mọi ad có doanh thu; chỉ QUYẾT (đề xuất ME/RE) khi đủ đơn (≥3 đơn) &amp; có doanh thu — '
-                 f'chưa đủ đơn thì để "N/A" (theo dõi tiếp). KHÔNG phụ thuộc ngày tuổi (ad vừa bật lại vẫn chấm nếu đủ đơn).</div>'
+                 f'{_gate_note}</div>'
                  f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th class="num">Chi 7d</th>'
                  f'<th class="num">Lead7</th><th class="num">CPL7</th><th class="num">Đơn7</th><th class="num">Doanh thu7</th>'
                  f'<th class="num">ME/RE%</th><th>Đề xuất ME/RE</th></tr></thead><tbody>{_7r}</tbody></table></div>')
@@ -1003,31 +1056,36 @@ if PER_AD_MERE and any(adid_7d.values()):
 checklist_html = ""
 if PER_AD_MERE and any(adid_final.values()):
     def _mere_sfx(f):
+        # Có ME/RE → hiện %+đơn. Chưa đủ cổng (không đơn/doanh thu) → nêu rõ đang quyết THEO CPL, không để trống.
         if f.get("mere") is None:
-            return ""
+            return ' <span class="pct">· chưa đủ cổng ME/RE (0 đơn/doanh thu) → đánh giá theo CPL</span>'
+        if not f.get("mere_on"):
+            return f' <span class="pct">· ME/RE {f["mere"]}% ({f.get("orders7") or 0} đơn) — chưa đủ cổng → theo CPL</span>'
         return f' <span class="pct">· ME/RE {f["mere"]}% ({f.get("orders7") or 0} đơn)</span>'
-    # 1) Cần người quyết — special_keep (3d đòi tắt nhưng ME/RE 7 ngày tốt) nổi bật lên đầu.
+    # 1) Band-thuần (không matrix): special_keep (3d đòi tắt nhưng ME/RE tốt) nổi bật lên ĐẦU.
+    #    Matrix: KHÔNG nêu ở đầu — gom "ngoại lệ" thành danh sách ở CUỐI (spec Quân) + đánh dấu trong bảng nhóm.
     _sp = ""
-    for acct in cfg["accounts"]:
-        for f in adid_final.get(acct, []):
-            if not f.get("special_keep"):
-                continue
-            _sp += (f'<tr><td><code>{f["id"]}</code><div>{ads_link(acct, f["id"])}</div></td>'
-                    f'<td>{acct} · {f["code"]}<div class="code">{clean_name(f["name"])}</div></td>'
-                    f'<td><span class="badge act-warn">⚠️ ĐẶC BIỆT: 3 ngày đòi tắt nhưng ME/RE 7 ngày tốt '
-                    f'(lời {f["mere"]}%, {f.get("orders7") or 0} đơn) — cân nhắc, đừng tắt vội</span>'
-                    f'<div class="pct">3 ngày: {f.get("cpl3_rec") or "—"} → giữ theo ME/RE</div></td></tr>')
+    if not MERE_MATRIX:
+        for acct in cfg["accounts"]:
+            for f in adid_final.get(acct, []):
+                if not f.get("special_keep"):
+                    continue
+                _sp += (f'<tr><td><code>{f["id"]}</code><div>{ads_link(acct, f["id"])}</div></td>'
+                        f'<td>{acct} · {f["code"]}<div class="code">{clean_name(f["name"])}</div></td>'
+                        f'<td><span class="badge act-warn">⚠️ ĐẶC BIỆT: 3 ngày đòi tắt nhưng ME/RE 7 ngày tốt '
+                        f'(lời {f["mere"]}%, {f.get("orders7") or 0} đơn) — cân nhắc, đừng tắt vội</span>'
+                        f'<div class="pct">3 ngày: {f.get("cpl3_rec") or "—"} → giữ theo ME/RE</div></td></tr>')
     _sp_block = (f'<div class="note warn"><b>⚠️ Cần người quyết — ME/RE 7 ngày cứu ad mà 3 ngày đòi tắt:</b></div>'
                  f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>Ghi chú</th></tr></thead>'
                  f'<tbody>{_sp}</tbody></table></div>') if _sp else ""
     # 2) Nhóm theo bucket của final_rec (SCALE MẠNH / SCALE / GIỮ-theo dõi / GIẢM / TẮT).
     _bk_order = [("scale", "🟢 SCALE (mạnh/thường)"), ("hold", "⚪ GIỮ · theo dõi"),
-                 ("giam", "🟠 GIẢM"), ("xemxet", "🔴 XEM XÉT TẮT"), ("tat", "🔴 TẮT")]
+                 ("giam", "🟠 GIẢM"), ("xemxet", "🔴 XEM XÉT / CÂN NHẮC TẮT"), ("tat", "🔴 TẮT")]
     _grp = defaultdict(list)
     for acct in cfg["accounts"]:
         for f in adid_final.get(acct, []):
-            if f.get("special_keep"):
-                continue                                   # đã nêu ở mục Cần người quyết
+            if f.get("special_keep") and not MERE_MATRIX:
+                continue                                   # band-thuần: đã nêu ở mục Cần người quyết
             _grp[f["bucket"]].append((acct, f))
     _rows_html = ""
     for bk, lbl in _bk_order:
@@ -1036,15 +1094,39 @@ if PER_AD_MERE and any(adid_final.values()):
             continue
         _rows_html += f'<tr><td colspan="3" style="background:#f1f5f9;font-weight:700">{lbl} · {len(items)} ad</td></tr>'
         for acct, f in items:
+            _exc_mark = ' <span class="badge act-warn">⚠️ ngoại lệ — xin duyệt</span>' if (MERE_MATRIX and f.get("special_keep")) else ""
             _rows_html += (f'<tr><td><code>{f["id"]}</code><div>{ads_link(acct, f["id"])}</div></td>'
                            f'<td>{acct} · {f["code"]}<div class="code">{clean_name(f["name"])}</div></td>'
-                           f'<td><span class="badge {actb(f["final_rec"])}">{f["final_rec"]}</span>{_mere_sfx(f)}</td></tr>')
+                           f'<td><span class="badge {actb(f["final_rec"])}">{f["final_rec"]}</span>{_mere_sfx(f)}{_exc_mark}</td></tr>')
+    # 3) Matrix: danh sách ad id NGOẠI LỆ gom ở CUỐI — CPL 3 ngày đòi tắt nhưng ma trận ME/RE giữ → xin duyệt.
+    _exc_block = ""
+    if MERE_MATRIX:
+        _exc = ""
+        for acct in cfg["accounts"]:
+            for f in adid_final.get(acct, []):
+                if not f.get("special_keep"):
+                    continue
+                _exc += (f'<tr><td><code>{f["id"]}</code><div>{ads_link(acct, f["id"])}</div></td>'
+                         f'<td>{acct} · {f["code"]}<div class="code">{clean_name(f["name"])}</div></td>'
+                         f'<td>{f.get("cpl_zone") or "—"} · {f.get("cpl3_rec") or "—"}</td>'
+                         f'<td><span class="badge {actb(f["final_rec"])}">{f["final_rec"]}</span></td>'
+                         f'<td class="num">{f["mere"] if f.get("mere") is not None else "—"}% ({f.get("orders7") or 0} đơn)</td></tr>')
+        _exc_block = (f'<div class="note warn"><b>⚠️ Ad cần XIN DUYỆT NGOẠI LỆ:</b> CPL 3 ngày rất tệ (tab CPL đòi tắt) '
+                      f'nhưng ME/RE giữ lại — phải được duyệt mới giữ, nếu không thì tắt theo CPL.</div>'
+                      f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>CPL 3 ngày</th>'
+                      f'<th>Quyết định (ME/RE)</th><th class="num">ME/RE</th></tr></thead>'
+                      f'<tbody>{_exc}</tbody></table></div>') if _exc else ""
+    _cl_note = ('Gộp khung 3 ngày (CPL) + 7 ngày (ME/RE) theo <b>ma trận 4×4 CPL × ME/RE</b>. '
+                'ME/RE ≥trần lỗ → TẮT bất kể CPL. Ad "ngoại lệ" (CPL rất tệ nhưng ME/RE giữ) gom ở cuối — cần xin duyệt.'
+                if MERE_MATRIX else
+                'Gộp khung 3 ngày (CPL) + khung 7 ngày (ME/RE). <b>ME/RE thắng</b> khi ad đủ chín &amp; đủ đơn; '
+                'else theo CPL 3 ngày. Đây là danh sách thao tác cuối cùng.')
     checklist_html = (f'<h2><span class="bar"></span>✅ Checklist tổng hợp — quyết định cuối theo từng Ad ID</h2>'
-                      f'<div class="note">Gộp khung 3 ngày (CPL) + khung 7 ngày (ME/RE). <b>ME/RE thắng</b> khi ad đủ chín &amp; đủ đơn; '
-                      f'else theo CPL 3 ngày. Đây là danh sách thao tác cuối cùng.</div>'
+                      f'<div class="note">{_cl_note}</div>'
                       f'{_sp_block}'
                       f'<div class="scroll"><table><thead><tr><th>Ad ID</th><th>Content</th><th>Quyết định cuối</th></tr></thead>'
-                      f'<tbody>{_rows_html}</tbody></table></div>')
+                      f'<tbody>{_rows_html}</tbody></table></div>'
+                      f'{_exc_block}')
 
 # Ad cùng phiên nhưng có ngày lẻ 0-chi (không đủ để reset tuổi) → nêu cảnh báo để người review.
 gapnote = ""
