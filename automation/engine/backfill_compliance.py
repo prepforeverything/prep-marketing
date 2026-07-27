@@ -55,6 +55,42 @@ def fetch_daily_by_ad(g, acct_id, since, until):
     return daily
 
 
+def daily_spend_all(cfg, since, until):
+    """{tên TK: {ad_id: {ngày: spend}}} cho MỌI tài khoản của sản phẩm (token per-account như build_meta).
+    None nếu thiếu META_ACCESS_TOKEN. Tài khoản lỗi → bỏ qua tài khoản đó (in cảnh báo), không hỏng cả run.
+    Dùng chung cho backfill (lịch sử) và compliance_report (lãng phí tuần)."""
+    default_token = os.environ.get("META_ACCESS_TOKEN", "").strip()
+    if not default_token:
+        return None
+    accounts = cfg["meta"]["accounts"]
+    account_tokens = cfg["meta"].get("account_tokens", {})
+    versions = cfg["meta"].get("api_versions", ["v23.0", "v22.0", "v21.0", "v20.0"])
+    rates = cfg["meta"].get("currency_to_vnd", {})   # vd {"THB": 850} — tỷ giá TEAM (khớp build_meta/sheet)
+    first_name, first_acct = next(iter(accounts.items()))
+    g0 = Graph(os.environ.get(account_tokens.get(first_name, ""), "").strip() or default_token, versions)
+    ver = g0.pick_version(first_acct)
+    graphs = {g0.token: g0}
+    out = {}
+    for name, acct_id in accounts.items():
+        tok = os.environ.get(account_tokens.get(name, ""), "").strip() or default_token
+        if tok not in graphs:
+            gg = Graph(tok, versions); gg.ver = ver; graphs[tok] = gg
+        g = graphs[tok]
+        try:
+            daily = fetch_daily_by_ad(g, acct_id, since, until)
+            cur = (g._get(g.ver, f"act_{acct_id}", {"fields": "currency"}) or {}).get("currency", "VND")
+            if cur != "VND":                          # quy về VND như build_meta — tiền phải cùng đơn vị
+                rate = rates.get(cur)
+                if not rate:
+                    print(f"⚠️ {name} ({acct_id}): bill {cur} nhưng thiếu meta.currency_to_vnd[{cur}] → bỏ qua.", file=sys.stderr)
+                    continue
+                daily = {k: {d: s * rate for d, s in ds.items()} for k, ds in daily.items()}
+            out[name] = daily
+        except Exception as e:  # noqa: BLE001 — hụt 1 tài khoản thì bỏ qua tài khoản đó, không hỏng cả run
+            print(f"⚠️ {name} ({acct_id}): không kéo được daily spend ({e}) → bỏ qua.", file=sys.stderr)
+    return out
+
+
 def main():
     cfg = prepcfg.load()
     state_dir, out_path = str(cfg.state), None
@@ -93,26 +129,9 @@ def main():
     today = datetime.date.today()
     yday = (today - datetime.timedelta(days=1)).isoformat()
 
-    default_token = os.environ.get("META_ACCESS_TOKEN", "").strip()
-    if not default_token:
+    daily_all = daily_spend_all(cfg, since, today.isoformat())
+    if daily_all is None:
         print("LỖI: thiếu META_ACCESS_TOKEN trong .env.", file=sys.stderr); return 2
-    accounts = cfg["meta"]["accounts"]
-    account_tokens = cfg["meta"].get("account_tokens", {})
-    versions = cfg["meta"].get("api_versions", ["v23.0", "v22.0", "v21.0", "v20.0"])
-    first_name, first_acct = next(iter(accounts.items()))
-    g0 = Graph(os.environ.get(account_tokens.get(first_name, ""), "").strip() or default_token, versions)
-    ver = g0.pick_version(first_acct)
-    graphs = {g0.token: g0}
-
-    daily_all = {}                        # acct name → {ad_id: {ngày: spend}}
-    for name, acct_id in accounts.items():
-        tok = os.environ.get(account_tokens.get(name, ""), "").strip() or default_token
-        if tok not in graphs:
-            gg = Graph(tok, versions); gg.ver = ver; graphs[tok] = gg
-        try:
-            daily_all[name] = fetch_daily_by_ad(graphs[tok], acct_id, since, today.isoformat())
-        except Exception as e:  # noqa: BLE001 — hụt 1 tài khoản thì bỏ qua tài khoản đó, không hỏng cả run
-            print(f"⚠️ {name} ({acct_id}): không kéo được daily spend ({e}) → bỏ qua.", file=sys.stderr)
 
     # 1) Tuân thủ theo NGÀY: đề xuất TẮT ngày D tuân thủ nếu không chi ngày D+1 (chấm được khi D+1 ≤ hôm qua)
     per_day = {}                          # ngày → {"ok","tot","miss":[...]}

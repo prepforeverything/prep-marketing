@@ -1,0 +1,44 @@
+name: Ad-ops — báo cáo tuần tuân thủ (gửi riêng quản lý)
+
+# Thứ 2 08:12 VN: tổng hợp state/compliance-<ngày>.json tuần qua (4 SP) + lãng phí tuần từ Meta,
+# gửi chat RIÊNG quản lý (secret TELEGRAM_WEEKLY_CHAT_ID) — không gửi nhóm sản phẩm.
+# Cron UTC: 08:12 VN = 01:12 UTC. ⚠️ Lịch chỉ chạy khi file nằm trên nhánh mặc định (main).
+on:
+  schedule:
+    - cron: "12 1 * * 1"   # thứ 2 08:12 giờ VN
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — KHÔNG gửi Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: compliance-weekly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      META_TOKEN_THAILAND: ${{ secrets.META_TOKEN_THAILAND }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_WEEKLY_CHAT_ID: ${{ secrets.TELEGRAM_WEEKLY_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Báo cáo tuần tuân thủ
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 automation/engine/compliance_report.py --dry-run
+          else
+            python3 automation/engine/compliance_report.py
+          fi
