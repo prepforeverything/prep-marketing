@@ -41,6 +41,17 @@
     "confirm_days": 7,
     "age_lookback_days": 30,
     "adid_overlay": true,
+    "per_ad_mere": true,
+    "bi_product": 4,
+    "bi_market": 1,
+    "mere": {
+      "scale": 50,
+      "watch": 70,
+      "hard_loss": 100,
+      "min_orders": 3,
+      "min_age_days": 7,
+      "matrix": true
+    },
     "telegram_doc": "html"
   },
   "telegram": {
