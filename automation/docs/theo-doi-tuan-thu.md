@@ -56,9 +56,13 @@ Số backfill trước 27/07 (bảng dưới) chỉ dùng tham chiếu — đo b
 3. **[XONG 27/07]** Backfill tham chiếu 07/07→26/07 (`backfill_compliance.py`, proxy spend) — bảng dưới.
 4. **[XONG 27/07 — chờ merge main]** Workflow EOD cho PTE (`pte-adops-eod.yml`, 17:12 VN).
    Còn thiếu: IELTS VN (chưa có EOD) và engine `conv` (chưa ghi baseline).
-5. **Báo cáo tuần** `compliance_report.py`: mỗi thứ 2 gửi Telegram — bảng theo SP: % tuân thủ TẮT,
-   % SCALE/GIẢM, lãng phí ₫, độ trễ median, cohort CPL làm-theo vs bỏ-qua, trend 4 tuần.
-   *(Chờ chốt kênh nhận: kênh quản lý riêng hay kênh SP.)*
+5. **[XONG 27/07]** Dòng hạn chót vào báo cáo sáng: mục TẮT trong tin Ad ID/Checklist ghi rõ
+   "hạn trước 14:00 hôm nay" (`run_daily.py`, đọc `report.off_deadline`).
+6. **[XONG 27/07]** Báo cáo tuần `compliance_report.py` + workflow `compliance-weekly.yml`
+   (thứ 2 08:12 VN, 4 SP): % TẮT đúng hạn/muộn/còn chạy vs tuần trước, SCALE/GIẢM làm theo,
+   lãng phí tuần (đã quy đổi THB→VND). Gửi CHAT RIÊNG quản lý qua secret `TELEGRAM_WEEKLY_CHAT_ID`
+   *(chờ set secret: cần chat id riêng — nhắn bot 1 lần rồi lấy id)*.
+   Chưa có trong v1 tuần: cohort CPL làm-theo vs bỏ-qua (cần nối lead sheet) — bổ sung v2.
 
 ## Kết quả backfill 27/07 (07/07 → 26/07, engine/backfill_compliance.py)
 

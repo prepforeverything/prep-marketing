@@ -70,6 +70,11 @@ def channel_tag(cfg):
     return f" · chỉ kênh {ni}" if ni else ""
 
 
+def off_deadline(cfg):
+    """Hạn chót xử lý mục TẮT trong ngày (rule 27/07: trước 14:00 — khớp eod_compliance). Ghi đè: report.off_deadline."""
+    return (cfg.get("report", {}) or {}).get("off_deadline", "14:00")
+
+
 def build_caption(cfg, summary, doc_fmt="pdf"):
     w = summary["window"]
     per_ad = summary.get("per_ad_kill")            # PTE: TẮT quyết định theo TỪNG ad id, không tắt cả content
@@ -143,7 +148,7 @@ def build_adid_message_per_ad(cfg, summary):
     tat = sorted(buckets["tat"] + buckets["xemxet"], key=lambda x: -(x[1].get("cpl") or 0))
     if tat:
         any_item = True
-        L.append("\n<b>🔴 TẮT (bắt buộc — sẽ đối soát tuân thủ)</b>")
+        L.append(f"\n<b>🔴 TẮT (bắt buộc — hạn trước {off_deadline(cfg)} hôm nay, sẽ đối soát tuân thủ)</b>")
         for acct, k in tat:
             tag = " · trong content xấu" if k.get("content_off") else ""
             L.append(f"• [{acct}] {k['code']} {_esc(_cn(k.get('name')))} · CPL {_cpl(k)}{_mere(k)} · {_esc(k['rec'])}{tag}".rstrip())
@@ -172,7 +177,8 @@ def build_adid_message_per_ad(cfg, summary):
         for acct, s in sorted(spares, key=lambda x: (x[1].get("cpl") or 0)):
             L.append(f"• [{acct}] {s['code']} {_esc(_cn(s.get('name')))} · CPL {_cpl(s)} · {_esc(s['rec'])}".rstrip())
             L.append(f"<code>{s['id']}</code>")
-    L.append("\nℹ️ TẮT: tắt đúng ad id (bắt buộc). SCALE/GIẢM: chỉnh ngân sách ad set (hoặc campaign nếu CBO) chứa ad id — "
+    L.append(f"\nℹ️ TẮT: tắt đúng ad id (bắt buộc) — <b>hạn trước {off_deadline(cfg)} hôm nay</b>, đối soát tối chấm đúng hạn/tắt muộn "
+             "theo giờ thao tác trên Meta. SCALE/GIẢM: chỉnh ngân sách ad set (hoặc campaign nếu CBO) chứa ad id — "
              "NV tự chọn mức. Chỉ đề xuất — NV tự thao tác trên Meta.")
     msg = "\n".join(L)
     if len(msg) > 4000:                     # Telegram giới hạn 4096 — cắt ở ranh giới dòng
@@ -204,7 +210,7 @@ def build_adid_message_checklist(cfg, summary):
                      f"(lời {f.get('mere')}%, {f.get('orders7') or 0}đơn)".rstrip())
             L.append(f"<code>{f['id']}</code>")
     # 2) Nhóm theo bucket của final_rec
-    order = [("tat", "🔴 TẮT"), ("xemxet", "🔴 XEM XÉT TẮT"), ("giam", "🟠 GIẢM"),
+    order = [("tat", f"🔴 TẮT — hạn trước {off_deadline(cfg)} hôm nay"), ("xemxet", "🔴 XEM XÉT TẮT"), ("giam", "🟠 GIẢM"),
              ("scale", "🟢 SCALE"), ("hold", "⚪ GIỮ · theo dõi")]
     by_bucket = {k: [] for k, _ in order}
     for acct, f in finals:
@@ -220,7 +226,8 @@ def build_adid_message_checklist(cfg, summary):
         for acct, f in items:
             L.append(f"• [{acct}] {f['code']} {_esc(_cn(f.get('name')))} · {_esc(f['final_rec'])}{_sfx(f)}".rstrip())
             L.append(f"<code>{f['id']}</code>")
-    L.append("\nℹ️ Đây là quyết định cuối. TẮT: tắt ad id (bắt buộc). SCALE/GIẢM: chỉnh ngân sách ad set/campaign. "
+    L.append(f"\nℹ️ Đây là quyết định cuối. TẮT: tắt ad id (bắt buộc) — <b>hạn trước {off_deadline(cfg)} hôm nay</b>, "
+             "đối soát tối chấm đúng hạn/tắt muộn theo giờ thao tác trên Meta. SCALE/GIẢM: chỉnh ngân sách ad set/campaign. "
              "⚠️ ĐẶC BIỆT: người phụ trách tự quyết. Chỉ đề xuất — NV tự thao tác trên Meta.")
     msg = "\n".join(L)
     if len(msg) > 4000:                     # Telegram giới hạn 4096 — cắt ở ranh giới dòng
@@ -236,7 +243,7 @@ def build_adid_message(cfg, summary):
     if summary.get("per_ad_action"):        # PTE (không ME/RE): mọi đề xuất theo ad id
         return build_adid_message_per_ad(cfg, summary)
     order = [("scale", "🟢 SCALE +20%"), ("giam", "🟠 GIẢM 20% (YẾU)"),
-             ("tat", "🔴 TẮT (RẤT TỆ)"), ("xemxet", "🟠 XEM XÉT TẮT (0 lead, chi cao)")]
+             ("tat", f"🔴 TẮT (RẤT TỆ) — hạn trước {off_deadline(cfg)} hôm nay"), ("xemxet", "🟠 XEM XÉT TẮT (0 lead, chi cao)")]
     by_bucket = {k: [] for k, _ in order}
     for acct, a in summary["accounts"].items():
         for it in a.get("items", []):
@@ -258,8 +265,8 @@ def build_adid_message(cfg, summary):
     kills = [(acct, k) for acct, a in summary["accounts"].items() for k in (a.get("adid_kill") or [])]
     if kills:
         any_item = True
-        L.append("\n<b>🔴 TẮT AD ID (chỉ tắt ad tệ — giữ ad tốt)</b>" if per_ad
-                 else "\n<b>🔴 TẮT AD LẺ (content vẫn tốt — chỉ tắt ad này)</b>")
+        L.append(f"\n<b>🔴 TẮT AD ID (chỉ tắt ad tệ — giữ ad tốt) — hạn trước {off_deadline(cfg)} hôm nay</b>" if per_ad
+                 else f"\n<b>🔴 TẮT AD LẺ (content vẫn tốt — chỉ tắt ad này) — hạn trước {off_deadline(cfg)} hôm nay</b>")
         for acct, k in sorted(kills, key=lambda x: -(x[1].get("cpl") or 0)):
             cpl = f"{k['cpl']:,}".replace(",", ".") if k.get("cpl") else ("0 lead" if not k.get("lead") else "—")
             L.append(f"• [{acct}] {k['code']} {_esc(_cn(k.get('name')))} · CPL {cpl} · {_esc(k['rec'])}".rstrip())
@@ -274,7 +281,8 @@ def build_adid_message(cfg, summary):
                 cpl = f"{s['cpl']:,}".replace(",", ".") if s.get("cpl") else ("0 lead" if not s.get("lead") else "—")
                 L.append(f"• [{acct}] {s['code']} {_esc(_cn(s.get('name')))} · CPL {cpl} · {_esc(s['rec'])}".rstrip())
                 L.append(f"<code>{s['id']}</code>")
-    L.append("\nℹ️ SCALE/GIẢM: chỉnh ngân sách ad set chứa ad ID. TẮT: tắt ad ID. Chỉ đề xuất — NV tự thao tác trên Meta.")
+    L.append(f"\nℹ️ SCALE/GIẢM: chỉnh ngân sách ad set chứa ad ID. TẮT: tắt ad ID — <b>hạn trước {off_deadline(cfg)} hôm nay</b>, "
+             "đối soát tối chấm đúng hạn/tắt muộn theo giờ thao tác trên Meta. Chỉ đề xuất — NV tự thao tác trên Meta.")
     return "\n".join(L) if any_item else ""
 
 
