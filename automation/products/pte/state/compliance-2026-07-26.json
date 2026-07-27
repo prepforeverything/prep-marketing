@@ -1,0 +1,72 @@
+{
+ "date": "2026-07-26",
+ "product": "pte",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "kpi_day": 8370000,
+ "day_budget_eve": 7320778,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 2,
+  "off": 4,
+  "pct_off": 0,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "PrepTalk 1": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120247084963210510",
+     "code": "60326",
+     "name": "PTE.060326_PTE40_Sở hữu trọn đời",
+     "src": "ad tệ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120246442532600510",
+     "code": "60626",
+     "name": "PTE.060626_PTE35_Review cục súc",
+     "src": "ad tệ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120248076933730510",
+     "code": "60226",
+     "name": "PTE.060226_PTE35_Tận dụng AI đúng cách",
+     "src": "ad tệ",
+     "verdict": "late",
+     "done": true,
+     "paused_at": "2026-07-27T10:19:27+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120248193468370510",
+     "code": "1058252",
+     "name": "PTE.105825-2_PTE30_Siêu phẩm TA công sở",
+     "src": "ad tệ",
+     "verdict": "late",
+     "done": true,
+     "paused_at": "2026-07-27T10:18:59+07:00",
+     "time_known": true
+    }
+   ],
+   "scale": [],
+   "codes": []
+  }
+ }
+}
