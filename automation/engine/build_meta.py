@@ -247,6 +247,37 @@ def fetch_reactivations(g, acct_id, since_date):
     return react
 
 
+def fetch_pauses(g, acct_id, since_date):
+    """Giờ TẮT thật theo activity log — chiều ngược của fetch_reactivations.
+    Trả {'ad': {id: 'event_time ISO'}, 'adset': {...}, 'campaign': {...}} — sự kiện Active→Inactive
+    GẦN NHẤT mỗi entity từ since_date (lấy gần nhất vì tắt→bật lại→tắt: lần cuối mới là trạng thái chốt).
+    Dùng chấm deadline tắt (vd trước 14h). Rỗng nếu account không hỗ trợ activities ⇒ caller fallback snapshot."""
+    pauses = {"ad": {}, "adset": {}, "campaign": {}}
+    try:
+        rows = g.page(f"act_{acct_id}/activities",
+                      {"category": "STATUS", "since": since_date,
+                       "fields": "event_type,event_time,object_id,extra_data", "limit": "400"})
+    except Exception:                                    # noqa: BLE001 — API lỗi/không hỗ trợ ⇒ fallback snapshot
+        return pauses
+    for r in rows:
+        level = _REACT_LEVEL.get(r.get("event_type"))
+        if not level:
+            continue
+        oid = norm(r.get("object_id") or "")
+        try:
+            ex = json.loads(r.get("extra_data") or "{}")
+        except (ValueError, TypeError):
+            continue
+        rs = ex.get("run_status") or {}
+        oc, ncode = rs.get("old_value"), rs.get("new_value")
+        is_pause = (oc == _ACTIVE_CODE and ncode in _INACTIVE_CODES) if (oc is not None and ncode is not None) \
+            else (ex.get("old_value") == "Active" and ex.get("new_value") == "Inactive")
+        t = r.get("event_time") or ""
+        if oid and is_pause and t and t > pauses[level].get(oid, ""):
+            pauses[level][oid] = t
+    return pauses
+
+
 def fetch_ad_hierarchy(g, acct_id, preset):
     """{ad_id: (adset_id, campaign_id)} cho các ad có hoạt động trong cửa sổ `preset` (từ insights, không thêm call nặng).
     Dùng để chiếu ngày bật-lại cấp adset/campaign xuống từng ad."""
