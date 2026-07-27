@@ -760,6 +760,8 @@ if _baseline_path:
             _acc[_acct]["kill_ads"].append({"id": m["id"], "code": "", "name": clean_name(m["name"]),
                                             "rec": m["final_rec"], "src": "ME/RE (checklist)"})
     _bl = {"window": [WIN3[0], WIN3[-1]], "kpi_day": kpi_day, "per_ad_action": True,
+           # Giờ PHÁT HÀNH checklist — đối soát nới hạn khi checklist ra sau 14:00 (vd gate chỉ cho gửi 14h12)
+           "sent_at": __import__("datetime").datetime.now().astimezone().isoformat(timespec="seconds"),
            "accounts": {_acct: _entry for _acct, _entry in _acc.items()}}
     json.dump(_bl, open(_baseline_path, "w", encoding="utf-8"), ensure_ascii=False)
     _nk = sum(len(v["kill_ads"]) for v in _acc.values()); _ns = sum(len(v["scale_track"]) for v in _acc.values())

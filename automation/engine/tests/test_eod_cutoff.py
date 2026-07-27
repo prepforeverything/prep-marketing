@@ -24,6 +24,11 @@ eq((t.hour, t.minute), (11, 22), "parse +0700 giữ giờ VN")
 t = E.parse_ts("2026-07-27T00:22:33-0700")  # log trả PDT → quy về +07 (14:22 chiều VN)
 eq((t.hour, t.minute), (14, 22), "lệch múi giờ quy về +07")
 eq(E.parse_ts(""), None, "rỗng → None")
+t = E.parse_ts("2026-07-27T14:12:33+07:00")  # sent_at do engine ghi (isoformat có dấu ':' trong offset)
+eq((t.hour, t.minute), (14, 12), "parse isoformat +07:00 (sent_at)")
+DL14 = datetime.datetime(2026, 7, 27, 14, 0, tzinfo=E.TZ7)
+eq(E.parse_ts("2026-07-27T14:12:33+07:00") > DL14, True, "checklist 14:12 > hạn 14:00 → kích hoạt nới hạn")
+eq(E.parse_ts("2026-07-27T10:12:33+07:00") > DL14, False, "checklist 10:12 → không nới")
 eq(E.parse_ts("2026-07-27"), None, "thiếu giờ → None")
 
 DL = datetime.datetime(2026, 7, 27, 14, 0, tzinfo=E.TZ7)   # hạn 14:00
