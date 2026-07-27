@@ -238,7 +238,7 @@ def main():
         n_unk = sum(1 for o in ra["off"] if o["verdict"] == "ok" and not o["time_known"])
         tot_off += n_off; tot_off_ok += n_ok; tot_off_late += n_late
         if n_off:
-            seg = f"🔴 TẮT ad (hạn {off_deadline}): <b>{n_ok}/{n_off} đúng hạn</b>"
+            seg = f"🔴 TẮT ad (hạn {off_deadline} ngày {target.strftime('%d/%m')}): <b>{n_ok}/{n_off} đúng hạn</b>"
             if n_late:
                 seg += f" · {n_late} tắt muộn"
             if n_off - n_ok - n_late:
@@ -246,7 +246,10 @@ def main():
             lines.append(seg)
             for o in ra["off"]:
                 if o["verdict"] == "late":
-                    lines.append(f"   ⏰ TẮT MUỘN {o['paused_at'][11:16]}: <code>{o['id']}</code> — {o['code']} {o['name'][:20]}".rstrip())
+                    # In kèm NGÀY khi tắt sang ngày khác — "10:19" trần dễ hiểu nhầm là trước hạn 14:00 của hôm đối soát
+                    _pd, _pt = o["paused_at"][:10], o["paused_at"][11:16]
+                    _when = _pt if _pd == tgt else f"{_pt} ngày {int(_pd[8:10])}/{int(_pd[5:7])}"
+                    lines.append(f"   ⏰ TẮT MUỘN {_when}: <code>{o['id']}</code> — {o['code']} {o['name'][:20]}".rstrip())
                 elif o["verdict"] == "pending":
                     lines.append(f"   ⚠️ CÒN CHẠY: <code>{o['id']}</code> — {o['code']} {o['name'][:20]} ({o['src']})".rstrip())
             if n_unk and pauses is not None:
@@ -332,7 +335,7 @@ def main():
         lines.append("")
 
     pct_off = round(tot_off_ok / tot_off * 100) if tot_off else None
-    head = f"📊 <b>Tuân thủ TẮT trước {off_deadline}: {tot_off_ok}/{tot_off}"
+    head = f"📊 <b>Tuân thủ TẮT trước {off_deadline} ngày {target.strftime('%d/%m')}: {tot_off_ok}/{tot_off}"
     head += f" = {pct_off}%</b>" if pct_off is not None else " ad</b>"
     if tot_off_late:
         head += f" · {tot_off_late} tắt muộn"
