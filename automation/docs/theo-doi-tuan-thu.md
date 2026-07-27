@@ -14,15 +14,21 @@ cả quy tắc đề xuất lẫn kỷ luật vận hành.
   ngân sách + totals) — CI tự commit, lịch sử tuân thủ tích lũy trong git. Đây là bảng dữ liệu gốc
   cho mọi báo cáo phía dưới.
 
-## Tiêu chí đánh giá — v1.0 (chốt 27/07/2026, mốc đánh giá reset từ ngày này)
+## Tiêu chí đánh giá — v1.1 (chốt 27/07/2026, mốc đánh giá reset từ ngày này)
 
-Nguồn đề xuất = checklist sáng (`baseline-<ngày>.json`, gửi ~10h). Đối soát chạy ~17h cùng ngày.
+Nguồn đề xuất = checklist sáng (`baseline-<ngày>.json`, gửi ~10h). **Đối soát chạy ~17h CÙNG NGÀY**
+(v1.1 — trước đó chấm trễ 1 ngày khiến hành động sáng nay bị dán nhãn 'muộn' cho checklist hôm qua).
+Ngày khép kín: ad chưa tắt hôm nay mà mai vẫn đáng tắt → checklist mai nhắc lại, chấm vòng mới;
+tiền đốt thêm rơi vào chỉ số lãng phí. Checklist phát hành SAU 14:00 (gate cho gửi muộn, vd 14h12)
+→ hôm đó nới hạn tới lúc đối soát: chỉ chấm ĐÃ TẮT/CÒN CHẠY, không có bậc 'tắt muộn' (đọc `sent_at`
+trong baseline — engine ghi từ v1.1).
 
 ### 1. TẮT — bắt buộc, chấm đúng/sai theo từng Ad ID
 - **Hạn chót: tắt trước 14:00 cùng ngày** (rule chung mọi SP; ghi đè per-SP qua `report.off_deadline`).
 - **Giờ tắt** đọc từ nhật ký thao tác Meta (`activities?category=STATUS`) — lần tắt gần nhất của chính ad
   hoặc ad set / campaign chứa nó (lấy giờ sớm nhất trong 3 cấp, vì tắt cả nhóm cũng là tắt ad).
-- Ba bậc: **✅ đúng hạn** (≤14:00) · **⏰ tắt muộn** (sau 14:00, trước lúc đối soát) · **⚠️ còn chạy**.
+- Ba bậc: **✅ đúng hạn** (≤14:00) · **⏰ tắt muộn** (14:00 → lúc đối soát ~17h, CÙNG ngày) · **⚠️ còn chạy**.
+- Tin đối soát in giờ tắt kèm NGÀY khi khác ngày đối soát (tránh đọc nhầm "10:19" là trước hạn).
 - Đã tắt nhưng không thấy sự kiện trong cửa sổ dò 2 ngày → tắt từ trước → tính đúng hạn, cờ "không rõ giờ".
 - Tắt rồi **bật lại** (còn chạy lúc đối soát) = còn chạy — snapshot cuối ngày là trọng tài.
 - Ngoại lệ xin duyệt (giữ vì ME/RE tốt, `special_keep`) không nằm trong danh sách TẮT → không bị chấm.

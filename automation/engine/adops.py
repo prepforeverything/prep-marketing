@@ -651,7 +651,9 @@ if _baseline_path:
         if rec.startswith("TẮT") or rec.startswith("XEM XÉT TẮT"): return "off"
         return "hold"
     _bl = {"window": [WINDOW[0], WINDOW[-1]], "anchor": cfg.get("anchor"), "kpi_day": kpi_day,
-           "per_ad_action": PER_AD_ACTION, "accounts": {}}
+           "per_ad_action": PER_AD_ACTION, "accounts": {},
+           # Giờ PHÁT HÀNH checklist — đối soát dùng để nới hạn khi checklist ra sau 14:00 (vd gate chỉ cho gửi 14h12)
+           "sent_at": __import__("datetime").datetime.now().astimezone().isoformat(timespec="seconds")}
     for _acct, _rows in data.items():
         _bud = defaultdict(int); _adc = defaultdict(int)
         for _s in cfg["accounts"][_acct].get("adsets", []):

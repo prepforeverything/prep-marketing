@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """eod_compliance.py — Đối soát thực thi cuối ngày.
 
-So trạng thái Meta (ngân sách + bật/tắt ad set) lúc SÁNG (baseline) vs CUỐI NGÀY với checklist đề xuất
-buổi sáng, rồi gửi bảng tuân thủ qua Telegram. **Đạt = đúng HƯỚNG**: SCALE→ngân sách tăng; GIẢM→giảm;
+So trạng thái Meta (ngân sách + bật/tắt ad set) vs checklist đề xuất CÙNG NGÀY (baseline sáng nay),
+chạy ~17h: TẮT ≤14:00 = đúng hạn, 14:00→lúc đối soát = tắt muộn, còn lại = còn chạy. Ngày khép kín —
+ad chưa tắt mà mai vẫn đáng tắt thì checklist mai nhắc lại và chấm vòng mới. Checklist phát hành sau
+14:00 (gate cho gửi muộn) → hôm đó nới hạn tới lúc đối soát, không tính 'tắt muộn'. Gửi Telegram. **Đạt = đúng HƯỚNG**: SCALE→ngân sách tăng; GIẢM→giảm;
 TẮT→đã tắt (0 ad / 0 ngân sách). Read-only Meta. Idempotent qua cờ state/eod-sent-<ngày>.flag.
 
 Cần baseline do run_daily/adops lưu sáng nay: state/baseline-<ngày>.json.
@@ -142,7 +144,7 @@ def main():
             except ValueError:
                 print(f"LỖI: --date phải YYYY-MM-DD, nhận {a}", file=sys.stderr); return 2
     if target is None:
-        target = datetime.date.today() - datetime.timedelta(days=1)
+        target = datetime.date.today()   # chấm CÙNG NGÀY: checklist sáng nay → đối soát 17h nay (v1.1, 27/07)
     tgt = target.isoformat()
 
     flag = cfg.flag_eod(tgt) if hasattr(cfg, "flag_eod") else cfg.state / f"eod-sent-{tgt}.flag"
@@ -172,6 +174,10 @@ def main():
     off_deadline = (cfg.get("report", {}) or {}).get("off_deadline", "14:00")
     _h, _m = (int(x) for x in off_deadline.split(":"))
     deadline = datetime.datetime(target.year, target.month, target.day, _h, _m, tzinfo=TZ7)
+    sent_at = parse_ts(baseline.get("sent_at") or "")
+    grace = bool(sent_at and sent_at > deadline)   # checklist ra SAU hạn → nới tới lúc đối soát, không có bậc 'muộn'
+    if grace:
+        deadline = datetime.datetime(target.year, target.month, target.day, 23, 59, tzinfo=TZ7)
 
     # Nhật ký bật/tắt Meta (giờ chính xác từng thao tác) để chấm deadline — read-only.
     # Lỗi/không hỗ trợ → fallback chấm theo snapshot như cũ (đã tắt = ok, không rõ giờ).
@@ -362,6 +368,9 @@ def main():
         lines.append(bnote)
     _def = (f"ℹ️ TẮT chấm theo <b>từng Ad ID</b>, hạn chót <b>{off_deadline} cùng ngày</b> — giờ tắt đọc từ nhật ký thao tác Meta "
             "(tắt sau hạn = 'tắt muộn', vẫn tốt hơn còn chạy).")
+    if grace:
+        lines.append(f"ℹ️ Checklist hôm nay phát hành {sent_at.astimezone(TZ7).strftime('%H:%M')} (sau hạn {off_deadline}) "
+                     "→ hôm nay chỉ chấm ĐÃ TẮT / CÒN CHẠY tới lúc đối soát, không tính 'tắt muộn'.")
     if per_action:
         lines.append(_def + f" {_sc_word} chỉ <b>theo dõi</b> mức nhân sự chỉnh (so ngân sách ad set/campaign chiều vs sáng) — không chấm đúng/sai. Ngân sách/ngày = tổng ngân sách đang bật cuối ngày.")
     else:
@@ -372,7 +381,7 @@ def main():
     # Bản ghi tuân thủ máy-đọc-được — tích lũy lịch sử trong state/ (CI đã commit thư mục này sẵn).
     record = {
         "date": tgt, "product": cfg.product, "per_ad_action": per_action,
-        "off_deadline": off_deadline, "kpi_day": baseline.get("kpi_day") or 0,
+        "off_deadline": off_deadline, "sent_at": baseline.get("sent_at"), "grace_late_checklist": grace, "kpi_day": baseline.get("kpi_day") or 0,
         "day_budget_eve": tot_day_budget, "cbo_missing": tot_cbo_missing,
         "totals": {"off_ok": tot_off_ok, "off_late": tot_off_late, "off": tot_off, "pct_off": pct_off,
                    "bud_ok": tot_bud_ok, "bud": tot_bud,
