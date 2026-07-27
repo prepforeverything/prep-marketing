@@ -1,0 +1,107 @@
+{
+ "date": "2026-07-26",
+ "product": "vstep",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "kpi_day": 4792320,
+ "day_budget_eve": 2582000,
+ "cbo_missing": 7,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 2,
+  "pct_off": 0,
+  "bud_ok": 0,
+  "bud": 6,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "VSTEP - 01": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120249760276270223",
+     "code": "71126",
+     "name": "Lộ trình - Lộ trình ngắn nhất",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120249815358090223",
+     "code": "720262",
+     "name": "Lộ trình 3 bước h2",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "71026",
+     "dir": "up",
+     "morning": 648000,
+     "evening": 648000,
+     "ads_eve": 3,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "704262",
+     "dir": "up",
+     "morning": 732000,
+     "evening": 642000,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "719262",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 1,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "626265",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "70226",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "71526",
+     "dir": "down",
+     "morning": 309000,
+     "evening": 309000,
+     "ads_eve": 1,
+     "verdict": "pending",
+     "label": "chưa giảm"
+    }
+   ]
+  }
+ }
+}
