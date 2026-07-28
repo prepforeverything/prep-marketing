@@ -70,10 +70,21 @@ def check(data, dash_dir):
     return msgs
 
 
-def send(msgs, stamp, dry=False):
+def send(msgs, stamp, dry=False, dash_dir=None):
     if not msgs:
         print("alerts: sạch — không gửi")
         return
+    # Chống trùng (28/07, user dính 3 tin/ngày do deploy nhiều lần): mỗi ngày gửi tối đa 1 lần —
+    # marker nằm trong publish dir nên được commit/pull cùng data.
+    day = stamp[:10]
+    marker = (dash_dir / "alerts-sent.txt") if dash_dir else None
+    if marker is not None and not dry:
+        try:
+            if marker.exists() and marker.read_text(encoding="utf-8").strip() == day:
+                print("alerts: hôm nay đã gửi rồi — bỏ qua")
+                return
+        except OSError:
+            pass
     text = f"⚠️ Dashboard VN1 — cảnh báo ({stamp}):\n" + "\n".join(msgs) + f"\n{DASH_URL}"
     tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     # DM riêng cho Quân (user 28/07) — TELEGRAM_ALERT_CHAT_ID; thiếu thì lùi về kênh nhóm chung
@@ -86,5 +97,10 @@ def send(msgs, stamp, dry=False):
             f"https://api.telegram.org/bot{tok}/sendMessage",
             data=urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()), timeout=30)
         print(f"alerts: đã gửi {len(msgs)} cảnh báo Telegram")
+        if marker is not None:
+            try:
+                marker.write_text(day + "\n", encoding="utf-8")
+            except OSError:
+                pass
     except Exception as e:  # noqa: BLE001 — cảnh báo lỗi không được giết build
         print(f"[WARN] alerts: gửi Telegram lỗi {e}", file=sys.stderr)
