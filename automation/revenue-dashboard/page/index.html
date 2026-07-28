@@ -147,6 +147,7 @@
   <div class="tabs" id="tabs">
     <div class="tab on" data-t="rev">Doanh thu vs KPI</div>
     <div class="tab" data-t="eff">Chi phí &amp; hiệu quả</div>
+    <div class="tab" data-t="trend">Xu hướng</div>
   </div>
   <div id="kpiwarn" class="insight warning" style="display:none"></div>
   <div class="chips" id="chips"></div>
@@ -216,11 +217,6 @@
       <div class="note" id="eff-note"></div>
       <div style="overflow-x:auto"><table id="efftbl"></table></div>
     </div>
-    <div class="card" id="trend6-card">
-      <h3>Xu hướng 6 tháng</h3>
-      <div class="note" id="t6-note"></div>
-      <div style="overflow-x:auto;padding-bottom:16px"><table id="t6-tbl"></table></div>
-    </div>
     <div class="card" id="mkt-inbox-card">
       <h3>Hiệu quả Inbox theo campaign &amp; ad</h3>
       <div class="note" id="mi-note"></div>
@@ -232,6 +228,13 @@
       <div class="chips" id="mu-flt" style="margin:8px 0 4px"></div>
       <div id="mu-crumbs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
       <div style="overflow-x:auto;padding-bottom:16px"><table id="mu-tbl"></table></div>
+    </div>
+  </div>
+  <div id="tab-trend" style="display:none">
+    <div class="card" id="trend6-card">
+      <h3>Xu hướng 6 tháng</h3>
+      <div class="note" id="t6-note"></div>
+      <div style="overflow-x:auto;padding-bottom:16px"><table id="t6-tbl"></table></div>
     </div>
   </div>
   <div class="footer">Prep Education — Dashboard doanh thu A1+B1 (Prep BI, bucket paid-a1/paid-b1, attribution first-paid)<br>
@@ -349,10 +352,12 @@ function render(){
   const days=selDays(),codes=scopeCodes();
   $("tab-rev").style.display=state.tab==="rev"?"":"none";
   $("tab-eff").style.display=state.tab==="eff"?"":"none";
+  $("tab-trend").style.display=state.tab==="trend"?"":"none";
   if(!days.length){$("summary").innerHTML="";$("eff-summary").innerHTML="";$("kpiwarn").style.display="";
     $("kpiwarn").innerHTML="⚠️ Khoảng ngày không có dữ liệu.";return;}
   renderChips(days);
   if(state.tab==="eff"){$("kpiwarn").style.display="none";renderEff(days,codes);return;}
+  if(state.tab==="trend"){$("kpiwarn").style.display="none";renderTrend6(codes);return;}
   renderRev(days,codes);
 }
 
@@ -708,7 +713,6 @@ function renderEff(days,codes){
   $("efftbl-card").style.display=state.scope==="ALL"?"":"none";
   if(state.scope==="ALL")renderEffTable(days);
   renderMkt(codes);
-  renderTrend6(codes);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +" — cột nhạt = doanh thu ("+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ")+", A3+B3 phân bổ ngày là ước lượng), "
     +"cột đậm = chi phí"+(state.scope==="ALL"?" chồng theo sản phẩm, bấm chip để xem riêng":"")
@@ -1252,9 +1256,9 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
     for(const c of codes){const v=M.lines[c];if(!v)continue;
       const S=a=>(a||[]).reduce((x,y)=>x+y,0);
       sp+=S(v.sp_meta)+S(v.sp_g)+S(v.sp_tt);
-      rev+=S(v.a1)+S(v.b1)+(state.basis==="a1b1"?0:S(v.a3b3));
+      rev+=S(v.a1)+S(v.b1)+S(v.a3b3); // tab riêng: cố định Paid đầy đủ (không có chip cơ sở ở đây)
       ld+=S(v.lead);ql+=S(v.ql);
-      od+=S(v.o_a1)+S(v.o_b1)+(state.basis==="a1b1"?0:S(v.o_a3b3));}
+      od+=S(v.o_a1)+S(v.o_b1)+S(v.o_a3b3);}
     return {m,cur:M.as_of_day<M.days_in_month,sp,rev,ld,ql,od};
   });
   let h="<thead><tr><th>Tháng</th><th>Chi phí</th><th>Doanh thu</th><th>ME/RE</th><th>Lead</th><th>CPL</th>"
@@ -1271,8 +1275,7 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
   $("t6-tbl").innerHTML=h+"</tbody>";
   $("t6-note").textContent="Trọn từng tháng (tháng hiện tại = MTD), không phụ thuộc bộ lọc thời gian — theo "
     +(state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))
-    +" · cơ sở doanh thu theo lựa chọn phía trên ("+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ")+") "
-    +"· chi phí đủ nguồn từ 202506 (trước đó thiếu Google).";
+    +" · doanh thu Paid đầy đủ (A1+B1+A3+B3) · chi phí đủ nguồn từ 202506 (trước đó thiếu Google).";
 }
 function renderEffTable(days){
   const rows=DATA.lines.map(l=>{
