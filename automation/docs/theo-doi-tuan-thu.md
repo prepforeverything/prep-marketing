@@ -16,7 +16,11 @@ cả quy tắc đề xuất lẫn kỷ luật vận hành.
 
 ## Tiêu chí đánh giá — v1.1 (chốt 27/07/2026, mốc đánh giá reset từ ngày này)
 
-Nguồn đề xuất = checklist sáng (`baseline-<ngày>.json`, gửi ~10h). **Đối soát chạy ~17h CÙNG NGÀY**
+Nguồn đề xuất = checklist sáng (`baseline-<ngày>.json`, gửi ~10h). **Đối soát chạy CÙNG NGÀY, lượt
+chính 14h** (n8n dispatch — user chốt 28/07, chấm ngay khi hết hạn); GH cron tối (17h07+, thường trễ
+18h30–20h) là DỰ PHÒNG: cờ `eod-sent` của lượt 14h làm lượt tối SKIP câm — mỗi ngày đúng MỘT tin.
+Guard trong engine: chạy thật trước hạn trong ngày = no-op; ngày báo cáo sáng ra muộn thì lượt 14h
+im lặng nhường lượt tối (chấm với hạn đã nới theo `sent_at`).
 (v1.1 — trước đó chấm trễ 1 ngày khiến hành động sáng nay bị dán nhãn 'muộn' cho checklist hôm qua).
 Ngày khép kín: ad chưa tắt hôm nay mà mai vẫn đáng tắt → checklist mai nhắc lại, chấm vòng mới;
 tiền đốt thêm rơi vào chỉ số lãng phí. Checklist phát hành SAU 14:00 (gate cho gửi muộn, vd 14h12)
@@ -27,7 +31,8 @@ trong baseline — engine ghi từ v1.1).
 - **Hạn chót: tắt trước 14:00 cùng ngày** (rule chung mọi SP; ghi đè per-SP qua `report.off_deadline`).
 - **Giờ tắt** đọc từ nhật ký thao tác Meta (`activities?category=STATUS`) — lần tắt gần nhất của chính ad
   hoặc ad set / campaign chứa nó (lấy giờ sớm nhất trong 3 cấp, vì tắt cả nhóm cũng là tắt ad).
-- Ba bậc: **✅ đúng hạn** (≤14:00) · **⏰ tắt muộn** (14:00 → lúc đối soát ~17h, CÙNG ngày) · **⚠️ còn chạy**.
+- Ba bậc: **✅ đúng hạn** (≤14:00) · **⏰ tắt muộn** (14:00 → lúc đối soát, CÙNG ngày — với lịch 14h
+  cửa sổ này rất hẹp, chủ yếu xuất hiện khi lượt dự phòng tối phải chấm thay) · **⚠️ còn chạy**.
 - Tin đối soát in giờ tắt kèm NGÀY khi khác ngày đối soát (tránh đọc nhầm "10:19" là trước hạn).
 - Đã tắt nhưng không thấy sự kiện trong cửa sổ dò 2 ngày → tắt từ trước → tính đúng hạn, cờ "không rõ giờ".
 - Tắt rồi **bật lại** (còn chạy lúc đối soát) = còn chạy — snapshot cuối ngày là trọng tài.
