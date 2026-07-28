@@ -147,13 +147,15 @@ def main():
         target = datetime.date.today()   # chấm CÙNG NGÀY: checklist sáng nay → đối soát 17h nay (v1.1, 27/07)
     tgt = target.isoformat()
 
-    # Chặn chạy THẬT quá sớm trong ngày: đối soát cùng-ngày chỉ có nghĩa SAU hạn 14:00 + cửa sổ 'tắt muộn'.
-    # Live n8n đang dispatch EOD ~14:00 VN (TZ instance lệch — cron khai 18h07/18h17) → lượt 14h thành no-op,
-    # giữ lượt gửi (và cờ) cho cron tối. --date / --dry-run / --force không bị chặn.
+    # Lịch chính thức (user chốt 28/07): n8n dispatch 14h = lượt gửi CHÍNH (ngay sau hạn);
+    # GH cron tối (17h07+, thường trễ 18h30-20h) = DỰ PHÒNG — cờ eod-sent của lượt 14h làm lượt tối SKIP câm.
+    # Guard: chạy thật trước HẠN (report.off_deadline) trong ngày → no-op, không gửi không cờ.
+    # --date / --dry-run / --force không bị chặn.
+    _now = datetime.datetime.now(TZ7)
     if not DRY and "--force" not in sys.argv and target == datetime.date.today():
-        _now = datetime.datetime.now(TZ7)
-        if (_now.hour, _now.minute) < (16, 30):
-            print(f"action: SKIP_EARLY ({_now.strftime('%H:%M')} — đối soát cùng ngày chỉ chạy sau 16:30, để dành lượt cho cron tối)")
+        _dh, _dm = (int(x) for x in ((cfg.get("report", {}) or {}).get("off_deadline", "14:00")).split(":"))
+        if (_now.hour, _now.minute) < (_dh, _dm):
+            print(f"action: SKIP_EARLY ({_now.strftime('%H:%M')} — trước hạn {_dh:02d}:{_dm:02d}, đối soát cùng ngày chưa có nghĩa)")
             return 0
 
     flag = cfg.flag_eod(tgt) if hasattr(cfg, "flag_eod") else cfg.state / f"eod-sent-{tgt}.flag"
@@ -162,8 +164,13 @@ def main():
 
     baseline_path = cfg.state / f"baseline-{tgt}.json"
     if not baseline_path.exists():
+        # Lượt 14h gặp ngày báo cáo sáng ra muộn (gate 14h07-14h12 có thể VẪN phát hành checklist sau đó)
+        # → im lặng nhường lượt tối chấm (hạn sẽ được nới theo sent_at); KHÔNG gửi tin, KHÔNG chiếm cờ.
+        if not DRY and target == datetime.date.today() and (_now.hour, _now.minute) < (16, 30):
+            print("action: NO_BASELINE_DEFER (chưa có checklist — nhường lượt cron tối, có thể recheck 14h vẫn phát hành)")
+            return 0
         msg = (f"📋 <b>{cfg.display} — đối soát cuối ngày {target.strftime('%d/%m')}</b>\n"
-               f"Sáng nay không có checklist đề xuất (chưa cào lead / chưa chạy báo cáo) → không có gì để đối soát.")
+               f"Hôm nay không có checklist đề xuất (chưa cào lead / chưa chạy báo cáo) → không có gì để đối soát.")
         print("action: NO_BASELINE")
         if not DRY:
             tg(cfg, "message", msg); flag.touch()
