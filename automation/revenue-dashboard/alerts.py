@@ -76,7 +76,8 @@ def send(msgs, stamp, dry=False):
         return
     text = f"⚠️ Dashboard VN1 — cảnh báo ({stamp}):\n" + "\n".join(msgs) + f"\n{DASH_URL}"
     tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    # DM riêng cho Quân (user 28/07) — TELEGRAM_ALERT_CHAT_ID; thiếu thì lùi về kênh nhóm chung
+    chat = (os.environ.get("TELEGRAM_ALERT_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
     if dry or not tok or not chat:
         print("alerts (dry / thiếu token — chỉ in):\n" + text)
         return
