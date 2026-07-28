@@ -1,0 +1,191 @@
+{
+ "date": "2026-07-27",
+ "send_day": "2026-07-28",
+ "product": "toeic",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-07-28T10:08:04+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 14810901,
+ "day_budget_eve": 12810137,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 4,
+  "off_late": 0,
+  "off": 5,
+  "pct_off": 80,
+  "bud_ok": 0,
+  "bud": 11,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "TOEIC 3": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120253014125900586",
+     "code": "44825",
+     "name": "044825_S25_prep mở 35 suất",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260111233820586",
+     "code": "71726",
+     "name": "071726_S25_Khoảnh khắc nhận ra",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260114960590586",
+     "code": "70826",
+     "name": "070826_S25_Năm cuối thảnh thơii",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260116690170586",
+     "code": "62726",
+     "name": "062726_NENTANG_Thế mà lại hay_9980240597",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260137384560586",
+     "code": "62726",
+     "name": "062726_NENTANG_Thế mà lại hay",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "51425",
+     "dir": "up",
+     "morning": 1916368,
+     "evening": 1916368,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "51526",
+     "dir": "up",
+     "morning": 1472000,
+     "evening": 1472000,
+     "ads_eve": 4,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "62126",
+     "dir": "up",
+     "morning": 1336000,
+     "evening": 1336000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "44825",
+     "dir": "down",
+     "morning": 1184000,
+     "evening": 1184000,
+     "ads_eve": 3,
+     "verdict": "pending",
+     "label": "chưa giảm"
+    },
+    {
+     "code": "50826",
+     "dir": "up",
+     "morning": 1196000,
+     "evening": 1196000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "62726",
+     "dir": "up",
+     "morning": 1276000,
+     "evening": 888000,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "71226",
+     "dir": "down",
+     "morning": 958000,
+     "evening": 958000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa giảm"
+    },
+    {
+     "code": "70126",
+     "dir": "up",
+     "morning": 736000,
+     "evening": 736000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "70826",
+     "dir": "up",
+     "morning": 851769,
+     "evening": 653769,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "42226",
+     "dir": "up",
+     "morning": 396000,
+     "evening": 396000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "71726",
+     "dir": "up",
+     "morning": 585000,
+     "evening": 402000,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    }
+   ]
+  },
+  "TOEIC 5": {
+   "skipped": false,
+   "off": [],
+   "scale": [],
+   "codes": []
+  }
+ }
+}
