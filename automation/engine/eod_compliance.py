@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """eod_compliance.py — Đối soát thực thi cuối ngày.
 
-So trạng thái Meta (ngân sách + bật/tắt ad set) vs checklist đề xuất CÙNG NGÀY (baseline sáng nay),
-chạy ~17h: TẮT ≤14:00 = đúng hạn, 14:00→lúc đối soát = tắt muộn, còn lại = còn chạy. Ngày khép kín —
+So trạng thái Meta vs checklist đề xuất. QUY ƯỚC: baseline-D = checklist PHÁT HÀNH sáng D+1
+(dữ liệu đến hết D) ⇒ đối soát hôm nay chấm baseline-(hôm nay−1), hạn 14:00 HÔM NAY. Lượt chính 14h (n8n): TẮT ≤14:00 = đúng hạn, 14:00→lúc đối soát = tắt muộn, còn lại = còn chạy. Ngày khép kín —
 ad chưa tắt mà mai vẫn đáng tắt thì checklist mai nhắc lại và chấm vòng mới. Checklist phát hành sau
 14:00 (gate cho gửi muộn) → hôm đó nới hạn tới lúc đối soát, không tính 'tắt muộn'. Gửi Telegram. **Đạt = đúng HƯỚNG**: SCALE→ngân sách tăng; GIẢM→giảm;
 TẮT→đã tắt (0 ad / 0 ngân sách). Read-only Meta. Idempotent qua cờ state/eod-sent-<ngày>.flag.
@@ -144,18 +144,21 @@ def main():
             except ValueError:
                 print(f"LỖI: --date phải YYYY-MM-DD, nhận {a}", file=sys.stderr); return 2
     if target is None:
-        target = datetime.date.today()   # chấm CÙNG NGÀY: checklist sáng nay → đối soát 17h nay (v1.1, 27/07)
+        # QUY ƯỚC TÊN (khớp run_daily): baseline-D = checklist PHÁT HÀNH sáng D+1 (dữ liệu đến hết D).
+        # Đối soát hôm nay chấm checklist phát hành SÁNG NAY ⇒ anchor = hôm nay − 1. (--date nhận ANCHOR.)
+        target = datetime.date.today() - datetime.timedelta(days=1)
     tgt = target.isoformat()
+    send_day = target + datetime.timedelta(days=1)   # ngày checklist đến tay NV = ngày thao tác, ngày của hạn 14:00
 
     # Lịch chính thức (user chốt 28/07): n8n dispatch 14h = lượt gửi CHÍNH (ngay sau hạn);
     # GH cron tối (17h07+, thường trễ 18h30-20h) = DỰ PHÒNG — cờ eod-sent của lượt 14h làm lượt tối SKIP câm.
     # Guard: chạy thật trước HẠN (report.off_deadline) trong ngày → no-op, không gửi không cờ.
     # --date / --dry-run / --force không bị chặn.
     _now = datetime.datetime.now(TZ7)
-    if not DRY and "--force" not in sys.argv and target == datetime.date.today():
+    if not DRY and "--force" not in sys.argv and send_day == datetime.date.today():
         _dh, _dm = (int(x) for x in ((cfg.get("report", {}) or {}).get("off_deadline", "14:00")).split(":"))
         if (_now.hour, _now.minute) < (_dh, _dm):
-            print(f"action: SKIP_EARLY ({_now.strftime('%H:%M')} — trước hạn {_dh:02d}:{_dm:02d}, đối soát cùng ngày chưa có nghĩa)")
+            print(f"action: SKIP_EARLY ({_now.strftime('%H:%M')} — trước hạn {_dh:02d}:{_dm:02d} của checklist phát hành sáng nay)")
             return 0
 
     flag = cfg.flag_eod(tgt) if hasattr(cfg, "flag_eod") else cfg.state / f"eod-sent-{tgt}.flag"
@@ -166,11 +169,11 @@ def main():
     if not baseline_path.exists():
         # Lượt 14h gặp ngày báo cáo sáng ra muộn (gate 14h07-14h12 có thể VẪN phát hành checklist sau đó)
         # → im lặng nhường lượt tối chấm (hạn sẽ được nới theo sent_at); KHÔNG gửi tin, KHÔNG chiếm cờ.
-        if not DRY and target == datetime.date.today() and (_now.hour, _now.minute) < (16, 30):
+        if not DRY and send_day == datetime.date.today() and (_now.hour, _now.minute) < (16, 30):
             print("action: NO_BASELINE_DEFER (chưa có checklist — nhường lượt cron tối, có thể recheck 14h vẫn phát hành)")
             return 0
-        msg = (f"📋 <b>{cfg.display} — đối soát cuối ngày {target.strftime('%d/%m')}</b>\n"
-               f"Hôm nay không có checklist đề xuất (chưa cào lead / chưa chạy báo cáo) → không có gì để đối soát.")
+        msg = (f"📋 <b>{cfg.display} — đối soát checklist sáng {send_day.strftime('%d/%m')}</b>\n"
+               f"Không có checklist phát hành sáng {send_day.strftime('%d/%m')} (chưa cào lead / chưa chạy báo cáo) → không có gì để đối soát.")
         print("action: NO_BASELINE")
         if not DRY:
             tg(cfg, "message", msg); flag.touch()
@@ -189,7 +192,7 @@ def main():
     # Hạn chót TẮT trong ngày (rule chung 14:00 — checklist gửi 10h, xử lý trước báo cáo 14h). Ghi đè: report.off_deadline.
     off_deadline = (cfg.get("report", {}) or {}).get("off_deadline", "14:00")
     _h, _m = (int(x) for x in off_deadline.split(":"))
-    deadline = datetime.datetime(target.year, target.month, target.day, _h, _m, tzinfo=TZ7)
+    deadline = datetime.datetime(send_day.year, send_day.month, send_day.day, _h, _m, tzinfo=TZ7)
     sent_at = parse_ts(baseline.get("sent_at") or "")
     grace = bool(sent_at and sent_at > deadline)   # checklist ra SAU hạn → nới tới lúc đối soát, không có bậc 'muộn'
     if grace:
@@ -207,7 +210,7 @@ def main():
         _g0 = Graph(os.environ.get(_atok.get(_first, ""), "").strip() or _deft, _vers)
         _ver = _g0.pick_version(_accs[_first])
         _graphs = {_g0.token: _g0}
-        _since = (target - datetime.timedelta(days=2)).isoformat()  # lùi 2 ngày: bắt cả ca tắt tối hôm trước
+        _since = (send_day - datetime.timedelta(days=2)).isoformat()  # lùi 2 ngày: bắt cả ca tắt tối hôm trước
         for _name, _aid in _accs.items():
             _tok = os.environ.get(_atok.get(_name, ""), "").strip() or _deft
             if _tok not in _graphs:
@@ -223,7 +226,7 @@ def main():
     _sc_word = "SCALE/GIẢM" if _has_down else "SCALE"
     _sub = (f"TẮT xác nhận tuân thủ theo <b>từng ADS ID</b>; {_sc_word} chỉ <b>theo dõi</b> mức nhân sự chỉnh (không chấm đúng/sai):"
             if per_action else "Đối soát theo <b>từng ADS ID</b> (sáng → chiều) với checklist sáng:")
-    lines = [f"📋 <b>{cfg.display} — đối soát thực thi cuối ngày {target.strftime('%d/%m')}</b>", _sub, ""]
+    lines = [f"📋 <b>{cfg.display} — đối soát checklist sáng {send_day.strftime('%d/%m')}</b> (dữ liệu đến {target.strftime('%d/%m')})", _sub, ""]
     tot_off_ok = tot_off = tot_off_late = 0   # TẮT — chấm theo từng Ad ID vs hạn chót (ok=đúng hạn)
     tot_bud_ok = tot_bud = 0      # SCALE/GIẢM — chấm theo ngân sách ad set (chế độ cũ, không per_ad_action)
     tot_sc_owner = tot_sc_up = tot_sc_delta = tot_sc_unread = 0   # SCALE theo dõi (per_ad_action)
@@ -260,7 +263,7 @@ def main():
         n_unk = sum(1 for o in ra["off"] if o["verdict"] == "ok" and not o["time_known"])
         tot_off += n_off; tot_off_ok += n_ok; tot_off_late += n_late
         if n_off:
-            seg = f"🔴 TẮT ad (hạn {off_deadline} ngày {target.strftime('%d/%m')}): <b>{n_ok}/{n_off} đúng hạn</b>"
+            seg = f"🔴 TẮT ad (hạn {off_deadline} ngày {send_day.strftime('%d/%m')}): <b>{n_ok}/{n_off} đúng hạn</b>"
             if n_late:
                 seg += f" · {n_late} tắt muộn"
             if n_off - n_ok - n_late:
@@ -270,7 +273,7 @@ def main():
                 if o["verdict"] == "late":
                     # In kèm NGÀY khi tắt sang ngày khác — "10:19" trần dễ hiểu nhầm là trước hạn 14:00 của hôm đối soát
                     _pd, _pt = o["paused_at"][:10], o["paused_at"][11:16]
-                    _when = _pt if _pd == tgt else f"{_pt} ngày {int(_pd[8:10])}/{int(_pd[5:7])}"
+                    _when = _pt if _pd == send_day.isoformat() else f"{_pt} ngày {int(_pd[8:10])}/{int(_pd[5:7])}"
                     lines.append(f"   ⏰ TẮT MUỘN {_when}: <code>{o['id']}</code> — {o['code']} {o['name'][:20]}".rstrip())
                 elif o["verdict"] == "pending":
                     lines.append(f"   ⚠️ CÒN CHẠY: <code>{o['id']}</code> — {o['code']} {o['name'][:20]} ({o['src']})".rstrip())
@@ -357,7 +360,7 @@ def main():
         lines.append("")
 
     pct_off = round(tot_off_ok / tot_off * 100) if tot_off else None
-    head = f"📊 <b>Tuân thủ TẮT trước {off_deadline} ngày {target.strftime('%d/%m')}: {tot_off_ok}/{tot_off}"
+    head = f"📊 <b>Tuân thủ TẮT trước {off_deadline} ngày {send_day.strftime('%d/%m')}: {tot_off_ok}/{tot_off}"
     head += f" = {pct_off}%</b>" if pct_off is not None else " ad</b>"
     if tot_off_late:
         head += f" · {tot_off_late} tắt muộn"
@@ -396,7 +399,7 @@ def main():
     pct = round((tot_off_ok + tot_bud_ok) / (tot_off + tot_bud) * 100) if (tot_off + tot_bud) else 0
     # Bản ghi tuân thủ máy-đọc-được — tích lũy lịch sử trong state/ (CI đã commit thư mục này sẵn).
     record = {
-        "date": tgt, "product": cfg.product, "per_ad_action": per_action,
+        "date": tgt, "send_day": send_day.isoformat(), "product": cfg.product, "per_ad_action": per_action,
         "off_deadline": off_deadline, "sent_at": baseline.get("sent_at"), "grace_late_checklist": grace, "kpi_day": baseline.get("kpi_day") or 0,
         "day_budget_eve": tot_day_budget, "cbo_missing": tot_cbo_missing,
         "totals": {"off_ok": tot_off_ok, "off_late": tot_off_late, "off": tot_off, "pct_off": pct_off,
