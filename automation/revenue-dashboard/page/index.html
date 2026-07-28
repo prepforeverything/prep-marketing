@@ -234,7 +234,11 @@
     <div class="card" id="trend6-card">
       <h3>Xu hướng 6 tháng</h3>
       <div class="note" id="t6-note"></div>
-      <div style="overflow-x:auto;padding-bottom:16px"><table id="t6-tbl"></table></div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:6px">
+        <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">Chi phí &amp; doanh thu theo tháng</div><div id="t6-chart-a"></div></div>
+        <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">CPL &amp; CPQL theo tháng</div><div id="t6-chart-b"></div></div>
+      </div>
+      <div style="overflow-x:auto;padding-bottom:16px;margin-top:10px"><table id="t6-tbl"></table></div>
     </div>
   </div>
   <div class="footer">Prep Education — Dashboard doanh thu A1+B1 (Prep BI, bucket paid-a1/paid-b1, attribution first-paid)<br>
@@ -1273,6 +1277,51 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
       +"<td>"+(r.od?vnd(r.rev/r.od):"—")+"</td></tr>";
   }
   $("t6-tbl").innerHTML=h+"</tbody>";
+  // 2 chart 6 tháng (user 28/07 — "triển khai bằng biểu đồ cho trực quan")
+  const H6=280,bw6=(W-PAD.l-PAD.r)/rows.length;
+  const mLbl=r=>monthLabel(r.m).replace("Tháng ","T")+(r.cur?"*":"");
+  const xlab=rows.map((r,j)=>'<text x="'+(PAD.l+(j+0.5)*bw6)+'" y="'+(H6-PAD.b+16)
+    +'" text-anchor="middle" font-size="11" fill="#6b7280">'+mLbl(r)+'</text>').join("");
+  // A: cột doanh thu (nhạt) + chi phí (đậm) — cùng pattern chart ngày
+  const maxA=Math.max(...rows.map(r=>Math.max(r.rev,r.sp)),1)*1.12;
+  let sA='<svg viewBox="0 0 '+W+' '+H6+'">'+grid(maxA,H6,short)+xlab;
+  rows.forEach((r,j)=>{
+    const x=PAD.l+j*bw6;
+    const hr=(H6-PAD.t-PAD.b)*(r.rev/maxA),hs=(H6-PAD.t-PAD.b)*(r.sp/maxA);
+    if(r.rev>0)sA+='<rect x="'+(x+bw6*0.15)+'" y="'+(H6-PAD.b-hr)+'" width="'+(bw6*0.7)+'" height="'+hr+'" rx="3" fill="#10b981" opacity=".28"/>';
+    if(r.sp>0)sA+='<rect x="'+(x+bw6*0.32)+'" y="'+(H6-PAD.b-hs)+'" width="'+(bw6*0.36)+'" height="'+hs+'" rx="3" fill="#334155"/>';
+    sA+='<rect x="'+x+'" y="0" width="'+bw6+'" height="'+H6+'" fill="transparent" data-i="'+j+'"/>';
+  });
+  $("t6-chart-a").innerHTML=sA+'</svg>';
+  $("t6-chart-a").querySelectorAll("rect[data-i]").forEach(el=>{
+    el.onmousemove=ev=>{const r=rows[+el.dataset.i];
+      tip("<b>"+esc(monthLabel(r.m))+(r.cur?" (MTD)":"")+"</b><br>Doanh thu: "+vnd(r.rev)+" đ<br>Chi phí: "+vnd(r.sp)
+        +" đ · ME/RE: "+(r.rev?(r.sp/r.rev*100).toFixed(1)+"%":"—"),ev);};
+    el.onmouseleave=()=>tip(null);
+  });
+  // B: line CPL & CPQL theo tháng
+  const cplM=rows.map(r=>r.ld?r.sp/r.ld:null),cpqlM=rows.map(r=>r.ql?r.sp/r.ql:null);
+  const valsB=cplM.concat(cpqlM).filter(v=>v!=null);
+  if(valsB.length){
+    const maxB=Math.max(...valsB)*1.15,xf6=j=>PAD.l+(j+0.5)*bw6,yf6=v=>H6-PAD.b-(H6-PAD.t-PAD.b)*(v/maxB);
+    let sB='<svg viewBox="0 0 '+W+' '+H6+'">'+grid(maxB,H6,short)+xlab;
+    for(const[arr,color,dash]of[[cplM,"#2563eb",""],[cpqlM,"#d97706","6 5"]]){
+      const pts=arr.map((v,j)=>v==null?null:xf6(j)+","+yf6(v)).filter(Boolean).join(" ");
+      if(pts)sB+='<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2.4"'
+        +(dash?' stroke-dasharray="'+dash+'"':"")+' stroke-linejoin="round"/>';
+      arr.forEach((v,j)=>{if(v!=null)sB+='<circle cx="'+xf6(j)+'" cy="'+yf6(v)+'" r="3.5" fill="'+color+'"/>';});
+    }
+    rows.forEach((r,j)=>{sB+='<rect x="'+(PAD.l+j*bw6)+'" y="0" width="'+bw6+'" height="'+H6+'" fill="transparent" data-j="'+j+'"/>';});
+    sB+='</svg><div class="legend"><span><i style="background:#2563eb"></i>CPL</span>'
+      +'<span><i style="background:#d97706"></i>CPQL</span></div>';
+    $("t6-chart-b").innerHTML=sB;
+    $("t6-chart-b").querySelectorAll("rect[data-j]").forEach(el=>{
+      el.onmousemove=ev=>{const j=+el.dataset.j,r=rows[j];
+        tip("<b>"+esc(monthLabel(r.m))+(r.cur?" (MTD)":"")+"</b><br>CPL: "+(cplM[j]!=null?vnd(cplM[j])+" đ":"—")
+          +"<br>CPQL: "+(cpqlM[j]!=null?vnd(cpqlM[j])+" đ":"—"),ev);};
+      el.onmouseleave=()=>tip(null);
+    });
+  }else $("t6-chart-b").innerHTML="";
   $("t6-note").textContent="Trọn từng tháng (tháng hiện tại = MTD), không phụ thuộc bộ lọc thời gian — theo "
     +(state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))
     +" · doanh thu Paid đầy đủ (A1+B1+A3+B3) · chi phí đủ nguồn từ 202506 (trước đó thiếu Google).";
