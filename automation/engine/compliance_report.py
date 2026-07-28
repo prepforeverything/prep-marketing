@@ -50,6 +50,7 @@ def comp_totals(state_dir, d_from, d_to):
 
 def week_waste(cfg, d_from, d_to, today):
     """Lãng phí tuần: spend SAU ngày đề xuất TẮT (lần đầu trong tuần, dedupe theo ad).
+    QUY ƯỚC: baseline-D = checklist phát hành sáng D+1 ⇒ lãng phí = spend các ngày > D+1.
     Trả (tổng ₫, [top rows {code,name,waste,still}], số ad). (0, [], 0) nếu không có đề xuất/không kéo được Meta."""
     kills = {}   # ad_id → {"date","code","name","acct"}
     for d, b in sorted(load_baselines(cfg.state).items()):
@@ -69,7 +70,8 @@ def week_waste(cfg, d_from, d_to, today):
     rows = []
     for kid, it in kills.items():
         ds = daily.get(it["acct"], {}).get(kid, {})
-        after = {d: s for d, s in ds.items() if d > it["date"]}
+        recv = (datetime.date.fromisoformat(it["date"]) + datetime.timedelta(days=1)).isoformat()
+        after = {d: s for d, s in ds.items() if d > recv}
         if after:
             rows.append({**it, "waste": round(sum(after.values())), "still": max(after) >= yday})
     rows.sort(key=lambda r: -r["waste"])

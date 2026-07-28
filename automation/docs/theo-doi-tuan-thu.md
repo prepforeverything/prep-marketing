@@ -14,9 +14,11 @@ cả quy tắc đề xuất lẫn kỷ luật vận hành.
   ngân sách + totals) — CI tự commit, lịch sử tuân thủ tích lũy trong git. Đây là bảng dữ liệu gốc
   cho mọi báo cáo phía dưới.
 
-## Tiêu chí đánh giá — v1.1 (chốt 27/07/2026, mốc đánh giá reset từ ngày này)
+## Tiêu chí đánh giá — v1.2 (chốt 27/07/2026, mốc đánh giá reset từ ngày này)
 
-Nguồn đề xuất = checklist sáng (`baseline-<ngày>.json`, gửi ~10h). **Đối soát chạy CÙNG NGÀY, lượt
+**QUY ƯỚC TÊN (gốc mọi nhầm lẫn 27-28/07):** `baseline-D` đặt theo ngày DỮ LIỆU (anchor = hôm qua
+của run_daily) nhưng checklist PHÁT HÀNH sáng D+1 (~10h) — hạn 14:00 và mọi nhãn đối soát tính theo
+**ngày phát hành D+1**, không phải D. Đối soát hôm nay = chấm baseline-(hôm nay−1). **Đối soát chạy CÙNG NGÀY, lượt
 chính 14h** (n8n dispatch — user chốt 28/07, chấm ngay khi hết hạn); GH cron tối (17h07+, thường trễ
 18h30–20h) là DỰ PHÒNG: cờ `eod-sent` của lượt 14h làm lượt tối SKIP câm — mỗi ngày đúng MỘT tin.
 Guard trong engine: chạy thật trước hạn trong ngày = no-op; ngày báo cáo sáng ra muộn thì lượt 14h
@@ -75,17 +77,17 @@ Số backfill trước 27/07 (bảng dưới) chỉ dùng tham chiếu — đo b
    *(chờ set secret: cần chat id riêng — nhắn bot 1 lần rồi lấy id)*.
    Chưa có trong v1 tuần: cohort CPL làm-theo vs bỏ-qua (cần nối lead sheet) — bổ sung v2.
 
-## Kết quả backfill 27/07 (07/07 → 26/07, engine/backfill_compliance.py)
+## Kết quả backfill (07/07 → 27/07, đã SỬA lệch ngày 28/07 — bảng cũ 6-9% là sai quy ước tên)
 
-| SP | Đề xuất TẮT | Tắt trong ngày | Tắt ≤1 ngày sau | Lãng phí (chi sau đề xuất) | Median trễ | Còn chạy đến 27/07 |
-|---|---|---|---|---|---|---|
-| TOEIC | 95 | 9% | 28/64 ad | 48,3 tr ₫ | 1 ngày | 19 ad (24,5 tr) |
-| VSTEP | 142 | 6% | 36/84 ad | 43,5 tr ₫ | 2 ngày | 15 ad (16,6 tr) |
-| PTE | 89 | 6% | 13/42 ad | 106,6 tr ₫ | **7 ngày** | 12 ad (59,4 tr) |
+| SP | Đề xuất TẮT | Tắt trong ngày nhận | Lãng phí (chi sau ngày nhận) | Median trễ (ad có trễ) |
+|---|---|---|---|---|
+| TOEIC | 95 | **65%** | 40,6 tr ₫ / 36 ad | 2 ngày |
+| VSTEP | 142 | **61%** | 31,8 tr ₫ / 47 ad | 2 ngày |
+| PTE | 89 | **56%** | **106,0 tr ₫** / 27 ad | **13 ngày** |
 
-Đọc nhanh: TOEIC/VSTEP chủ yếu **thao tác sáng hôm sau** (không phải bỏ qua); PTE trễ hệ thống
-(median 7 ngày) và chiếm hơn nửa tổng lãng phí ~198 tr ₫/3 tuần. Lưu ý proxy spend chưa tách
-"ngoại lệ giữ có chủ đích" (ME/RE tốt) — cần đối chiếu trước khi quy trách nhiệm.
+Đọc nhanh: ~2/3 đề xuất TẮT được thực thi ngay trong ngày nhận checklist — kỷ luật nền không tệ.
+Vấn đề nằm ở CÁI ĐUÔI: nhóm ad không tắt ngay thì bị bỏ rất lâu, đặc biệt PTE (median 13 ngày,
+106tr ≈ 60% tổng lãng phí 3 tuần). Proxy spend chưa tách "ngoại lệ giữ có chủ đích" (ME/RE tốt).
 
 ## Rủi ro / lưu ý
 

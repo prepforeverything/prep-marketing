@@ -3,10 +3,10 @@
 
 Đọc mọi state/baseline-<ngày>.json (checklist sáng đã lưu), rồi kéo spend THEO NGÀY từng ad
 từ Meta insights (level=ad, time_increment=1) để suy:
-  - Tuân thủ TẮT theo ngày: ad đề xuất TẮT ngày D coi là "tắt trong ngày" nếu KHÔNG chi ngày D+1
-    (proxy theo spend — khác EOD snapshot 18h: thao tác sau 18h vẫn tính là tuân thủ trong ngày).
-  - Lãng phí: tổng spend của ad TỪ NGÀY SAU lần đầu đề xuất TẮT đến nay (dedupe theo ad,
-    tính từ lần đề xuất ĐẦU TIÊN để không đếm trùng tiền qua nhiều ngày nhắc lại).
+  QUY ƯỚC TÊN: baseline-D = checklist PHÁT HÀNH sáng D+1 ⇒ ngày nhận/thao tác = D+1.
+  - Tuân thủ TẮT: ad trong baseline-D coi là "tắt trong ngày nhận" nếu KHÔNG chi ngày D+2
+    (proxy theo spend, trọn ngày — nới hơn hạn 14:00 một chút).
+  - Lãng phí: tổng spend của ad TỪ NGÀY SAU NGÀY NHẬN (> D+1) lần đầu đề xuất TẮT (dedupe theo ad).
 SCALE/GIẢM không backfill được (Meta không cho đọc lại lịch sử ngân sách) — chỉ có từ compliance-<ngày>.json.
 
 Read-only Meta, KHÔNG gửi Telegram. Cách dùng:
@@ -133,14 +133,14 @@ def main():
     if daily_all is None:
         print("LỖI: thiếu META_ACCESS_TOKEN trong .env.", file=sys.stderr); return 2
 
-    # 1) Tuân thủ theo NGÀY: đề xuất TẮT ngày D tuân thủ nếu không chi ngày D+1 (chấm được khi D+1 ≤ hôm qua)
-    per_day = {}                          # ngày → {"ok","tot","miss":[...]}
+    # 1) Tuân thủ theo NGÀY NHẬN (D+1): tuân thủ nếu không chi ngày D+2 (chấm được khi D+2 ≤ hôm qua)
+    per_day = {}                          # ngày baseline (anchor) → {"ok","tot","miss":[...]}
     for (d, acct), items in sorted(kills_by_day.items()):
         if acct not in daily_all:
             continue
-        d1 = (datetime.date.fromisoformat(d) + datetime.timedelta(days=1)).isoformat()
+        d1 = (datetime.date.fromisoformat(d) + datetime.timedelta(days=2)).isoformat()
         if d1 > yday:
-            continue                      # chưa hết D+1 → chưa chốt
+            continue                      # chưa hết D+2 → chưa chốt
         rec = per_day.setdefault(d, {"ok": 0, "tot": 0, "miss": []})
         for it in items:
             spent_d1 = daily_all[acct].get(it["id"], {}).get(d1, 0)
@@ -150,16 +150,17 @@ def main():
             else:
                 rec["miss"].append({**it, "spend_d1": round(spent_d1)})
 
-    # 2) Lãng phí theo AD (từ lần đề xuất đầu): spend các ngày > ngày đề xuất
+    # 2) Lãng phí theo AD (từ lần đề xuất đầu): spend các ngày SAU NGÀY NHẬN (> D+1)
     waste_rows = []
     for kid, it in first_rec.items():
+        recv = (datetime.date.fromisoformat(it["date"]) + datetime.timedelta(days=1)).isoformat()
         ds = daily_all.get(it["acct"], {}).get(kid, {})
-        after = {d: s for d, s in ds.items() if d > it["date"]}
+        after = {d: s for d, s in ds.items() if d > recv}
         if not after:
             continue
         last = max(after)
         waste_rows.append({**it, "waste": round(sum(after.values())),
-                           "late_days": (datetime.date.fromisoformat(last) - datetime.date.fromisoformat(it["date"])).days,
+                           "late_days": (datetime.date.fromisoformat(last) - datetime.date.fromisoformat(recv)).days,
                            "still_running": last >= yday})
     waste_rows.sort(key=lambda r: -r["waste"])
 
@@ -170,7 +171,7 @@ def main():
     med_late = lates[len(lates) // 2] if lates else 0
 
     print(f"═══ {cfg.display} — backfill tuân thủ TẮT {since} → {yday} ═══")
-    print(f"Tuân thủ TẮT trong ngày (proxy spend D+1): {tot_ok}/{tot}"
+    print(f"Tuân thủ TẮT trong ngày nhận checklist (proxy spend): {tot_ok}/{tot}"
           + (f" = {round(tot_ok / tot * 100)}%" if tot else ""))
     for d in sorted(per_day):
         r = per_day[d]
@@ -178,7 +179,7 @@ def main():
         if r["miss"]:
             line += "  ✗ " + "; ".join(f"{m['code'] or m['id']} (chi {vnd(m['spend_d1'])} hôm sau)" for m in r["miss"][:4])
         print(line)
-    print(f"Lãng phí (spend SAU ngày đề xuất TẮT, dedupe theo ad): {vnd(tot_waste)} ₫ trên {len(waste_rows)} ad"
+    print(f"Lãng phí (spend SAU ngày nhận checklist TẮT, dedupe theo ad): {vnd(tot_waste)} ₫ trên {len(waste_rows)} ad"
           f" · độ trễ tắt median {med_late} ngày")
     for r in waste_rows[:8]:
         tag = "⚠️ CÒN CHẠY" if r["still_running"] else f"tắt sau {r['late_days']} ngày"
