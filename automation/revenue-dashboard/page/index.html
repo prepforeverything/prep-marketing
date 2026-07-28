@@ -147,7 +147,7 @@
   <div class="tabs" id="tabs">
     <div class="tab on" data-t="rev">Doanh thu vs KPI</div>
     <div class="tab" data-t="eff">Chi phí &amp; hiệu quả</div>
-    <div class="tab" data-t="trend">Xu hướng</div>
+    <div class="tab" data-t="trend">Xu hướng 6 tháng</div>
   </div>
   <div id="kpiwarn" class="insight warning" style="display:none"></div>
   <div class="chips" id="chips"></div>
@@ -233,6 +233,7 @@
   <div id="tab-trend" style="display:none">
     <div class="card" id="trend6-card">
       <h3>Xu hướng 6 tháng</h3>
+      <div class="chips" id="t6-basis" style="margin:8px 0 4px"></div>
       <div class="note" id="t6-note"></div>
       <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:6px">
         <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">Chi phí &amp; doanh thu theo tháng</div><div id="t6-chart-a"></div></div>
@@ -1254,15 +1255,21 @@ function renderMu(m,codes){
 }
 
 function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (user duyệt 28/07)
+  // 2 góc nhìn cơ sở ngay trên tab (user 29/07) — dùng chung state.basis với tab hiệu quả
+  const bcur=state.basis||"full";
+  $("t6-basis").innerHTML=[["full","Paid đầy đủ (A1+B1+A3+B3)"],["a1b1","Chỉ A1+B1"]]
+    .map(([k,l])=>'<span class="chip'+(bcur===k?" on":"")+'" data-k="'+k+'"'
+      +(bcur===k?' style="background:#111827"':'')+'><span class="dot" style="background:#111827"></span>'+l+'</span>').join("");
+  for(const el of $("t6-basis").children)el.onclick=()=>{state.basis=el.dataset.k;render();};
   const ms=Object.keys(DATA.months).sort().slice(-6);
   const rows=ms.map(m=>{
     const M=DATA.months[m];let sp=0,rev=0,ld=0,ql=0,od=0;
     for(const c of codes){const v=M.lines[c];if(!v)continue;
       const S=a=>(a||[]).reduce((x,y)=>x+y,0);
       sp+=S(v.sp_meta)+S(v.sp_g)+S(v.sp_tt);
-      rev+=S(v.a1)+S(v.b1)+S(v.a3b3); // tab riêng: cố định Paid đầy đủ (không có chip cơ sở ở đây)
+      rev+=S(v.a1)+S(v.b1)+(state.basis==="a1b1"?0:S(v.a3b3));
       ld+=S(v.lead);ql+=S(v.ql);
-      od+=S(v.o_a1)+S(v.o_b1)+S(v.o_a3b3);}
+      od+=S(v.o_a1)+S(v.o_b1)+(state.basis==="a1b1"?0:S(v.o_a3b3));}
     return {m,cur:M.as_of_day<M.days_in_month,sp,rev,ld,ql,od};
   });
   let h="<thead><tr><th>Tháng</th><th>Chi phí</th><th>Doanh thu</th><th>ME/RE</th><th>Lead</th><th>CPL</th>"
@@ -1289,7 +1296,7 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
     const x=PAD.l+j*bw6;
     const hr=(H6-PAD.t-PAD.b)*(r.rev/maxA),hs=(H6-PAD.t-PAD.b)*(r.sp/maxA);
     if(r.rev>0)sA+='<rect x="'+(x+bw6*0.15)+'" y="'+(H6-PAD.b-hr)+'" width="'+(bw6*0.7)+'" height="'+hr+'" rx="3" fill="#10b981" opacity=".28"/>';
-    if(r.sp>0)sA+='<rect x="'+(x+bw6*0.32)+'" y="'+(H6-PAD.b-hs)+'" width="'+(bw6*0.36)+'" height="'+hs+'" rx="3" fill="#334155"/>';
+    if(r.sp>0)sA+='<rect x="'+(x+bw6*0.32)+'" y="'+(H6-PAD.b-hs)+'" width="'+(bw6*0.36)+'" height="'+hs+'" rx="3" fill="#f59e0b"/>';
     sA+='<rect x="'+x+'" y="0" width="'+bw6+'" height="'+H6+'" fill="transparent" data-i="'+j+'"/>';
   });
   $("t6-chart-a").innerHTML=sA+'</svg>';
@@ -1324,7 +1331,8 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
   }else $("t6-chart-b").innerHTML="";
   $("t6-note").textContent="Trọn từng tháng (tháng hiện tại = MTD), không phụ thuộc bộ lọc thời gian — theo "
     +(state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))
-    +" · doanh thu Paid đầy đủ (A1+B1+A3+B3) · chi phí đủ nguồn từ 202506 (trước đó thiếu Google).";
+    +" · doanh thu "+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ (A1+B1+A3+B3)")
+    +" · chi phí đủ nguồn từ 202506 (trước đó thiếu Google).";
 }
 function renderEffTable(days){
   const rows=DATA.lines.map(l=>{
