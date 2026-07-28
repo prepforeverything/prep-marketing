@@ -147,6 +147,15 @@ def main():
         target = datetime.date.today()   # chấm CÙNG NGÀY: checklist sáng nay → đối soát 17h nay (v1.1, 27/07)
     tgt = target.isoformat()
 
+    # Chặn chạy THẬT quá sớm trong ngày: đối soát cùng-ngày chỉ có nghĩa SAU hạn 14:00 + cửa sổ 'tắt muộn'.
+    # Live n8n đang dispatch EOD ~14:00 VN (TZ instance lệch — cron khai 18h07/18h17) → lượt 14h thành no-op,
+    # giữ lượt gửi (và cờ) cho cron tối. --date / --dry-run / --force không bị chặn.
+    if not DRY and "--force" not in sys.argv and target == datetime.date.today():
+        _now = datetime.datetime.now(TZ7)
+        if (_now.hour, _now.minute) < (16, 30):
+            print(f"action: SKIP_EARLY ({_now.strftime('%H:%M')} — đối soát cùng ngày chỉ chạy sau 16:30, để dành lượt cho cron tối)")
+            return 0
+
     flag = cfg.flag_eod(tgt) if hasattr(cfg, "flag_eod") else cfg.state / f"eod-sent-{tgt}.flag"
     if flag.exists() and not DRY:
         print("action: SKIP (đã gửi đối soát cho ngày này)"); return 0
