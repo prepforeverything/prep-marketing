@@ -216,6 +216,11 @@
       <div class="note" id="eff-note"></div>
       <div style="overflow-x:auto"><table id="efftbl"></table></div>
     </div>
+    <div class="card" id="trend6-card">
+      <h3>Xu hướng 6 tháng</h3>
+      <div class="note" id="t6-note"></div>
+      <div style="overflow-x:auto;padding-bottom:16px"><table id="t6-tbl"></table></div>
+    </div>
     <div class="card" id="mkt-inbox-card">
       <h3>Hiệu quả Inbox theo campaign &amp; ad</h3>
       <div class="note" id="mi-note"></div>
@@ -703,6 +708,7 @@ function renderEff(days,codes){
   $("efftbl-card").style.display=state.scope==="ALL"?"":"none";
   if(state.scope==="ALL")renderEffTable(days);
   renderMkt(codes);
+  renderTrend6(codes);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
     +" — cột nhạt = doanh thu ("+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ")+", A3+B3 phân bổ ngày là ước lượng), "
     +"cột đậm = chi phí"+(state.scope==="ALL"?" chồng theo sản phẩm, bấm chip để xem riêng":"")
@@ -801,12 +807,21 @@ function renderKpiPanel(days,codes,tot){
   const ratio=(a,b)=>a!=null&&b?a/b:null;
   const pctF=v=>v.toFixed(1)+"%";
   const intF=v=>nf.format(Math.round(v));
+  // Pace-to-goal (user duyệt 28/07): month mode — KPI THÁNG còn thiếu ÷ số ngày còn lại.
+  const dLeft=state.mode==="month"?DATA.months[state.month].days_in_month-DATA.months[state.month].as_of_day:0;
+  function needPerDay(mk,act){
+    if(state.mode!=="month"||!mk||dLeft<=0)return null;
+    let kpi=0,any=false;
+    for(const c of codes){const v=kpiMetricVal(state.month,c,mk);if(v!=null){kpi+=v;any=true;}}
+    if(!any)return null;
+    return Math.max(kpi-act,0)/dLeft;
+  }
   const rows=[
-    {n:"Doanh thu Paid",act:actRev,t:T.rev,fmt:short2,up:true},
-    {n:"Chi phí (Spent)",act:tot.sp,t:T.sp,fmt:short2,plan:true}, // bám plan: under cũng là lệch (user 17/07)
-    {n:"Order",act:actOrd,t:T.ord,fmt:intF,up:true},
-    {n:"Lead",act:tot.lead,t:T.lead,fmt:intF,up:true},
-    {n:"QL",act:tot.ql,t:T.ql,fmt:intF,up:true},
+    {n:"Doanh thu Paid",act:actRev,t:T.rev,fmt:short2,up:true,mk:"revenue"},
+    {n:"Chi phí (Spent)",act:tot.sp,t:T.sp,fmt:short2,plan:true,mk:"spend"}, // bám plan: under cũng là lệch (user 17/07)
+    {n:"Order",act:actOrd,t:T.ord,fmt:intF,up:true,mk:"order"},
+    {n:"Lead",act:tot.lead,t:T.lead,fmt:intF,up:true,mk:"lead"},
+    {n:"QL",act:tot.ql,t:T.ql,fmt:intF,up:true,mk:"ql"},
     {n:"%QL",act:tot.lead?tot.ql/tot.lead*100:null,t:ratio(T.ql,T.lead)!=null?ratio(T.ql,T.lead)*100:null,fmt:pctF,up:true},
     {n:"CR (Order/Lead)",act:tot.lead?actOrd/tot.lead*100:null,t:ratio(T.ord,T.lead)!=null?ratio(T.ord,T.lead)*100:null,fmt:pctF,up:true},
     {n:"CR/QL (Order/QL)",act:tot.ql?actOrd/tot.ql*100:null,t:ratio(T.ord,T.ql)!=null?ratio(T.ord,T.ql)*100:null,fmt:pctF,up:true},
@@ -815,7 +830,8 @@ function renderKpiPanel(days,codes,tot){
     {n:"CPQL",act:tot.ql?tot.sp/tot.ql:null,t:ratio(T.sp,T.ql),fmt:vnd,up:false},
     {n:"ME/RE",act:actRev?tot.sp/actRev*100:null,t:ratio(T.sp,T.rev)!=null?ratio(T.sp,T.rev)*100:null,fmt:pctF,up:false}
   ];
-  let h='<table><thead><tr><th>Chỉ số</th><th>Thực tế</th><th>Mục tiêu (kỳ chọn)</th><th>% đạt</th><th style="width:34%"></th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>Chỉ số</th><th>Thực tế</th><th>Mục tiêu (kỳ chọn)</th><th>% đạt</th>'
+    +(dLeft>0?'<th>Cần/ngày ('+dLeft+' ngày còn lại)</th>':'')+'<th style="width:34%"></th></tr></thead><tbody>';
   let anyT=false;
   for(const r of rows){
     let pct=null,cls="text-mut",barc="#e5e7eb";
@@ -833,9 +849,11 @@ function renderKpiPanel(days,codes,tot){
     }
     if(r.t)anyT=true;
     const w=pct==null?0:Math.min(pct,140)/140*100;
+    const need=needPerDay(r.mk,r.act||0);
     h+="<tr><td>"+r.n+"</td><td>"+(r.act!=null?r.fmt(r.act):"—")+"</td>"
       +"<td>"+(r.t!=null?r.fmt(r.t):"<span class='text-mut'>chưa có</span>")+"</td>"
       +"<td style='font-weight:700' class='"+cls+"'>"+(pct!=null?pct.toFixed(1)+"%":"—")+"</td>"
+      +(dLeft>0?"<td>"+(need!=null?(need>0?r.fmt(need):"<span class='text-green'>đã đủ ✓</span>"):"—")+"</td>":"")
       +"<td><div style='height:7px;border-radius:4px;background:#f3f4f6;overflow:hidden'>"
       +"<div style='height:100%;width:"+w+"%;border-radius:4px;background:"+barc+"'></div></div></td></tr>";
   }
@@ -1105,13 +1123,17 @@ function grainNote(m){return "Grain THÁNG — đang hiện "+monthLabel(m)+" (t
 
 /* --- Bảng Inbox: Meta campaign không 'conv', bấm dòng xổ từng ad id --- */
 let miSort={k:"sp",d:-1},miOpen={};
-const MI_COLS=[["c","Campaign / Ad"],["sp","Chi phí"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["crql","CR/QL"],["rv","Doanh thu"],["mere","ME/RE"]];
+const MI_COLS=[["c","Campaign / Ad"],["sp","Chi phí"],["im","Impr."],["ctr","CTR"],["cpm","CPM"],["cpc","CPC"],["ld","Lead"],["cpl","CPL"],["ql","QL"],["pql","%QL"],["od","Đơn"],["cr","CR"],["crql","CR/QL"],["rv","Doanh thu"],["mere","ME/RE"]];
 function miEn(r){return {...r,cpl:r.ld?r.sp/r.ld:null,pql:r.ld?r.ql/r.ld*100:null,
-  cr:r.ld?r.od/r.ld*100:null,crql:r.ql?r.od/r.ql*100:null,mere:r.rv?r.sp/r.rv*100:null};}
+  cr:r.ld?r.od/r.ld*100:null,crql:r.ql?r.od/r.ql*100:null,mere:r.rv?r.sp/r.rv*100:null,
+  ctr:r.im?(r.cl||0)/r.im*100:null,cpm:r.im?r.sp/r.im*1000:null,cpc:r.cl?r.sp/r.cl:null};}
 function miRow(r,cls,label){
   const mc=r.mere==null?"":r.mere<=60?"text-green":r.mere<=90?"text-amber":"text-red";
   return "<tr class='"+cls+"'><td style='white-space:normal;min-width:230px;text-align:left'>"+label+"</td>"
-    +"<td>"+(r.sp?vnd(r.sp):"—")+"</td><td>"+nf.format(r.ld)+"</td>"
+    +"<td>"+(r.sp?vnd(r.sp):"—")+"</td>"
+    +"<td>"+(r.im?short(r.im):"—")+"</td><td>"+(r.ctr!=null?r.ctr.toFixed(2)+"%":"—")+"</td>"
+    +"<td>"+(r.cpm!=null?vnd(r.cpm):"—")+"</td><td>"+(r.cpc!=null?vnd(r.cpc):"—")+"</td>"
+    +"<td>"+nf.format(r.ld)+"</td>"
     +"<td>"+(r.cpl!=null?vnd(r.cpl):"—")+"</td><td>"+nf.format(r.ql)+"</td>"
     +"<td>"+(r.pql!=null?r.pql.toFixed(1)+"%":"—")+"</td><td>"+nf.format(r.od)+"</td>"
     +"<td>"+(r.cr!=null?r.cr.toFixed(1)+"%":"—")+"</td>"
@@ -1136,8 +1158,8 @@ function renderMi(m,codes){
       h+=miRow(a,"adrow","<span style='padding-left:26px;font-size:.78rem'>"+esc2(a.n)
         +" <span style='color:#6b7280;font-size:.72rem'>· "+esc2(a.id)+"</span></span>");
   }
-  const t=miEn(camps.reduce((s,c)=>({sp:s.sp+(c.sp||0),ld:s.ld+c.ld,ql:s.ql+c.ql,od:s.od+c.od,rv:s.rv+(c.rv||0)}),
-    {sp:0,ld:0,ql:0,od:0,rv:0}));
+  const t=miEn(camps.reduce((s,c)=>({sp:s.sp+(c.sp||0),ld:s.ld+c.ld,ql:s.ql+c.ql,od:s.od+c.od,
+    rv:s.rv+(c.rv||0),im:s.im+(c.im||0),cl:s.cl+(c.cl||0)}),{sp:0,ld:0,ql:0,od:0,rv:0,im:0,cl:0}));
   const nReal=camps.filter(c=>!String(c.id).startsWith("_rest")).length;
   h+=miRow(t,"total-row","TỔNG ("+nReal+" campaign chi tiết"+(nReal<camps.length?" + phần còn lại":"")+")")+"</tbody>";
   $("mi-tbl").innerHTML=h;
@@ -1223,6 +1245,35 @@ function renderMu(m,codes){
     +"đơn/doanh thu = lead chốt trong kỳ.";
 }
 
+function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (user duyệt 28/07)
+  const ms=Object.keys(DATA.months).sort().slice(-6);
+  const rows=ms.map(m=>{
+    const M=DATA.months[m];let sp=0,rev=0,ld=0,ql=0,od=0;
+    for(const c of codes){const v=M.lines[c];if(!v)continue;
+      const S=a=>(a||[]).reduce((x,y)=>x+y,0);
+      sp+=S(v.sp_meta)+S(v.sp_g)+S(v.sp_tt);
+      rev+=S(v.a1)+S(v.b1)+(state.basis==="a1b1"?0:S(v.a3b3));
+      ld+=S(v.lead);ql+=S(v.ql);
+      od+=S(v.o_a1)+S(v.o_b1)+(state.basis==="a1b1"?0:S(v.o_a3b3));}
+    return {m,cur:M.as_of_day<M.days_in_month,sp,rev,ld,ql,od};
+  });
+  let h="<thead><tr><th>Tháng</th><th>Chi phí</th><th>Doanh thu</th><th>ME/RE</th><th>Lead</th><th>CPL</th>"
+    +"<th>QL</th><th>CPQL</th><th>Đơn</th><th>CR</th><th>AOV</th></tr></thead><tbody>";
+  for(const r of rows){
+    h+="<tr><td style='white-space:nowrap'>"+monthLabel(r.m)+(r.cur?" <span class='text-mut'>(MTD)</span>":"")+"</td>"
+      +"<td>"+(r.sp?short2(r.sp):"—")+"</td><td>"+(r.rev?short2(r.rev):"—")+"</td>"
+      +"<td style='font-weight:700'>"+(r.rev&&r.sp?(r.sp/r.rev*100).toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.ld?nf.format(r.ld):"—")+"</td><td>"+(r.sp&&r.ld?vnd(r.sp/r.ld):"—")+"</td>"
+      +"<td>"+(r.ql?nf.format(r.ql):"—")+"</td><td>"+(r.sp&&r.ql?vnd(r.sp/r.ql):"—")+"</td>"
+      +"<td>"+(r.od?nf.format(r.od):"—")+"</td><td>"+(r.ld?(r.od/r.ld*100).toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.od?vnd(r.rev/r.od):"—")+"</td></tr>";
+  }
+  $("t6-tbl").innerHTML=h+"</tbody>";
+  $("t6-note").textContent="Trọn từng tháng (tháng hiện tại = MTD), không phụ thuộc bộ lọc thời gian — theo "
+    +(state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))
+    +" · cơ sở doanh thu theo lựa chọn phía trên ("+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ")+") "
+    +"· chi phí đủ nguồn từ 202506 (trước đó thiếu Google).";
+}
 function renderEffTable(days){
   const rows=DATA.lines.map(l=>{
     const sp=sum(spendSeries(days,[l.code]));

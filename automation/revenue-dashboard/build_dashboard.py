@@ -611,6 +611,8 @@ def main():
     if not a.from_fixture:  # 2 bảng chi tiết Inbox/UTM (grain tháng, từ 202606) — user duyệt 19/07
         import mkt_detail
         mkt_detail.build_mkt(c, dash_dir, dt.datetime.now(VN_TZ).date(), force=a.force_backfill)
+        import alerts  # cảnh báo Telegram sau build (user duyệt 28/07); dry-run chỉ in log
+        alerts.send(alerts.check(data, dash_dir), data["generated_at"], dry=a.dry_run)
     write_static(c, dash_dir)
     if tmp:
         ensure_headers(repo_root, dash_dir.name)
