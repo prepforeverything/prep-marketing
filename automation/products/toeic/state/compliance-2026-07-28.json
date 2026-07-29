@@ -1,0 +1,212 @@
+{
+ "date": "2026-07-28",
+ "send_day": "2026-07-29",
+ "product": "toeic",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-07-29T13:05:51+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 14810901,
+ "day_budget_eve": 12810137,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 7,
+  "pct_off": 0,
+  "bud_ok": 0,
+  "bud": 11,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "TOEIC 3": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120253014125900586",
+     "code": "44825",
+     "name": "044825_S25_prep mở 35 suất",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120259917575710586",
+     "code": "51526",
+     "name": "051526_B20_Học 1 lần đạt_ 96620858959647",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260115012510586",
+     "code": "70826",
+     "name": "070826_S25_Năm cuối thảnh thơii_10120463",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260181999820586",
+     "code": "42226",
+     "name": "042226_NENTANG_Tại sao",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260181999830586",
+     "code": "42226",
+     "name": "042226_NENTANG_Tại sao",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260182825900586",
+     "code": "72026",
+     "name": "NDL trọng tâm",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260182722880586",
+     "code": "72026",
+     "name": "NDL trọng tâm",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "51425",
+     "dir": "up",
+     "morning": 1916368,
+     "evening": 1916368,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "62126",
+     "dir": "up",
+     "morning": 1336000,
+     "evening": 1336000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "44825",
+     "dir": "down",
+     "morning": 1184000,
+     "evening": 1184000,
+     "ads_eve": 3,
+     "verdict": "pending",
+     "label": "chưa giảm"
+    },
+    {
+     "code": "50826",
+     "dir": "up",
+     "morning": 1196000,
+     "evening": 1196000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "62726",
+     "dir": "up",
+     "morning": 888000,
+     "evening": 888000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "71226",
+     "dir": "down",
+     "morning": 958000,
+     "evening": 958000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa giảm"
+    },
+    {
+     "code": "70126",
+     "dir": "up",
+     "morning": 736000,
+     "evening": 736000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "70826",
+     "dir": "up",
+     "morning": 653769,
+     "evening": 653769,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "71726",
+     "dir": "up",
+     "morning": 402000,
+     "evening": 402000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "42226",
+     "dir": "up",
+     "morning": 396000,
+     "evening": 396000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    }
+   ]
+  },
+  "TOEIC 5": {
+   "skipped": false,
+   "off": [],
+   "scale": [],
+   "codes": [
+    {
+     "code": "34625",
+     "dir": "up",
+     "morning": 880000,
+     "evening": 880000,
+     "ads_eve": 1,
+     "verdict": "pending",
+     "label": "chưa scale"
+    }
+   ]
+  }
+ }
+}
