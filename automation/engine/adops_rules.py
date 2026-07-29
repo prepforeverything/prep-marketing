@@ -71,6 +71,10 @@ def _phase_rec(zone, lead, z7, good_mtd, min_leads, age):
     Phiên 2 = kiểm chứng (Yếu → giảm 20%, Rất tệ → tắt, chưa scale); Mốc 2+ = xét R7 (scale ở đây).
     Chỉ gọi sau khi các nhánh spend==0 / 0-lead / CR đã xử lý ⇒ ở đây spend>0 và lead>0."""
     if age <= 3:                                     # Phiên 1 — cổng kiểm tra (chỉ Tốt/TB qua)
+        # Chốt Quân 29/07: ad non/bật lại (tuổi ≤3) mà CHƯA đủ mẫu (lead < min_leads) → KHÔNG tắt vội,
+        # chỉ theo dõi. Tránh tắt oan ad mới bật lại khi mẫu quá mỏng (1–2 lead) chưa đủ để đánh giá CPL.
+        if zone in ("YẾU", "RẤT TỆ") and lead < min_leads:
+            return f"Theo dõi · Phiên 1 (chưa đủ mẫu, {lead} lead)"
         if zone == "RẤT TỆ":
             return "TẮT · Phiên 1 (cổng) — rất tệ"
         if zone == "YẾU":
