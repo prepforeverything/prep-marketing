@@ -239,6 +239,10 @@
         <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">Chi phí &amp; doanh thu theo tháng</div><div id="t6-chart-a"></div></div>
         <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">CPL &amp; CPQL theo tháng</div><div id="t6-chart-b"></div></div>
       </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:6px">
+        <div style="flex:1;min-width:340px"><div class="note" style="margin:8px 0 2px;font-weight:600">CR/Lead &amp; CR/QL theo tháng</div><div id="t6-chart-c"></div></div>
+        <div style="flex:1;min-width:340px"></div>
+      </div>
       <div style="overflow-x:auto;padding-bottom:16px;margin-top:10px"><table id="t6-tbl"></table></div>
     </div>
   </div>
@@ -1273,7 +1277,7 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
     return {m,cur:M.as_of_day<M.days_in_month,sp,rev,ld,ql,od};
   });
   let h="<thead><tr><th>Tháng</th><th>Chi phí</th><th>Doanh thu</th><th>ME/RE</th><th>Lead</th><th>CPL</th>"
-    +"<th>QL</th><th>CPQL</th><th>Đơn</th><th>CR</th><th>AOV</th></tr></thead><tbody>";
+    +"<th>QL</th><th>CPQL</th><th>Đơn</th><th>CR</th><th>CR/QL</th><th>AOV</th></tr></thead><tbody>";
   for(const r of rows){
     h+="<tr><td style='white-space:nowrap'>"+monthLabel(r.m)+(r.cur?" <span class='text-mut'>(MTD)</span>":"")+"</td>"
       +"<td>"+(r.sp?short2(r.sp):"—")+"</td><td>"+(r.rev?short2(r.rev):"—")+"</td>"
@@ -1281,6 +1285,7 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
       +"<td>"+(r.ld?nf.format(r.ld):"—")+"</td><td>"+(r.sp&&r.ld?vnd(r.sp/r.ld):"—")+"</td>"
       +"<td>"+(r.ql?nf.format(r.ql):"—")+"</td><td>"+(r.sp&&r.ql?vnd(r.sp/r.ql):"—")+"</td>"
       +"<td>"+(r.od?nf.format(r.od):"—")+"</td><td>"+(r.ld?(r.od/r.ld*100).toFixed(1)+"%":"—")+"</td>"
+      +"<td>"+(r.ql?(r.od/r.ql*100).toFixed(1)+"%":"—")+"</td>"
       +"<td>"+(r.od?vnd(r.rev/r.od):"—")+"</td></tr>";
   }
   $("t6-tbl").innerHTML=h+"</tbody>";
@@ -1329,6 +1334,30 @@ function renderTrend6(codes){ // xu hướng 6 tháng gần nhất theo scope (u
       el.onmouseleave=()=>tip(null);
     });
   }else $("t6-chart-b").innerHTML="";
+  // C: line CR/Lead & CR/QL theo tháng (user 29/07) — đơn vị %, cùng pattern chart B
+  const crM=rows.map(r=>r.ld?r.od/r.ld*100:null),crqM=rows.map(r=>r.ql?r.od/r.ql*100:null);
+  const valsC=crM.concat(crqM).filter(v=>v!=null);
+  if(valsC.length){
+    const maxC=Math.max(...valsC)*1.15,xf6=j=>PAD.l+(j+0.5)*bw6,yf6=v=>H6-PAD.b-(H6-PAD.t-PAD.b)*(v/maxC);
+    let sC='<svg viewBox="0 0 '+W+' '+H6+'">'+grid(maxC,H6,v=>v.toFixed(1)+"%")+xlab;
+    for(const[arr,color,dash]of[[crM,"#7c3aed",""],[crqM,"#e11d48","6 5"]]){
+      const pts=arr.map((v,j)=>v==null?null:xf6(j)+","+yf6(v)).filter(Boolean).join(" ");
+      if(pts)sC+='<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2.4"'
+        +(dash?' stroke-dasharray="'+dash+'"':"")+' stroke-linejoin="round"/>';
+      arr.forEach((v,j)=>{if(v!=null)sC+='<circle cx="'+xf6(j)+'" cy="'+yf6(v)+'" r="3.5" fill="'+color+'"/>';});
+    }
+    rows.forEach((r,j)=>{sC+='<rect x="'+(PAD.l+j*bw6)+'" y="0" width="'+bw6+'" height="'+H6+'" fill="transparent" data-c="'+j+'"/>';});
+    sC+='</svg><div class="legend"><span><i style="background:#7c3aed"></i>CR/Lead (Đơn ÷ Lead)</span>'
+      +'<span><i style="background:#e11d48"></i>CR/QL (Đơn ÷ QL)</span></div>';
+    $("t6-chart-c").innerHTML=sC;
+    $("t6-chart-c").querySelectorAll("rect[data-c]").forEach(el=>{
+      el.onmousemove=ev=>{const j=+el.dataset.c,r=rows[j];
+        tip("<b>"+esc(monthLabel(r.m))+(r.cur?" (MTD)":"")+"</b><br>CR/Lead: "+(crM[j]!=null?crM[j].toFixed(1)+"%":"—")
+          +"<br>CR/QL: "+(crqM[j]!=null?crqM[j].toFixed(1)+"%":"—")
+          +"<br>Đơn: "+nf.format(r.od)+" · Lead: "+nf.format(r.ld)+" · QL: "+nf.format(r.ql),ev);};
+      el.onmouseleave=()=>tip(null);
+    });
+  }else $("t6-chart-c").innerHTML="";
   $("t6-note").textContent="Trọn từng tháng (tháng hiện tại = MTD), không phụ thuộc bộ lọc thời gian — theo "
     +(state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))
     +" · doanh thu "+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ (A1+B1+A3+B3)")
