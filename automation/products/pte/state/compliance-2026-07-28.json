@@ -1,0 +1,105 @@
+{
+ "date": "2026-07-28",
+ "send_day": "2026-07-29",
+ "product": "pte",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "sent_at": "2026-07-29T10:07:37+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 8370000,
+ "day_budget_eve": 5859543,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 7,
+  "pct_off": 0,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "PrepTalk 1": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120245353837650510",
+     "code": "60226",
+     "name": "PTE.060226_PTE35_Tận dụng AI đúng cách",
+     "src": "ad tệ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120247084963210510",
+     "code": "60326",
+     "name": "PTE.060326_PTE40_Sở hữu trọn đời",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": "2026-07-28T11:32:02+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120245126267890510",
+     "code": "10625",
+     "name": "PTE.010625_PTE30_Luyện nói cùng PrepTalk",
+     "src": "ad tệ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": "2026-07-28T10:41:10+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120247084963220510",
+     "code": "60326",
+     "name": "PTE.060326_PTE40_Sở hữu trọn đời",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120245579787110510",
+     "code": "60226",
+     "name": "PTE.060226_PTE35_Tận dụng AI đúng cách",
+     "src": "ad tệ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120248076933730510",
+     "code": "60226",
+     "name": "PTE.060226_PTE35_Tận dụng AI đúng cách",
+     "src": "ad tệ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": "2026-07-27T10:19:27+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120248264931710510",
+     "code": "10625",
+     "name": "PTE.010625_PTE30_Luyện nói cùng PrepTalk",
+     "src": "ad tệ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": []
+  }
+ }
+}
