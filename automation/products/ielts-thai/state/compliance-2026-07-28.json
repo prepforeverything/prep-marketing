@@ -1,0 +1,118 @@
+{
+ "date": "2026-07-28",
+ "send_day": "2026-07-29",
+ "product": "ielts-thai",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "sent_at": "2026-07-29T10:07:45+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 38490208,
+ "day_budget_eve": 400099000,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 1,
+  "off_late": 0,
+  "off": 3,
+  "pct_off": 33,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 4,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 1
+ },
+ "accounts": {
+  "IELTS Thái 1": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120242246189480369",
+     "code": "",
+     "name": "260303-video-ielts-thai-course-ploy8inmo",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": "2026-07-27T15:18:40+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120250061081600369",
+     "code": "",
+     "name": "260720-image-ielts-thai-course-beach-fas",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": "2026-07-27T15:21:35+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120250042478850369",
+     "code": "",
+     "name": "250924-image-ielts-thai-feature-noheader",
+     "src": "nhóm TẮT",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": "2026-07-29T13:53:38+07:00",
+     "time_known": true
+    }
+   ],
+   "scale": [
+    {
+     "owner_id": "120245302889420369",
+     "code": "",
+     "name": "IEThai.260507.05-TH30-Inbox-testLead-Tha",
+     "dir": "up",
+     "morning": 5000000,
+     "evening": 5000000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120242307986820369",
+     "code": "",
+     "name": "IEThai.260114.02-TH30-Inbox-entrytest-Th",
+     "dir": "up",
+     "morning": 1000000,
+     "evening": 800000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120242275729940369",
+     "code": "",
+     "name": "IEThai.260114.02-TH30-Inbox-entrytest-Th",
+     "dir": "up",
+     "morning": 198000,
+     "evening": 198000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120249688499730369",
+     "code": "",
+     "name": "IEThai.260708.02-TH30GIFT-Inbox-Thao",
+     "dir": "down",
+     "morning": 1000000,
+     "evening": 1000000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  },
+  "IEThai 01": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120250225479880313",
+     "code": "",
+     "name": "IEThai.260715.02-TH30-Inbox-entrytest-Th",
+     "dir": "up",
+     "morning": 212500000,
+     "evening": 212500000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  }
+ }
+}
