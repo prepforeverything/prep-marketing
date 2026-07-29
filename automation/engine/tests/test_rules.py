@@ -76,8 +76,11 @@ eq(rec_thai("TRUNG BÌNH", 5, 6_000_000, cpl=1_200_000, z7="RẤT TỆ", ql=0), 
 def rec_phase(zone, lead, spend, age, cpl_mtd=0, cpl=0, ql=0, z7=""):
     return R.recommend(zone, lead, spend, cpl_mtd, TOEIC, {}, 3, z7=z7, cpl=cpl, ql=ql, age=age)
 # Phiên 1 (age ≤ 3) — cổng: chỉ Tốt/TB qua
-eq(rec_phase("YẾU", 4, 5_000_000, age=2), "TẮT · Phiên 1 (cổng) — yếu", "Phiên 1 Yếu → TẮT cổng")
-eq(rec_phase("RẤT TỆ", 2, 4_000_000, age=1), "TẮT · Phiên 1 (cổng) — rất tệ", "Phiên 1 Rất tệ → TẮT cổng")
+eq(rec_phase("YẾU", 4, 5_000_000, age=2), "TẮT · Phiên 1 (cổng) — yếu", "Phiên 1 Yếu (đủ mẫu ≥3 lead) → TẮT cổng")
+eq(rec_phase("RẤT TỆ", 3, 4_000_000, age=1), "TẮT · Phiên 1 (cổng) — rất tệ", "Phiên 1 Rất tệ (đủ mẫu) → TẮT cổng")
+# Chốt Quân 29/07: Phiên 1 CHƯA đủ mẫu (lead < min_leads=3) → KHÔNG tắt, chỉ theo dõi
+eq(rec_phase("RẤT TỆ", 2, 4_000_000, age=1), "Theo dõi · Phiên 1 (chưa đủ mẫu, 2 lead)", "Phiên 1 Rất tệ nhưng 2 lead (<3) → theo dõi, không tắt")
+eq(rec_phase("YẾU", 1, 1_400_000, age=2), "Theo dõi · Phiên 1 (chưa đủ mẫu, 1 lead)", "Phiên 1 Yếu nhưng 1 lead (<3) → theo dõi, không tắt")
 eq(rec_phase("TỐT", 5, 3_000_000, age=2), "GIỮ · Phiên 1 — vào Phiên 2", "Phiên 1 Tốt → giữ (chưa scale)")
 eq(rec_phase("TRUNG BÌNH", 4, 4_000_000, age=3), "GIỮ · Phiên 1 — vào Phiên 2", "Phiên 1 TB → giữ")
 # Phiên 2 (4 ≤ age ≤ 6) — kiểm chứng: Yếu giảm, Rất tệ tắt, chưa scale
@@ -117,8 +120,10 @@ def rec_ad(z3, lead, spend, z7="", cpl=0, age=None):
 eq(rec_ad("RẤT TỆ", 1, 2_268_486, z7="RẤT TỆ", cpl=2_268_486, age=26), "TẮT", "ad lẻ Mốc2+ RẤT TỆ 3d&7d → tắt")
 # ad YẾU (không phải RẤT TỆ) trong content tốt → GIẢM, KHÔNG tắt (đúng: chỉ vi phạm nặng mới tắt)
 assert rec_ad("YẾU", 2, 2_200_000, z7="YẾU", cpl=1_100_000, age=30).startswith("GIẢM"), "ad lẻ YẾU → giảm, không tắt"
-# ad vừa bật lại (Phiên 1) YẾU/RẤT TỆ → TẮT ngay (cổng)
-eq(rec_ad("YẾU", 1, 1_400_000, cpl=1_400_000, age=2), "TẮT · Phiên 1 (cổng) — yếu", "ad vừa bật lại yếu → cổng tắt")
+# ad vừa bật lại (Phiên 1) YẾU/RẤT TỆ + ĐỦ mẫu (≥3 lead) → TẮT (cổng)
+eq(rec_ad("YẾU", 3, 4_200_000, cpl=1_400_000, age=2), "TẮT · Phiên 1 (cổng) — yếu", "ad bật lại yếu, đủ mẫu → cổng tắt")
+# ad vừa bật lại + mẫu mỏng (1 lead) → KHÔNG tắt oan, chỉ theo dõi (chốt Quân 29/07)
+eq(rec_ad("YẾU", 1, 1_400_000, cpl=1_400_000, age=2), "Theo dõi · Phiên 1 (chưa đủ mẫu, 1 lead)", "ad bật lại yếu nhưng 1 lead → theo dõi, không tắt")
 
 # ---- KPI Master parser (nhiều SP/1 tab): budget_block_rows + week_col + inbox_budget_cells ----
 def _b(s):  # bnum rút gọn cho test
