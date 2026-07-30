@@ -164,6 +164,14 @@
       <div class="note" id="daily-note"></div>
       <div id="dailychart"></div>
     </div>
+    <div class="card" id="allrev-card">
+      <h3>Doanh thu từng ngày — tổng mọi nguồn (đậm = Paid A1+B1)</h3>
+      <div class="note" id="allrev-note"></div>
+      <div id="allrevchart"></div>
+      <div class="legend"><span><i style="background:#0ea5e9;opacity:.3"></i>Tổng mọi nguồn</span>
+        <span><i style="background:#0e7490"></i>Paid A1+B1</span>
+        <span><i style="background:#7c3aed"></i>% A1+B1 ÷ tổng (trục phải)</span></div>
+    </div>
     <div class="card">
       <h3>Chi tiết theo sản phẩm</h3>
       <div class="note">A1 = paid → chốt trong kỳ · B1 = paid → chốt từ lead kỳ trước · KPI = A1+B1 gộp
@@ -427,6 +435,7 @@ function renderRev(days,codes){
 
   renderCum(days,a1,b1,kpi);
   renderDaily(days,codes);
+  renderAllRev(days,codes);
   renderTable(days);
   $("cum-note").textContent="Lũy kế "+scopeName+" · "+rangeLabel
     +(kpi.total?" — KPI rải đều theo ngày.":".");
@@ -589,6 +598,46 @@ function renderDaily(days,codes){
   });
 }
 
+function renderAllRev(days,codes){ // tổng mọi nguồn (rv_all) + A1+B1 đậm bên trong + đường % (user 30/07)
+  const H=300,PR=56; // lề phải rộng hơn PAD.r cho trục % bên phải
+  const tot=days.map(d=>sum(codes.map(c=>dayVal(d,c,"rv_all"))));
+  const ab=days.map(d=>sum(codes.map(c=>dayVal(d,c,"a1")+dayVal(d,c,"b1"))));
+  if(!tot.some(v=>v>0)){ // data.json cũ chưa backfill rv_all → ẩn card, không hiện chart rỗng
+    $("allrev-card").style.display="none";return;}
+  $("allrev-card").style.display="";
+  const axisN=state.mode==="month"?DATA.months[state.month].days_in_month:days.length;
+  const max=Math.max(...tot,1)*1.12;
+  const ys=v=>H-PAD.b-(H-PAD.t-PAD.b)*(v/max),yp=p=>H-PAD.b-(H-PAD.t-PAD.b)*(p/100);
+  const bw=(W-PAD.l-PR)/axisN,posf=j=>PAD.l+(j+.5)*bw;
+  let s='<svg viewBox="0 0 '+W+' '+H+'">';
+  for(let i=0;i<=4;i++){const v=max*i/4,y=ys(v); // grid tiền (trái) + nhãn % (phải, 0–100 cùng lưới)
+    s+='<line x1="'+PAD.l+'" x2="'+(W-PR)+'" y1="'+y+'" y2="'+y+'" stroke="#f3f4f6"/>'
+      +'<text x="'+(PAD.l-8)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#9ca3af">'+short(v)+'</text>'
+      +'<text x="'+(W-PR+8)+'" y="'+(yp(i*25)+4)+'" font-size="11" fill="#8b5cf6">'+(i*25)+'%</text>';}
+  s+=xLabels(days,H,posf,axisN);
+  days.forEach((d,j)=>{
+    const x=PAD.l+j*bw;
+    if(tot[j]>0)s+='<rect x="'+(x+bw*0.14)+'" y="'+ys(tot[j])+'" width="'+(bw*0.72)+'" height="'+(H-PAD.b-ys(tot[j]))+'" rx="2" fill="#0ea5e9" opacity=".25"/>';
+    if(ab[j]>0)s+='<rect x="'+(x+bw*0.28)+'" y="'+ys(Math.min(ab[j],tot[j]))+'" width="'+(bw*0.44)+'" height="'+(H-PAD.b-ys(Math.min(ab[j],tot[j])))+'" rx="2" fill="#0e7490"/>';
+    s+='<rect x="'+x+'" y="0" width="'+bw+'" height="'+H+'" fill="transparent" data-i="'+j+'"/>';
+  });
+  const pct=days.map((d,j)=>tot[j]>0?Math.min(ab[j]/tot[j]*100,100):null);
+  const pts=pct.map((p,j)=>p==null?null:posf(j)+","+yp(p)).filter(Boolean).join(" ");
+  if(pts)s+='<polyline points="'+pts+'" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>';
+  pct.forEach((p,j)=>{if(p!=null)s+='<circle cx="'+posf(j)+'" cy="'+yp(p)+'" r="2.6" fill="#7c3aed"/>';});
+  $("allrevchart").innerHTML=s+'</svg>';
+  $("allrevchart").querySelectorAll("rect[data-i]").forEach(r=>{
+    r.onmousemove=ev=>{const j=+r.dataset.i;
+      tip("<b>"+esc(days[j].label)+"</b><br>Tổng mọi nguồn: "+vnd(tot[j])+" "+csym()
+        +"<br>Paid A1+B1: "+vnd(ab[j])+" "+csym()
+        +"<br>% A1+B1 ÷ tổng: "+(pct[j]!=null?pct[j].toFixed(1)+"%":"—"),ev);};
+    r.onmouseleave=()=>tip(null);
+  });
+  const sTot=sum(tot),sAb=sum(ab);
+  $("allrev-note").textContent=(state.scope==="ALL"?"Tất cả sản phẩm. ":"Sản phẩm: "+lineLabel(state.scope)+". ")
+    +"Tổng mọi nguồn = paid (A1+B1) + tự chốt + organic + khách cũ (BI revenue_series, đủ 5 bucket). "
+    +"Kỳ chọn: A1+B1 chiếm "+(sTot?(sAb/sTot*100).toFixed(1):"—")+"% tổng doanh thu.";
+}
 function renderTable(days){
   const isM=state.mode==="month";
   const m=isM?DATA.months[state.month]:null;

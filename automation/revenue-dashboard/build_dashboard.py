@@ -127,6 +127,10 @@ COHORT_SRC = {
 # 5 nhóm kênh paid (bộ tên màn Conversion) — dùng cho booking_series (lens booking, BI 24/07)
 BOOKING_GROUPS = ["Meta Ads", "Google Ads", "TikTok Ads", "KOLs", "Paid (other)"]
 
+# Đủ 5 bucket nguồn của revenue_series — cộng lại = doanh thu TỔNG mọi nguồn (đã đối chiếu
+# 30/07: gộp 1 call = tổng 5 call lẻ, VSTEP T7 738,13tr). Nuôi chart "tổng mọi nguồn" tab KPI.
+ALL_SOURCE_BUCKETS = ["paid-a1", "paid-b1", "organic", "old", "self"]
+
 
 def fetch_month(c, month, fixture_dir=None, prev=None):
     """{'days_in_month': n, 'as_of_day': n, 'lines': {code: {'a1': [...], 'b1': [...]}}} hoặc None nếu API hỏng.
@@ -138,12 +142,16 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
     lines, days_in_month, as_of = {}, None, 0
     for line in c["lines"]:
         per = {}
-        for short, bucket in c["buckets"].items():
+        for short, bucket in list(c["buckets"].items()) + [("rv_all", ALL_SOURCE_BUCKETS)]:
+            blist = bucket if isinstance(bucket, list) else [bucket]
             if fixture_dir:
                 f = Path(fixture_dir) / f"{month}-{line['code']}-{short}.json"
                 payload = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+                if payload is None and short == "rv_all":  # fixture cũ chưa có rv_all → 0, không hỏng test
+                    per["rv_all"], per["o_rv_all"] = [], []
+                    continue
             else:
-                payload = prep_bi.revenue_series(line["products"], month, [bucket],
+                payload = prep_bi.revenue_series(line["products"], month, blist,
                                                  markets=c["market_keys"], currency=c["currency"])
             if payload is None:
                 print(f"[WARN] {month} {line['code']} {short}: không lấy được dữ liệu", file=sys.stderr)
@@ -153,8 +161,8 @@ def fetch_month(c, month, fixture_dir=None, prev=None):
             per[short] = s["daily"][:cut] if cut is not None else s["daily"]
             per["o_" + short] = s["orders"][:cut] if cut is not None else s["orders"]
             as_of = max(as_of, len(per[short]))
-        # 2 bucket có thể lệch độ dài (null khác nhau) → đệm 0 cho bằng nhau
-        n = max(len(per["a1"]), len(per["b1"]))
+        # các bucket có thể lệch độ dài (null khác nhau) → đệm 0 cho bằng nhau
+        n = max(len(per["a1"]), len(per["b1"]), len(per["rv_all"]))
         for k in per:
             per[k] = per[k] + [0] * (n - len(per[k]))
         lines[line["code"]] = per
@@ -453,7 +461,7 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
 
     def complete(mm):  # cache cũ thiếu trường mới (orders/spend/a3b3) → refetch 1 lần để backfill
         ls = (mm or {}).get("lines") or {}
-        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "fbc" in (v.get("ch_ld") or {}) and "fbi" in (v.get("ch_co") or {}) and "fbi" in (v.get("ch_bk") or {}) for v in ls.values())
+        return bool(ls) and all("sp_meta" in v and "o_a1" in v and "a3b3" in v and "lead" in v and "rv_all" in v and "fbc" in (v.get("ch_ld") or {}) and "fbi" in (v.get("ch_co") or {}) and "fbi" in (v.get("ch_bk") or {}) for v in ls.values())
 
     out_months = {}
     for m in months:
