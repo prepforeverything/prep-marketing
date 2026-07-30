@@ -1,0 +1,109 @@
+{
+ "date": "2026-07-29",
+ "send_day": "2026-07-30",
+ "product": "vstep",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-07-30T10:10:59+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 4792320,
+ "day_budget_eve": 2209000,
+ "cbo_missing": 3,
+ "totals": {
+  "off_ok": 1,
+  "off_late": 0,
+  "off": 1,
+  "pct_off": 100,
+  "bud_ok": 5,
+  "bud": 7,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "VSTEP - 01": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120249925953650223",
+     "code": "72626",
+     "name": "Prep.072626_VSTEP25_Minhminhminh",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "71026",
+     "dir": "up",
+     "morning": 578000,
+     "evening": 718000,
+     "ads_eve": 3,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "704262",
+     "dir": "up",
+     "morning": 266000,
+     "evening": 286000,
+     "ads_eve": 1,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "72626",
+     "dir": "down",
+     "morning": 228000,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "ok",
+     "label": "giảm↓"
+    },
+    {
+     "code": "626265",
+     "dir": "down",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "ok",
+     "label": "giảm↓"
+    },
+    {
+     "code": "720262",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 1,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "70226",
+     "dir": "down",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "ok",
+     "label": "giảm↓"
+    },
+    {
+     "code": "719262",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 1,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    }
+   ]
+  }
+ }
+}
