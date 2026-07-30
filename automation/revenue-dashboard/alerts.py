@@ -1,9 +1,11 @@
 """alerts.py — cảnh báo Telegram sau build sáng (user duyệt 28/07). Soát data.json vừa build:
-  1. Data gãy: hôm qua lead = 0 nhưng doanh thu > 0 (bài học sự cố BI 25–26/07).
-  2. CPL vượt ngưỡng KPI +20% ba ngày liên tiếp.
-  3. Doanh thu A1+B1 MTD thấp hơn pacing KPI quá 15%.
-  4. ME/RE MTD (Paid đầy đủ) vượt trần KPI quá 15%.
+  1. Data gãy: hôm qua lead = 0 nhưng doanh thu > 0 (bài học sự cố BI 25–26/07) — hàng ngày.
+  2. CPL vượt ngưỡng KPI +20% ba ngày liên tiếp — hàng ngày.
+  3. Doanh thu A1+B1 MTD thấp hơn pacing KPI quá 15% — CHỈ thứ 2 & thứ 5.
+  4. ME/RE MTD (Paid đầy đủ) vượt trần KPI quá 15% — CHỈ thứ 2 & thứ 5.
+Nhịp 2 lần/tuần cho #3–#4 (user 30/07): pacing/ME-RE xoay chuyển chậm, gửi hàng ngày thành nhiễu.
 Chỉ gửi khi CÓ cảnh báo (sạch thì im lặng); dry-run/thiếu token → chỉ in ra log."""
+import datetime as dt
 import json
 import os
 import sys
@@ -27,6 +29,12 @@ def check(data, dash_dir):
     months = sorted((data.get("months") or {}).keys())
     if not months:
         return msgs
+    # Thứ trong tuần theo ngày build (generated_at, giờ VN): Mon=0 … Sun=6.
+    # Parse hỏng → coi như ngày gửi chậm hợp lệ (thà thừa cảnh báo còn hơn nuốt mất).
+    try:
+        slow_day = dt.date.fromisoformat(str(data.get("generated_at", ""))[:10]).weekday() in (0, 3)
+    except ValueError:
+        slow_day = True
     m = months[-1]
     M = data["months"][m]
     n, dim = M["as_of_day"], M["days_in_month"]
@@ -53,15 +61,15 @@ def check(data, dash_dir):
                 cpl3 = sum(sp[n - CPL_DAYS:n]) / max(sum(lead[n - CPL_DAYS:n]), 1)
                 msgs.append(f"🟠 {code}: CPL {CPL_DAYS} ngày liên tiếp vượt +{round((CPL_OVER - 1) * 100)}% "
                             f"ngưỡng KPI — TB {cpl3:,.0f}đ vs ngưỡng {base:,.0f}đ")
-        # 3) pacing doanh thu A1+B1
-        if k.get("revenue"):
+        # 3) pacing doanh thu A1+B1 — chỉ thứ 2 & thứ 5
+        if slow_day and k.get("revenue"):
             act = _s(v.get("a1")) + _s(v.get("b1"))
             plan = k["revenue"] * n / dim
             if plan > 0 and act < plan * (1 - PACE_TOL):
                 msgs.append(f"🟠 {code}: doanh thu MTD {act / 1e6:,.0f}tr — thấp hơn pacing "
                             f"{(1 - act / plan) * 100:.0f}% (plan MTD {plan / 1e6:,.0f}tr)")
-        # 4) ME/RE vượt trần
-        if k.get("spend") and k.get("revenue"):
+        # 4) ME/RE vượt trần — chỉ thứ 2 & thứ 5
+        if slow_day and k.get("spend") and k.get("revenue"):
             rev_full = _s(v.get("a1")) + _s(v.get("b1")) + _s(v.get("a3b3"))
             cap = k["spend"] / k["revenue"]
             if rev_full > 0 and sum(sp) / rev_full > cap * MERE_OVER:
