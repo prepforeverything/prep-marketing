@@ -1,0 +1,184 @@
+{
+ "date": "2026-07-29",
+ "send_day": "2026-07-30",
+ "product": "toeic",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-07-30T10:07:52+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 14810901,
+ "day_budget_eve": 9509368,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 4,
+  "off_late": 0,
+  "off": 6,
+  "pct_off": 67,
+  "bud_ok": 6,
+  "bud": 9,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "TOEIC 3": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120260182850680586",
+     "code": "72126",
+     "name": "072126_TRUNGCAP_NDL ví tiền",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120255242643450586",
+     "code": "51526",
+     "name": "Học 1 lần đạt",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120254796107630586",
+     "code": "51526",
+     "name": "Học 1 lần đạt",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260182825900586",
+     "code": "72026",
+     "name": "NDL trọng tâm",
+     "src": "content TẮT",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": "2026-07-30T11:28:20+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120260182722880586",
+     "code": "72026",
+     "name": "NDL trọng tâm",
+     "src": "content TẮT",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": "2026-07-30T11:28:20+07:00",
+     "time_known": true
+    },
+    {
+     "id": "120260110261980586",
+     "code": "51526",
+     "name": "Học 1 lần đạt",
+     "src": "content TẮT",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "51425",
+     "dir": "up",
+     "morning": 1916368,
+     "evening": 2212368,
+     "ads_eve": 3,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "50826",
+     "dir": "up",
+     "morning": 1196000,
+     "evening": 1574000,
+     "ads_eve": 4,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "44825",
+     "dir": "up",
+     "morning": 658000,
+     "evening": 758000,
+     "ads_eve": 2,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "62726",
+     "dir": "up",
+     "morning": 199000,
+     "evening": 199000,
+     "ads_eve": 1,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "71226",
+     "dir": "up",
+     "morning": 478000,
+     "evening": 478000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "70126",
+     "dir": "up",
+     "morning": 736000,
+     "evening": 746000,
+     "ads_eve": 3,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "70826",
+     "dir": "down",
+     "morning": 355769,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "ok",
+     "label": "giảm↓"
+    },
+    {
+     "code": "71726",
+     "dir": "up",
+     "morning": 582000,
+     "evening": 732000,
+     "ads_eve": 2,
+     "verdict": "ok",
+     "label": "scale↑"
+    }
+   ]
+  },
+  "TOEIC 5": {
+   "skipped": false,
+   "off": [],
+   "scale": [],
+   "codes": [
+    {
+     "code": "34625",
+     "dir": "up",
+     "morning": 880000,
+     "evening": 960000,
+     "ads_eve": 1,
+     "verdict": "ok",
+     "label": "scale↑"
+    }
+   ]
+  }
+ }
+}
