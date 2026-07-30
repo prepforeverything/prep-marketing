@@ -189,7 +189,7 @@
     </div>
     <div class="card">
       <h3>ME/RE lũy kế trong kỳ</h3>
-      <div class="note">ME/RE = chi phí ÷ doanh thu A1+B1, cộng dồn từ đầu kỳ — đường đi xuống nghĩa là hiệu quả cải thiện.</div>
+      <div class="note" id="mere-note"></div>
       <div id="merechart"></div>
     </div>
     <div class="card" id="kpiq-card">
@@ -745,7 +745,7 @@ function renderEff(days,codes){
     card("Doanh thu Paid",short(totRev),(state.basis==="a1b1"?"chỉ A1+B1":"A1+B1+A3+B3")+" · "+vnd(totRev)+" "+csym(),GRAD.rev,false,tr.rev,rev),
     card("ME/RE",mere!=null?mere.toFixed(1)+"%":"—","chi phí ÷ doanh thu Paid",GRAD.pace,false,tr.mere,
       days.map((d,j)=>rev[j]>0?sp[j]/rev[j]*100:null)),
-    card("Đơn (Order)",nf.format(totOrd),"đơn A1+B1+A3+B3",GRAD.att,false,tr.ord,ord),
+    card("Đơn (Order)",nf.format(totOrd),state.basis==="a1b1"?"đơn chỉ A1+B1":"đơn A1+B1+A3+B3",GRAD.att,false,tr.ord,ord),
     card("Chi phí / đơn",totOrd?short2(totSp/totOrd):"—","Spent ÷ Order",GRAD.kpi,false,tr.cpo),
     card("AOV",totOrd?short2(totRev/totOrd):"—","Doanh thu ÷ Order",GRAD.proj,false,tr.aov)
   ].concat(SHOW_LEADS?[
@@ -772,13 +772,16 @@ function renderEff(days,codes){
   if(state.scope==="ALL")renderEffTable(days);
   renderMkt(codes);
   $("sp-note").textContent="Nguồn: "+srcLabel()+" · "+scopeName+" · "+rangeLabel
-    +" — cột nhạt = doanh thu ("+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ")+", A3+B3 phân bổ ngày là ước lượng), "
+    +" — cột nhạt = doanh thu ("+(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ, A3+B3 phân bổ ngày là ước lượng")+"), "
     +"cột đậm = chi phí"+(state.scope==="ALL"?" chồng theo sản phẩm, bấm chip để xem riêng":"")
     +" · rê chuột xem ME/RE từng ngày.";
   $("eff-note").textContent="Kỳ: "+rangeLabel+" · Doanh thu Paid = A1+B1 (sales chốt) + A3+B3 (tự chốt từ lead paid) "
     +"— A3+B3 tổng kỳ chính xác, phân bổ theo ngày là ước lượng · ME/RE = chi phí ÷ doanh thu Paid "
     +(SHOW_LEADS?"· Lead = L0 lead episode mới, QL = lần đầu chạm L3+ (Prep BI, kênh Paid, first-paid).":"");
   if(!spendOn())$("sp-note").textContent="Chưa có nguồn chi phí nào chạy (META_ACCESS_TOKEN/Google Ads chưa cấu hình) — các số chi phí đang là 0.";
+  $("mere-note").textContent="ME/RE = chi phí ÷ doanh thu "
+    +(state.basis==="a1b1"?"chỉ A1+B1":"Paid đầy đủ (A1+B1+A3+B3)")
+    +", cộng dồn từ đầu kỳ — đường đi xuống nghĩa là hiệu quả cải thiện.";
 }
 
 function renderSpendDaily(days,codes){
