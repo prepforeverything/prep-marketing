@@ -1,0 +1,240 @@
+{
+ "date": "2026-08-01",
+ "send_day": "2026-08-02",
+ "product": "vstep",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-02T10:10:42+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 0,
+ "day_budget_eve": 3853998,
+ "cbo_missing": 16,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 15,
+  "pct_off": 0,
+  "bud_ok": 0,
+  "bud": 6,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "VSTEP - 01": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120249716190500223",
+     "code": "704262",
+     "name": "Prep.070426-2_VSTEP25_Ưu đãi - Cơ hội họ",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250039664530223",
+     "code": "190626",
+     "name": "Prep.190626_VSTEP25_Lộ trình - Quỳnh 180",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250063748530223",
+     "code": "720262",
+     "name": "Prep.072026-2_VSTEP25_Lộ trình 3 bước h2",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250063811750223",
+     "code": "719262",
+     "name": "Prep.071926-2_VSTEP25_Vstep toàn năng 2",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120249760276270223",
+     "code": "71126",
+     "name": "Lộ trình - Lộ trình ngắn nhất",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250063660420223",
+     "code": "71126",
+     "name": "Lộ trình - Lộ trình ngắn nhất",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250041350200223",
+     "code": "72826",
+     "name": "Lộ trình tâm tình",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250041440270223",
+     "code": "72826",
+     "name": "Lộ trình tâm tình",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250039611920223",
+     "code": "71126",
+     "name": "Lộ trình - Lộ trình ngắn nhất",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250041264570223",
+     "code": "72726",
+     "name": "Giấy note tuyển sinh",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250041307250223",
+     "code": "72726",
+     "name": "Giấy note tuyển sinh",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250070136860223",
+     "code": "729261",
+     "name": "Không lý thuyết suông 1",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250070544530223",
+     "code": "729262",
+     "name": "Không lý thuyết suông 2",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250070499120223",
+     "code": "729262",
+     "name": "Không lý thuyết suông 2",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250070445950223",
+     "code": "729261",
+     "name": "Không lý thuyết suông 1",
+     "src": "content TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "720262",
+     "dir": "up",
+     "morning": 858998,
+     "evening": 858998,
+     "ads_eve": 4,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "71026",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "719262",
+     "dir": "up",
+     "morning": 359000,
+     "evening": 359000,
+     "ads_eve": 4,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "704262",
+     "dir": "down",
+     "morning": 336000,
+     "evening": 336000,
+     "ads_eve": 1,
+     "verdict": "pending",
+     "label": "chưa giảm"
+    },
+    {
+     "code": "70226",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "71526",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    }
+   ]
+  }
+ }
+}
