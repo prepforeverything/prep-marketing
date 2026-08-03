@@ -146,17 +146,53 @@ def ratio(a, b):
     return a / b if b else None
 
 
+def month_weeks(ym):
+    """Các tuần Thứ 2–CN của tháng: [(s,e)] ngày 1-based — port monthWeeks() của dashboard."""
+    y, mo = int(ym[:4]), int(ym[4:6])
+    n = calendar.monthrange(y, mo)[1]
+    ws, s = [], 1
+    for d in range(2, n + 1):
+        if dt.date(y, mo, d).weekday() == 0:
+            ws.append((s, d - 1))
+            s = d
+    ws.append((s, n))
+    return ws
+
+
+def day_share(kpi, ym, code, kind, day):
+    """Phần KPI tháng rơi vào 1 ngày — theo TỶ TRỌNG TUẦN (port dayShare() dashboard: 'wk_rev'
+    cho doanh thu/order/lead/ql, 'wk_spend' cho ngân sách; trong tuần chia đều các ngày;
+    thiếu tỷ trọng / số tuần lệch → chia đều tháng)."""
+    dim = calendar.monthrange(int(ym[:4]), int(ym[4:6]))[1]
+    v = (kpi.get(ym) or {}).get(code)
+    wk = v.get(kind) if isinstance(v, dict) else None
+    if not isinstance(wk, list):
+        return 1 / dim
+    ws = month_weeks(ym)
+    if len(wk) != len(ws):
+        return 1 / dim
+    i = next((j for j, (s, e) in enumerate(ws) if s <= day.day <= e), -1)
+    try:
+        share = float(wk[i])
+    except (TypeError, ValueError, IndexError):
+        return 1 / dim
+    if i < 0 or share < 0:
+        return 1 / dim
+    tot = sum(float(x or 0) for x in wk) or 1
+    return (share / tot) / (ws[i][1] - ws[i][0] + 1)
+
+
 def kpi_week(kpi, code, d0, d1):
-    """Mục tiêu tuần pro-rata theo ngày từ KPI tháng (tuần vắt tháng cộng cả 2 tháng)."""
+    """Mục tiêu tuần từ KPI tháng, rải theo tỷ trọng tuần như dashboard (tuần vắt tháng cộng cả 2)."""
     plan, found = {"rv": 0, "lead": 0, "ql": 0, "sp": 0, "od": 0}, False
     for day in days(d0, d1):
-        k = (kpi.get(day.strftime("%Y%m")) or {}).get(code)
+        ym = day.strftime("%Y%m")
+        k = (kpi.get(ym) or {}).get(code)
         if not isinstance(k, dict):
             continue
-        dim = calendar.monthrange(day.year, day.month)[1]
         for kk, src in (("rv", "revenue"), ("lead", "lead"), ("ql", "ql"), ("sp", "spend"), ("od", "order")):
             if k.get(src):
-                plan[kk] += k[src] / dim
+                plan[kk] += k[src] * day_share(kpi, ym, code, "wk_spend" if src == "spend" else "wk_rev", day)
                 found = True
     return plan if found else None
 
@@ -303,8 +339,8 @@ def derive_ch(c):
 
 # ---------- nhận định & đề xuất theo SP ----------
 
-def assess(mc, mp, plan):
-    """Đánh giá nhanh 1 SP: WoW từng chỉ số + so KPI tuần (pro-rata)."""
+def assess(mc, mp):
+    """Đánh giá nhanh 1 SP: WoW từng chỉ số (so KPI có bảng riêng)."""
     out = []
 
     def line(label, key, cost=False, fmt=vnd):
@@ -324,17 +360,43 @@ def assess(mc, mp, plan):
     line("CPL", "cpl", cost=True)
     line("CPQL", "cpql", cost=True)
     line("CR", "cr", fmt=lambda x: pct(x, 1))
-    if plan:
-        if plan.get("rv"):
-            r = mc["rv"] / plan["rv"]
-            out.append(f"Doanh thu đạt <b>{r * 100:.0f}%</b> kế hoạch tuần ({vnd(plan['rv'])}) "
-                       f"{'🟢' if r >= 1 else '🟡' if r >= 0.85 else '🔴'}")
-        if plan.get("sp") and plan.get("lead") and mc["cpl"]:
-            base = plan["sp"] / plan["lead"]
-            k = mc["cpl"] / base
-            out.append(f"CPL so ngưỡng KPI ({vnd(base)}): <b>{k * 100:.0f}%</b> "
-                       f"{'🟢' if k <= 1 else '🟡' if k <= 1.2 else '🔴'}")
     return out
+
+
+def kpi_table(mc, plan):
+    """Bảng so với KPI tuần — mục tiêu dẫn xuất từ thành phần KPI tháng rải tỷ trọng tuần
+    (đúng panel '%đạt KPI theo chỉ số' của dashboard, thu về khung tuần)."""
+    if not plan:
+        return '<div class="note">Tháng này chưa có KPI trong kpi.json — chưa so được.</div>'
+    tg = {"rv": plan.get("rv"), "sp": plan.get("sp"), "lead": plan.get("lead"),
+          "ql": plan.get("ql"), "od": plan.get("od"),
+          "pql": ratio(plan.get("ql"), plan.get("lead")), "cpl": ratio(plan.get("sp"), plan.get("lead")),
+          "cpql": ratio(plan.get("sp"), plan.get("ql")), "cr": ratio(plan.get("od"), plan.get("lead")),
+          "mere": ratio(plan.get("sp"), plan.get("rv"))}
+    # mode: up = càng cao càng tốt; cost = phải ≤ ngưỡng; plan = bám plan (under cũng lệch — chi phí)
+    rows_def = (("Doanh thu", "rv", vnd, "up"), ("Chi phí", "sp", vnd, "plan"),
+                ("Lead", "lead", num, "up"), ("QL", "ql", num, "up"), ("%QL", "pql", pct, "up"),
+                ("CPL", "cpl", vnd, "cost"), ("CPQL", "cpql", vnd, "cost"),
+                ("Đơn", "od", num, "up"), ("CR", "cr", lambda x: pct(x, 1), "up"),
+                ("ME/RE", "mere", pct, "cost"))
+    rows = []
+    for label, k, fmt, mode in rows_def:
+        if not tg.get(k) or mc[k] is None:
+            continue
+        r = mc[k] / tg[k]
+        # ngưỡng nới 0,5% để icon không vênh với số % đã làm tròn (99,6% hiện "100%" phải 🟢)
+        if mode == "plan":
+            icon, cls = ("🟢", "text-green") if 0.895 <= r <= 1.105 else (("🟡", "text-amber") if 0.795 <= r <= 1.205 else ("🔴", "text-red"))
+        elif mode == "cost":
+            icon, cls = ("🟢", "text-green") if r <= 1.005 else (("🟡", "text-amber") if r <= 1.205 else ("🔴", "text-red"))
+        else:
+            icon, cls = ("🟢", "text-green") if r >= 0.995 else (("🟡", "text-amber") if r >= 0.845 else ("🔴", "text-red"))
+        note = {"plan": "bám plan", "cost": "so ngưỡng"}.get(mode, "% đạt")
+        rows.append(f'<tr><td>{label}</td><td>{fmt(mc[k]) if k != "od" else num(round(mc[k]))}</td>'
+                    f'<td>{fmt(tg[k]) if k != "od" else num(round(tg[k]))}</td>'
+                    f'<td><span class="{cls}"><b>{r * 100:.0f}%</b></span> {icon}</td><td>{note}</td></tr>')
+    head = "<tr><th>Chỉ số</th><th>Thực tế tuần</th><th>KPI tuần</th><th>So KPI</th><th>Cách đọc</th></tr>"
+    return f'<div style="overflow-x:auto"><table>{head}{"".join(rows)}</table></div>'
 
 
 def insights(code, cur, prev, plan):
@@ -555,14 +617,18 @@ def product_tab(code, label, cur, prev, plan, d0):
     chans = [ch for ch in CH_ORDER
              if cur["ch"][ch]["ld"] > 0 or (cur["ch"][ch]["sp"] or 0) > 0
              or prev["ch"][ch]["ld"] > 0 or (prev["ch"][ch]["sp"] or 0) > 0]
-    ass = assess(mc, mp, plan)
+    ass = assess(mc, mp)
     hi, sug = insights(code, cur, prev, plan)
     hi_html = "".join(f"<li>{h}</li>" for h in hi) or "<li>Không có biến động kênh đáng chú ý.</li>"
     sug_html = "".join(f"<li>{s}</li>" for s in sug)
     return f"""<div class="ptab" data-c="{code}" style="display:none">
 <div class="kpi-grid">{cards}</div>
-<div class="card"><h3>Đánh giá nhanh</h3><div class="note">So với tuần liền trước (WoW) và KPI tháng rải đều theo ngày.</div>
+<div class="card"><h3>Đánh giá nhanh</h3><div class="note">So với tuần liền trước (WoW).</div>
 <div class="assess">{"<br>".join(ass)}</div></div>
+<div class="card"><h3>So với KPI tuần</h3>
+<div class="note">KPI tuần = KPI tháng rải theo tỷ trọng tuần (thiếu tỷ trọng thì chia đều ngày); tuần vắt tháng cộng cả 2 tháng.
+CPL/CPQL/ME-RE là ngưỡng trần (dưới ngưỡng = 🟢); chi phí đọc kiểu bám plan (lệch cả 2 chiều đều đáng xem).</div>
+{kpi_table(mc, plan)}</div>
 <div class="card"><h3>Lead &amp; QL theo ngày — breakdown kênh</h3>
 <div class="note">Mỗi ngày 1 cặp cột: trái = Lead, phải (sọc) = QL; màu = kênh. Di chuột lên cột để xem số.</div>
 {chart_lead_ql(cur["ch_daily"], chans, d0, code)}{chart_legend(chans)}</div>
