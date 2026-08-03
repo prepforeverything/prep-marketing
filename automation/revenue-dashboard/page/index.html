@@ -315,7 +315,7 @@ function dayVal(d,code,bucket){const a=(DATA.months[d.m].lines[code]||{})[bucket
 function seriesDays(days,codes,bucket){return days.map(d=>sum(codes.map(c=>dayVal(d,c,bucket))));}
 function kpiMetricVal(month,code,key){ // kpi.json v2: number = revenue (kiểu cũ); object = {revenue,lead,ql,cpl,cpql}
   const v=((KPI&&KPI[month])||{})[code];
-  if(v==null)return null;
+  if(v==null||v==="paused")return null; // "paused" = SP dừng ads, cố ý không có KPI (user 03/08)
   if(typeof v==="number")return key==="revenue"?v:null;
   return v[key]!=null?v[key]:null;
 }
@@ -348,7 +348,8 @@ function kpiOfDays(days,codes){ // {total, daily[], missing:[«tháng·dòng»]}
   const missing=new Set();let total=0,any=false;
   const daily=days.map(d=>{let s=0;
     for(const c of codes){const v=kpiDay(d,c);
-      if(v==null)missing.add(monthLabel(d.m)+" · "+lineLabel(c));else{s+=v;any=true;}}
+      if(v==null){if((((KPI&&KPI[d.m])||{})[c])!=="paused")missing.add(monthLabel(d.m)+" · "+lineLabel(c));}
+      else{s+=v;any=true;}}
     return s;});
   total=sum(daily);
   return {total:any?total:null,daily,missing:[...missing]};
