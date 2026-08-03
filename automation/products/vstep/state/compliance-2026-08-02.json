@@ -1,0 +1,102 @@
+{
+ "date": "2026-08-02",
+ "send_day": "2026-08-03",
+ "product": "vstep",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-03T10:10:40+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 0,
+ "day_budget_eve": 2938998,
+ "cbo_missing": 12,
+ "totals": {
+  "off_ok": 3,
+  "off_late": 0,
+  "off": 3,
+  "pct_off": 100,
+  "bud_ok": 0,
+  "bud": 4,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "VSTEP - 01": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120250041307250223",
+     "code": "72726",
+     "name": "Giấy note tuyển sinh",
+     "src": "content TẮT",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250070544530223",
+     "code": "729262",
+     "name": "Không lý thuyết suông 2",
+     "src": "content TẮT",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250070499120223",
+     "code": "729262",
+     "name": "Không lý thuyết suông 2",
+     "src": "content TẮT",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "720262",
+     "dir": "up",
+     "morning": 917998,
+     "evening": 917998,
+     "ads_eve": 5,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "719262",
+     "dir": "down",
+     "morning": 359000,
+     "evening": 359000,
+     "ads_eve": 3,
+     "verdict": "pending",
+     "label": "chưa giảm"
+    },
+    {
+     "code": "70226",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 3,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "71026",
+     "dir": "up",
+     "morning": 0,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    }
+   ]
+  }
+ }
+}
