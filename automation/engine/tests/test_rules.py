@@ -168,6 +168,41 @@ _wp, _dp = R.inbox_budget_cells(KPI_MASTER, "PTE", "Inbox", 7, 1)
 eq((_b(_wp), _b(_dp)), (41850000, 8370000), "PTE tuần 1 — lọc đúng khối PTE + dòng Ngày LỆCH cột")
 eq(R.inbox_budget_cells(KPI_MASTER, "HSK", "Inbox", 7, 1), ("", ""), "SP không có khối → rỗng")
 
+# ---- File KPI MỚI (03/08): mốc tuần GLOBAL đầu sheet + PHẦN 2 chỉ 'RẤT TỆ (≥)' (Inbox = dòng đầu) ----
+KPI_NEW = [
+    ["KPI MASTER · THÁNG"], ["Tháng (số)", "→", "8"], ["Năm", "→", "2026"],
+    ["Ngày BẮT ĐẦU tuần", "Bắt đầu", "1", "10", "17", "24"],
+    ["Ngày KẾT THÚC tuần", "Kết thúc", "9", "16", "23", "31"],
+    ["▸  TOEIC"], ["Kênh", "Loại"],
+    ["Inbox", "Tuần", "132.558.679 ₫", "103.101.195 ₫", "103.101.195 ₫", "117.829.937 ₫"],
+    ["", "Ngày", "14.728.742 ₫", "14.728.742 ₫", "14.728.742 ₫", "14.728.742 ₫"],
+    ["▸  VSTEP"], ["Kênh", "Loại"],
+    ["Inbox", "Tuần", "66.630.956 ₫", "51.824.077 ₫", "51.824.077 ₫", "59.227.516 ₫"],
+    ["", "Ngày", "7.403.440 ₫", "7.403.440 ₫", "7.403.440 ₫", "7.403.440 ₫"],
+    ["PHẦN 2 — BẢNG TRA CỨU NGƯỠNG CPL"],
+    ["STT", "Line", "", "", "", "", "RẤT TỆ (≥)"],
+    ["1", "TOEIC", "", "", "", "", "1.200.000 đ"],
+    ["2", "TOEIC", "", "", "", "", "412.000 đ"],
+    ["6", "VSTEP", "", "", "", "", "934.500 đ"],
+    ["8", "PTE", "", "", "", "", "525.000 đ"],
+]
+# week_col_global: đọc mốc tuần global đầu sheet
+eq(R.week_col_global(KPI_NEW, 3), 2, "3/8 → tuần 1 (1–9) = cột 2")
+eq(R.week_col_global(KPI_NEW, 15), 3, "15/8 → tuần 2 (10–16) = cột 3")
+eq(R.week_col_global(KPI_NEW, 31), 5, "31/8 → tuần 4 (24–31) = cột 5")
+eq(R.week_col_global(KPI_MASTER, 3), None, "file cũ (không có dòng mốc global) → None")
+# kpi_rat_te: DÒNG ĐẦU của line = Meta Inbox (bỏ dòng sau = Conversion), chỉ quét sau 'PHẦN 2'
+eq(R.kpi_rat_te(KPI_NEW, "TOEIC"), 1200000, "TOEIC Inbox (dòng đầu) = 1.2M, KHÔNG lấy 412k (Conversion)")
+eq(R.kpi_rat_te(KPI_NEW, "VSTEP"), 934500, "VSTEP = 934.500")
+eq(R.kpi_rat_te(KPI_NEW, "PTE"), 525000, "PTE = 525.000")
+eq(R.kpi_rat_te(KPI_NEW, "HSK"), None, "line không có trong PHẦN 2 → None")
+# suy 4 mức từ 1 mốc RẤT TỆ (tỷ lệ chuẩn 2/3 · 0.8 · 1)
+_rt = R.kpi_rat_te(KPI_NEW, "TOEIC")
+eq((round(_rt*2/3), round(_rt*0.8), _rt), (800000, 960000, 1200000), "TOEIC suy: kpi 800k · tb 960k · yeu 1.2M")
+# inbox_budget_cells trên file mới (mốc tuần global) — TOEIC + VSTEP tuần 1
+eq(_b(R.inbox_budget_cells(KPI_NEW, "TOEIC", "Inbox", 8, 3)[1]), 14728742, "TOEIC ngân sách/ngày tuần 1 (file mới)")
+eq(_b(R.inbox_budget_cells(KPI_NEW, "VSTEP", "Inbox", 8, 3)[1]), 7403440, "VSTEP ngân sách/ngày tuần 1 (file mới)")
+
 # --- match_account: sheet cào lead dùng chung nhiều TK (IELTS VN) — chặn tiền tố số ---------
 _IE = {"Prep - IELTS 1": "a", "Prep - IELTS 9": "b", "Prep - IELTS 10": "c"}
 eq(R.match_account("Prep - IELTS 1", _IE), "Prep - IELTS 1", "khớp chính xác IELTS 1")

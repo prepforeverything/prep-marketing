@@ -363,14 +363,51 @@ def week_col(header, month, day):
     return None
 
 
+def week_col_global(rows, day):
+    """Cột tuần chứa `day` — file KPI mới để 2 dòng mốc tuần GLOBAL ở đầu sheet:
+    'Ngày BẮT ĐẦU tuần' + 'Ngày KẾT THÚC tuần' (số ngày ở cột 2..). None nếu không có / không khớp."""
+    st = en = None
+    for r in rows:
+        c0 = (r[0] if r else "").strip()
+        if c0.startswith("Ngày BẮT ĐẦU tuần"):
+            st = r
+        elif c0.startswith("Ngày KẾT THÚC tuần"):
+            en = r
+    if not st or not en:
+        return None
+    for j in range(2, min(len(st), len(en))):
+        a = re.sub(r"[^\d]", "", st[j] or ""); b = re.sub(r"[^\d]", "", en[j] or "")
+        if a and b and int(a) <= day <= int(b):
+            return j
+    return None
+
+
+def kpi_rat_te(rows, line, *, col_line=1, col_val=6):
+    """Ngưỡng 'RẤT TỆ (≥)' (VND) cho `line` từ PHẦN 2 file KPI mới. Mỗi Line có 2 dòng
+    (DÒNG ĐẦU = Meta Inbox, dòng sau = Meta Conversion) → trả dòng ĐẦU (Inbox). None nếu không thấy.
+    Chỉ quét sau marker 'PHẦN 2' để không vớ nhầm khối ngân sách PHẦN 1."""
+    in_p2 = False
+    for r in rows:
+        c0 = (r[0] if r else "").strip()
+        if c0.startswith("PHẦN 2"):
+            in_p2 = True
+            continue
+        if in_p2 and len(r) > col_val and (r[col_line] or "").strip() == line:
+            v = re.sub(r"[^\d]", "", r[col_val] or "")
+            if v:
+                return int(v)
+    return None
+
+
 def inbox_budget_cells(rows, block, channel, month, day):
     """(ô tuần, ô ngày) ngân sách của (block, channel) cho tuần chứa (month, day) — CHUỖI THÔ (chưa parse số).
+    File KPI mới: mốc tuần GLOBAL ở đầu sheet (week_col_global). File cũ: mốc trong header 'Kênh' của khối.
     Xử lý ô 'Loại' bị merge ở dòng Ngày (gviz có thể trả r[0]='' r[1]='Ngày', hoặc collapse → r[0]='Ngày' lệch 1 cột).
     Trả ('','') nếu không tìm thấy khối/kênh/tuần."""
+    wk = week_col_global(rows, day)              # file mới: mốc tuần global đầu sheet
     blk = budget_block_rows(rows, block)
-    wk = None
     for i, r in enumerate(blk):
-        if r and r[0].strip() == "Kênh":
+        if wk is None and r and r[0].strip() == "Kênh":   # file cũ: mốc tuần trong header khối
             wk = week_col(r, month, day)
         elif wk is not None and r and r[0].strip() == channel and len(r) > 1 and r[1].strip() == "Tuần":
             week_cell = r[wk] if len(r) > wk else ""

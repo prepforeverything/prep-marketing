@@ -80,10 +80,8 @@ def build_caption(cfg, summary, doc_fmt="pdf"):
     per_ad = summary.get("per_ad_kill")            # PTE: TẮT quyết định theo TỪNG ad id, không tắt cả content
     per_action = summary.get("per_ad_action")      # PTE: MỌI đề xuất (scale/giảm/tắt) bóc theo ad id
     L = [f"📊 <b>{cfg.display} ad-ops — 3 ngày ({dmy(w[0])}–{dmy(w[1])}/{w[1][:4]}){channel_tag(cfg)}</b>", ""]
-    for _w in summary.get("kpi_warn") or []:        # cảnh báo nếu KHÔNG đọc được KPI từ sheet (đừng âm thầm dùng số cũ)
-        L.append(f"⚠️ <b>{_w}</b>")
-    if summary.get("kpi_warn"):
-        L.append("")
+    # Cảnh báo KPI (không đọc được sheet) KHÔNG gửi vào caption Telegram nữa (theo yêu cầu Quân 03/08 —
+    # file KPI đọc live hàng tháng, không cần ping ngay). Vẫn hiển thị trong file HTML (kpi_warn_html) để tra khi cần.
     for acct, a in summary["accounts"].items():
         L.append(f"• <b>{acct}</b> — chi {vnd(a['spend'])} · {a['lead']} lead · CPL {vnd(a['cpl'])}")
         if per_action:
