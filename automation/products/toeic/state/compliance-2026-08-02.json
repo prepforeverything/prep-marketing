@@ -1,0 +1,141 @@
+{
+ "date": "2026-08-02",
+ "send_day": "2026-08-03",
+ "product": "toeic",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-03T10:07:44+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 0,
+ "day_budget_eve": 11283368,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 0,
+  "pct_off": null,
+  "bud_ok": 8,
+  "bud": 11,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "TOEIC 3": {
+   "skipped": false,
+   "off": [],
+   "scale": [],
+   "codes": [
+    {
+     "code": "51425",
+     "dir": "up",
+     "morning": 1916368,
+     "evening": 2122368,
+     "ads_eve": 3,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "50826",
+     "dir": "up",
+     "morning": 1574000,
+     "evening": 1674000,
+     "ads_eve": 4,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "62126",
+     "dir": "up",
+     "morning": 1036000,
+     "evening": 866000,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "44825",
+     "dir": "up",
+     "morning": 928000,
+     "evening": 1008000,
+     "ads_eve": 2,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "71726",
+     "dir": "up",
+     "morning": 832000,
+     "evening": 932000,
+     "ads_eve": 2,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "70126",
+     "dir": "up",
+     "morning": 368000,
+     "evening": 308000,
+     "ads_eve": 1,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "71226",
+     "dir": "up",
+     "morning": 269000,
+     "evening": 658000,
+     "ads_eve": 2,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "72226",
+     "dir": "down",
+     "morning": 189000,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "ok",
+     "label": "giảm↓"
+    },
+    {
+     "code": "62726",
+     "dir": "up",
+     "morning": 269000,
+     "evening": 707000,
+     "ads_eve": 3,
+     "verdict": "ok",
+     "label": "scale↑"
+    },
+    {
+     "code": "51526",
+     "dir": "up",
+     "morning": 0,
+     "evening": 516000,
+     "ads_eve": 2,
+     "verdict": "ok",
+     "label": "scale↑"
+    }
+   ]
+  },
+  "TOEIC 5": {
+   "skipped": false,
+   "off": [],
+   "scale": [],
+   "codes": [
+    {
+     "code": "34625",
+     "dir": "up",
+     "morning": 860000,
+     "evening": 860000,
+     "ads_eve": 1,
+     "verdict": "pending",
+     "label": "chưa scale"
+    }
+   ]
+  }
+ }
+}
