@@ -1232,12 +1232,15 @@ function renderMi(m,codes){
   $("mi-tbl").querySelectorAll("tr.camp").forEach(el=>el.onclick=()=>{miOpen[el.dataset.id]=!miOpen[el.dataset.id];renderMi(m,codes);});
   $("mi-tbl").querySelectorAll("th").forEach(el=>el.onclick=()=>{const k=el.dataset.k;
     if(miSort.k===k)miSort.d*=-1;else miSort={k,d:-1};renderMi(m,codes);});
+  const spxAll=codes.filter(cd=>(MKTC[m].lines||{})[cd]).every(cd=>(MKTC[m].lines||{})[cd].spx);
   $("mi-note").textContent=grainNote(m)+" Meta campaign KHÔNG chứa 'conv' (đúng luật tách Inbox/Conversion) · "
     +"bấm dòng campaign để xổ từng ad id · lead/QL/đơn/doanh thu = lead-episode first-paid, đơn chốt trong kỳ (màn MKT của BI) — "
     +"khác lens cohort của bảng kênh · chi tiết top 40 campaign/SP theo chi phí, phần đuôi gộp dòng "
-    +"'(… còn lại)' nên TỔNG = đủ nguồn BI · ⚠️ chi phí bảng này lấy từ warehouse BI, LỆCH ~5–8% so "
-    +"cột Chi phí bảng kênh (platform trực tiếp) — đọc cơ cấu/so sánh campaign ở đây, đối chiếu tổng "
-    +"chi tiêu thì theo bảng kênh.";
+    +"'(… còn lại)' nên TỔNG = đủ nguồn · "
+    +(spxAll?"chi phí + Impr./CTR lấy TRỰC TIẾP từ Meta API (trùng nguồn bảng kênh; campaign/ad có chi "
+      +"nhưng 0 lead vẫn hiện dòng — lead/QL/đơn vẫn của BI nên CPL có thể '—' khi BI chưa sync)."
+     :"⚠️ chi phí bảng này đang tạm dùng warehouse BI (nguồn platform lỗi lượt build này), LỆCH ~5–8% so "
+      +"cột Chi phí bảng kênh — đối chiếu tổng chi tiêu thì theo bảng kênh.");
 }
 
 /* --- UTM Explorer: drill-down kiểu GA4 — chi phí CHÍNH CHỦ từ BI trên từng row

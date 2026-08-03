@@ -618,7 +618,8 @@ def main():
     ensure_kpi(c, dash_dir, list(data["months"].keys()))
     if not a.from_fixture:  # 2 bảng chi tiết Inbox/UTM (grain tháng, từ 202606) — user duyệt 19/07
         import mkt_detail
-        mkt_detail.build_mkt(c, dash_dir, dt.datetime.now(VN_TZ).date(), force=a.force_backfill)
+        mkt_detail.build_mkt(c, dash_dir, dt.datetime.now(VN_TZ).date(), force=a.force_backfill,
+                             acc=accounts())
         import alerts  # cảnh báo Telegram sau build (user duyệt 28/07); dry-run chỉ in log
         alerts.send(alerts.check(data, dash_dir), data["generated_at"], dry=a.dry_run, dash_dir=dash_dir)
     write_static(c, dash_dir)
