@@ -37,6 +37,8 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       TELEGRAM_ALERT_CHAT_ID: ${{ secrets.TELEGRAM_ALERT_CHAT_ID }}
+      # nhóm nhận báo cáo tuần (group "Quân x Chew x Digital Bot" — user chốt 03/08)
+      TELEGRAM_WEEKLY_CHAT_ID: ${{ secrets.TELEGRAM_WEEKLY_CHAT_ID }}
     steps:
       - uses: actions/checkout@v4
 

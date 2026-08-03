@@ -229,7 +229,10 @@ def quality_check(data, d0, d1, run_date, lines):
 # ---------- Telegram ----------
 
 def tg_chat():
-    return (os.environ.get("TELEGRAM_ALERT_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
+    """Nhóm nhận báo cáo tuần: TELEGRAM_WEEKLY_CHAT_ID (group "Quân x Chew x Digital Bot",
+    user chốt 03/08) → fallback DM alert → kênh nhóm chung."""
+    return (os.environ.get("TELEGRAM_WEEKLY_CHAT_ID") or os.environ.get("TELEGRAM_ALERT_CHAT_ID")
+            or os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
 
 
 def tg_send(text, dry=False):
