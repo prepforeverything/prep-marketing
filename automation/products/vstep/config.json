@@ -21,6 +21,7 @@
   "kpi_sheet": {
     "id": "1qo74NExBVKtd4dC5saIejUoMffX30qziOPkfCSh4VK8",
     "gid": "1724818552",
+    "tab_prefix": "KPI Tháng",
     "line": "VSTEP",
     "channel": "Inbox"
   },

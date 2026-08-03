@@ -139,9 +139,26 @@ def vnd(n):
 
 
 # ---- thresholds + Inbox budget plan (KPI sheet) ------------------------------
+_amonth, _aday = int(cfg["anchor"][5:7]), int(cfg["anchor"][8:10])   # anchor = "YYYY-MM-DD" (tháng của báo cáo)
+# tab_prefix (vd "KPI Tháng"): mỗi tháng team NHÂN BẢN 1 tab đặt tên "KPI Tháng <N>" trong CÙNG file.
+# Engine tự dò tab theo tháng báo cáo → không cần sửa config mỗi tháng. Vắng tab_prefix ⇒ đọc theo gid như cũ.
+TAB_PREFIX = (PCFG["kpi_sheet"].get("tab_prefix") or "").strip()
 thr = {"kpi": 900000, "tb": 1080000, "yeu": 1350000, "zero_inbox": 450000}
-def _fetch_kpi():  # export?format=csv cần "publish to web"; gviz chỉ cần "anyone with link" → fallback
+kpi_tab_missing = False                                              # tab tháng báo cáo chưa có → lùi tab cũ (cảnh báo HTML)
+def _fetch_kpi():
+    """Có tab_prefix → dò tab 'KPI Tháng <tháng báo cáo>' theo TÊN (gviz), xác minh ô 'Tháng (số)' khớp;
+    tab chưa có / sai tháng → lùi về gid cố định trong config. Không tab_prefix → export?format=csv theo gid (gviz fallback)."""
+    global kpi_tab_missing
     base = f"https://docs.google.com/spreadsheets/d/{KPI_ID}"
+    if TAB_PREFIX:
+        tab = f"{TAB_PREFIX} {_amonth}"
+        try:
+            rows = list(csv.reader(io.StringIO(fetch(f"{base}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(tab)}"))))
+            if R.sheet_month(rows) == _amonth:                      # đúng tab của tháng báo cáo
+                return rows
+        except Exception:                                           # noqa: BLE001 — tab chưa có → lùi tab cũ
+            pass
+        kpi_tab_missing = True
     try:
         return list(csv.reader(io.StringIO(fetch(f"{base}/export?format=csv&gid={KPI_GID}"))))
     except urllib.error.HTTPError:
@@ -165,13 +182,14 @@ else:
                 thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
                 thr_from_sheet = True
 # Ngân sách Inbox tuần/ngày — KPI Master 1-tab, nhiều SP: lọc KHỐI "▸ <SP>" + chọn cột tuần theo mốc ngày anchor.
-_amonth, _aday = int(cfg["anchor"][5:7]), int(cfg["anchor"][8:10])  # anchor = "YYYY-MM-DD"
 _wc, _dc = R.inbox_budget_cells(kpi_rows, BUDGET_BLOCK, KPI_CHANNEL, _amonth, _aday)
 kpi_week, kpi_day = bnum(_wc), bnum(_dc)
 
 # HARDENING: nếu KHÔNG đọc được số từ sheet → cảnh báo RÕ (đừng âm thầm dùng mặc định cũ = số tháng trước).
 # THR_INLINE = SP dùng sheet KPI phi-chuẩn (ngưỡng khai trong config, KHÔNG có bảng ngân sách tuần) → bỏ qua cảnh báo.
 kpi_warn = []
+if kpi_tab_missing:                                 # tab tháng báo cáo chưa nhân bản → đang dùng số tab cũ (chỉ hiện trong HTML, KHÔNG ping Telegram)
+    kpi_warn.append(f"Chưa thấy tab \"{TAB_PREFIX} {_amonth}\" trong file KPI — đang tạm dùng số của tab gần nhất. Nhân bản tab tháng {_amonth} (đặt tên \"{TAB_PREFIX} {_amonth}\") trong sheet.")
 if not thr_from_sheet:
     kpi_warn.append(f"Ngưỡng CPL (giá lead) đang dùng MẶC ĐỊNH CŨ — không thấy dòng Line=\"{KPI_LINE}\" · Mục tiêu=\"{KPI_CHANNEL}\" trong PHẦN 2 của sheet KPI. Vào sheet điền/ sửa lại.")
 if not kpi_day and not THR_INLINE:
