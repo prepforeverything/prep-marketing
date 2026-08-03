@@ -399,6 +399,18 @@ def kpi_rat_te(rows, line, *, col_line=1, col_val=6):
     return None
 
 
+def sheet_month(rows):
+    """Số tháng của tab KPI — đọc ô 'Tháng (số)' ở khối cấu hình đầu sheet (layout v2). None nếu không có.
+    Dùng để xác minh engine đang đọc ĐÚNG tab của tháng báo cáo khi dò tab theo tên (tab_prefix)."""
+    for r in rows:
+        if (r[0] if r else "").strip().startswith("Tháng (số)"):
+            for c in reversed(r):
+                d = re.sub(r"[^\d]", "", c or "")
+                if d:
+                    return int(d)
+    return None
+
+
 def inbox_budget_cells(rows, block, channel, month, day):
     """(ô tuần, ô ngày) ngân sách của (block, channel) cho tuần chứa (month, day) — CHUỖI THÔ (chưa parse số).
     File KPI mới: mốc tuần GLOBAL ở đầu sheet (week_col_global). File cũ: mốc trong header 'Kênh' của khối.
