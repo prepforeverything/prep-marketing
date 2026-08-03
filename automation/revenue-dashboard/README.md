@@ -47,3 +47,19 @@ Repo `prepedu-landing` có CI `verify-publish.mjs` yêu cầu mỗi trang có `p
 Dashboard là trang **nội bộ, không có customer copy/claims** nên `publish-meta.json` được sinh với
 `gate.passed = true`, `claims: []` và ghi chú rõ nguồn gốc — không đi qua claims gate marketing vì
 không phải trang marketing.
+
+## Báo cáo tuần sáng thứ 2 (`weekly_report.py`)
+
+Mỗi **thứ 2 ~09:15 VN** (`.github/workflows/revdash-weekly.yml`, lượt dự phòng 10:00), engine đọc lại
+chính `data.json`/`kpi.json` của dashboard đã publish (không gọi Prep BI/Meta) và:
+
+1. **Soát chất lượng data trước** — thiếu ngày, lead=0 dù có chi phí, dashboard sáng đó chưa build
+   → gửi tin **cảnh báo Telegram ngay**, rồi mới build báo cáo (kèm banner cảnh báo).
+2. Build **HTML tuần** (Thứ 2–CN tuần trước, so WoW + KPI tháng rải theo ngày): 4 SP IELTS/TOEIC/HSK/
+   VSTEP, **mỗi SP 1 tab** — stat cards, chart Lead & QL theo ngày breakdown kênh, bảng kênh,
+   nhận định + đề xuất. Template dùng đúng CSS dashboard daily.
+3. Publish vào `bi-<token>/weekly/<năm>-W<tuần>.html` (+`latest.html`) bên `prepedu-landing`,
+   gửi Telegram (DM `TELEGRAM_ALERT_CHAT_ID`, fallback nhóm): tóm tắt mỗi SP 1 dòng + file HTML + link.
+   Marker `weekly/sent.txt` chống gửi trùng giữa 2 lượt cron.
+
+Chạy thử offline: `python3 weekly_report.py --dry-run --from-file <dir có data.json> --date 2026-08-03 --out out/`.
