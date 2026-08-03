@@ -156,19 +156,29 @@ def meta_campaign_period(accounts, line_code, since, until, target="VND"):
             for level, sink in (("campaign", camp), ("ad", ads)):
                 fields = ("campaign_id,ad_id,ad_name,spend,impressions,clicks" if level == "ad"
                           else "campaign_id,campaign_name,spend,impressions,clicks")
-                params = {"level": level, "fields": fields, "limit": 500,
+                # time_increment=1: mỗi entity trả 1 dòng/ngày → vừa cộng được tổng kỳ, vừa giữ
+                # được map ngày "d" cho bảng campaign theo kỳ tự do (BI đợt 3, 03/08)
+                params = {"level": level, "fields": fields, "limit": 500, "time_increment": 1,
                           "time_range": json.dumps({"since": since, "until": until})}
                 d = _meta_get(f"act_{acct}/insights", params, tok)
                 while True:
                     for r in d.get("data", []):
                         key = str(r.get("ad_id") if level == "ad" else r.get("campaign_id"))
-                        e = sink.setdefault(key, {"sp": 0, "im": 0, "cl": 0, "src": "meta",
+                        e = sink.setdefault(key, {"sp": 0, "im": 0, "cl": 0, "src": "meta", "d": {},
                                                   "n": r.get("ad_name" if level == "ad" else "campaign_name")})
                         if level == "ad":
                             e["cid"] = str(r.get("campaign_id"))
-                        e["sp"] += int(round(float(r.get("spend") or 0) * rate))
-                        e["im"] += int(r.get("impressions") or 0)
-                        e["cl"] += int(r.get("clicks") or 0)
+                        sp = int(round(float(r.get("spend") or 0) * rate))
+                        im, cl = int(r.get("impressions") or 0), int(r.get("clicks") or 0)
+                        e["sp"] += sp
+                        e["im"] += im
+                        e["cl"] += cl
+                        day = r.get("date_start")
+                        if day and (sp or im or cl):
+                            cur = e["d"].setdefault(day, [0, 0, 0])
+                            cur[0] += sp
+                            cur[1] += im
+                            cur[2] += cl
                     nxt = (d.get("paging") or {}).get("next")
                     if not nxt:
                         break
@@ -191,8 +201,8 @@ def google_campaign_period(accounts, line_code, since, until, target="VND", _tok
     login = ga.get("login_customer_id", "")
     vat = float(ga.get("vat_multiplier") or 1.08)
     out, got_any = {}, False
-    q = ("SELECT campaign.id, campaign.name, metrics.cost_micros, metrics.impressions, "
-         "metrics.clicks, customer.currency_code FROM campaign "
+    q = ("SELECT campaign.id, campaign.name, segments.date, metrics.cost_micros, "
+         "metrics.impressions, metrics.clicks, customer.currency_code FROM campaign "
          f"WHERE segments.date BETWEEN '{since}' AND '{until}'")
     for customer_id in line["google"]:
         cid_acc = customer_id.replace("-", "").strip()
@@ -227,11 +237,19 @@ def google_campaign_period(accounts, line_code, since, until, target="VND", _tok
                             break
                     cmp_ = r.get("campaign") or {}
                     met = r.get("metrics") or {}
-                    e = out.setdefault(str(cmp_.get("id")), {"sp": 0, "im": 0, "cl": 0,
+                    e = out.setdefault(str(cmp_.get("id")), {"sp": 0, "im": 0, "cl": 0, "d": {},
                                                              "n": cmp_.get("name"), "src": "google"})
-                    e["sp"] += int(round(int(met.get("costMicros") or 0) / 1e6 * rate * vat))
-                    e["im"] += int(met.get("impressions") or 0)
-                    e["cl"] += int(met.get("clicks") or 0)
+                    sp = int(round(int(met.get("costMicros") or 0) / 1e6 * rate * vat))
+                    im, cl = int(met.get("impressions") or 0), int(met.get("clicks") or 0)
+                    e["sp"] += sp
+                    e["im"] += im
+                    e["cl"] += cl
+                    day = (r.get("segments") or {}).get("date")
+                    if day and (sp or im or cl):
+                        cur = e["d"].setdefault(day, [0, 0, 0])
+                        cur[0] += sp
+                        cur[1] += im
+                        cur[2] += cl
             got_any = True
         except Exception as e:  # noqa: BLE001 — 1 customer lỗi không giết cả run
             print(f"[WARN] Google Ads {customer_id} campaign period: {e}", flush=True)
