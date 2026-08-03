@@ -134,6 +134,110 @@ def meta_conv_daily(acct_id, since, until, token, target="VND"):
         return None
 
 
+def meta_campaign_period(accounts, line_code, since, until, target="VND"):
+    """Chi phí platform TỔNG KỲ theo campaign + ad (insights level=campaign và level=ad, không chia
+    ngày) gộp mọi tài khoản Meta của 1 SP — nuôi bảng campaign của dashboard (user duyệt 03/08:
+    chi phí = platform trùng nguồn bảng kênh, hiệu quả = BI). Trả
+    ({cid: {sp,im,cl,n,src}}, {ad_id: {sp,im,cl,n,cid}}); None nếu KHÔNG lấy được tài khoản nào
+    (caller giữ chi phí BI). 1 tài khoản lỗi → WARN, các tài khoản còn lại vẫn dùng."""
+    line = accounts.get(line_code, {})
+    default_token = os.environ.get("META_ACCESS_TOKEN", "").strip()
+    camp, ads, got_any = {}, {}, False
+    for acct in line.get("meta") or []:
+        tok = _acct_token(line, acct, default_token)
+        if not tok:
+            print(f"[WARN] Meta act_{acct}: thiếu token (campaign period)", flush=True)
+            continue
+        try:
+            info = _meta_get(f"act_{acct}", {"fields": "currency"}, tok)
+            rate = rate_to(target, info.get("currency") or target)
+            if rate is None:
+                continue
+            for level, sink in (("campaign", camp), ("ad", ads)):
+                fields = ("campaign_id,ad_id,ad_name,spend,impressions,clicks" if level == "ad"
+                          else "campaign_id,campaign_name,spend,impressions,clicks")
+                params = {"level": level, "fields": fields, "limit": 500,
+                          "time_range": json.dumps({"since": since, "until": until})}
+                d = _meta_get(f"act_{acct}/insights", params, tok)
+                while True:
+                    for r in d.get("data", []):
+                        key = str(r.get("ad_id") if level == "ad" else r.get("campaign_id"))
+                        e = sink.setdefault(key, {"sp": 0, "im": 0, "cl": 0, "src": "meta",
+                                                  "n": r.get("ad_name" if level == "ad" else "campaign_name")})
+                        if level == "ad":
+                            e["cid"] = str(r.get("campaign_id"))
+                        e["sp"] += int(round(float(r.get("spend") or 0) * rate))
+                        e["im"] += int(r.get("impressions") or 0)
+                        e["cl"] += int(r.get("clicks") or 0)
+                    nxt = (d.get("paging") or {}).get("next")
+                    if not nxt:
+                        break
+                    d = json.loads(_http(nxt))
+            got_any = True
+        except Exception as e:  # noqa: BLE001 — 1 tài khoản lỗi không giết cả run
+            print(f"[WARN] Meta act_{acct} campaign period: {e}", flush=True)
+    return (camp, ads) if got_any else None
+
+
+def google_campaign_period(accounts, line_code, since, until, target="VND", _tok_cache={}):
+    """{cid: {sp,im,cl,n,src:'google'}} chi phí TỔNG KỲ theo campaign Google (GAQL FROM campaign),
+    ĐÃ nhân vat_multiplier (API trả NET — cùng quy ước month_spend). None nếu không có nguồn/lỗi
+    toàn bộ. Không lấy ad-level Google (BI giữ nguyên — ad grain Google ít dùng, tránh query nặng)."""
+    creds = google_creds()
+    line = accounts.get(line_code, {})
+    ga = accounts.get("google_ads") or {}
+    if not creds or not line.get("google"):
+        return None
+    login = ga.get("login_customer_id", "")
+    vat = float(ga.get("vat_multiplier") or 1.08)
+    out, got_any = {}, False
+    q = ("SELECT campaign.id, campaign.name, metrics.cost_micros, metrics.impressions, "
+         "metrics.clicks, customer.currency_code FROM campaign "
+         f"WHERE segments.date BETWEEN '{since}' AND '{until}'")
+    for customer_id in line["google"]:
+        cid_acc = customer_id.replace("-", "").strip()
+        try:
+            if "t" not in _tok_cache:
+                _tok_cache["t"] = _google_access_token(creds)
+            headers = {"Authorization": f"Bearer {_tok_cache['t']}",
+                       "developer-token": creds["GOOGLE_ADS_DEVELOPER_TOKEN"],
+                       "Content-Type": "application/json"}
+            if login:
+                headers["login-customer-id"] = login.replace("-", "").strip()
+            raw = None
+            for ver in [_tok_cache["ver"]] if "ver" in _tok_cache else GOOGLE_VERSIONS:
+                try:
+                    raw = _http(f"https://googleads.googleapis.com/{ver}/customers/{cid_acc}/googleAds:searchStream",
+                                data=json.dumps({"query": q}).encode(), headers=headers)
+                    _tok_cache["ver"] = ver
+                    break
+                except urllib.error.HTTPError as e:
+                    if e.code == 404:
+                        continue
+                    raise
+            if raw is None:
+                print(f"[WARN] Google Ads {customer_id}: mọi version {GOOGLE_VERSIONS} đều 404", flush=True)
+                continue
+            rate = None
+            for chunk in json.loads(raw):
+                for r in chunk.get("results", []):
+                    if rate is None:
+                        rate = rate_to(target, (r.get("customer") or {}).get("currencyCode") or target)
+                        if rate is None:
+                            break
+                    cmp_ = r.get("campaign") or {}
+                    met = r.get("metrics") or {}
+                    e = out.setdefault(str(cmp_.get("id")), {"sp": 0, "im": 0, "cl": 0,
+                                                             "n": cmp_.get("name"), "src": "google"})
+                    e["sp"] += int(round(int(met.get("costMicros") or 0) / 1e6 * rate * vat))
+                    e["im"] += int(met.get("impressions") or 0)
+                    e["cl"] += int(met.get("clicks") or 0)
+            got_any = True
+        except Exception as e:  # noqa: BLE001 — 1 customer lỗi không giết cả run
+            print(f"[WARN] Google Ads {customer_id} campaign period: {e}", flush=True)
+    return out if got_any else None
+
+
 def _acct_token(line, acct, default_token):
     """Token Meta cho 1 tài khoản: nếu accounts.json khai `meta_tokens[acct] = "TÊN_SECRET"`
     (VD IEThai 01 dùng META_TOKEN_THAILAND — Business Manager Thái khác BM VN) thì lấy secret đó;

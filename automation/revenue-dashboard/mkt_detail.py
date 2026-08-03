@@ -1,5 +1,7 @@
 """mkt_detail.py — dữ liệu 2 bảng chi tiết cho dashboard (mkt-YYYYMM.json, grain THÁNG, từ 202606):
-  1. Inbox theo campaign + ad (mkt_ad_performance — spend platform thật, đủ từ 06/2026).
+  1. Inbox theo campaign + ad: hiệu quả (lead/QL/đơn/doanh thu) từ BI mkt_ad_performance; CHI PHÍ
+     đè bằng platform Meta/Google API theo campaign/ad id (user duyệt 03/08 — spend BI gán theo
+     lead nên hụt ~11% và sập khi pipeline lead gãy; platform lỗi thì giữ chi phí BI, cờ spx=0).
   2. UTM Explorer (mkt_campaigns) + bản đồ ghép chi phí: mã 6 số trong utm_content ↔ tên campaign
      Google, utm_campaign ↔ campaign_id. UI áp luật 2 chiều ≥95% (thà "—" còn hơn số sai — user chốt 19/07).
 File tháng cũ (< tháng trước) giữ nguyên; fetch lỗi dòng nào giữ file cũ (không ghi đè thiếu)."""
@@ -8,8 +10,74 @@ import json
 import sys
 
 import prep_bi
+import spend
 
 MKT_START = "202606"  # trước 06/2026 spend platform không đủ (BI note)
+
+
+def _platform_period(acc, line_code, since, until, currency):
+    """(camp_map, ad_map) chi phí platform tổng kỳ (Meta campaign+ad, Google campaign) — nguồn
+    TRÙNG bảng kênh (user duyệt 03/08: chi phí tự quyết từ platform, hiệu quả vẫn của BI).
+    None nếu cả 2 nguồn đều không lấy được (caller giữ nguyên chi phí BI)."""
+    camp, ad_map, any_ok = {}, {}, False
+    m = spend.meta_campaign_period(acc, line_code, since, until, currency)
+    if m is not None:
+        camp.update(m[0])
+        ad_map.update(m[1])
+        any_ok = True
+    g = spend.google_campaign_period(acc, line_code, since, until, currency)
+    if g is not None:
+        camp.update(g)
+        any_ok = True
+    return (camp, ad_map) if any_ok else None
+
+
+def _merge_platform(payload, camp_map, ad_map):
+    """Đè chi phí platform lên payload BI theo campaign_id/ad_id (im/cl đè theo — giữ CTR/CPM nhất
+    quán với chi phí mới). Campaign/ad platform CÓ CHI nhưng BI không có dòng (0 lead — vd sự cố
+    lead 2/8 hoặc camp không ra lead) → THÊM dòng 0-lead để tổng bảng = chi tiêu thực tế."""
+    ads_by_cid = {}
+    for aid, pa in ad_map.items():
+        ads_by_cid.setdefault(pa.get("cid"), {})[aid] = pa
+    seen = set()
+    for c in payload.get("campaigns") or []:
+        cid = str(c.get("campaign_id"))
+        p = camp_map.get(cid)
+        if p:
+            seen.add(cid)
+            c["spend_usd"] = p["sp"]
+            if p.get("im"):
+                c["impressions"] = p["im"]
+            if p.get("cl"):
+                c["clicks"] = p["cl"]
+        known = set()
+        for a in c.get("ads") or []:
+            aid = str(a.get("ad_id"))
+            known.add(aid)
+            pa = ad_map.get(aid)
+            if pa:
+                a["spend_usd"] = pa["sp"]
+                if pa.get("im"):
+                    a["impressions"] = pa["im"]
+                if pa.get("cl"):
+                    a["clicks"] = pa["cl"]
+        for aid, pa in (ads_by_cid.get(cid) or {}).items():
+            if aid not in known and pa["sp"] > 0:
+                c.setdefault("ads", []).append({"ad_id": aid, "ad_name": pa.get("n"),
+                                                "spend_usd": pa["sp"], "leads": 0, "ql": 0,
+                                                "orders": 0, "revenue": 0,
+                                                "impressions": pa["im"], "clicks": pa["cl"]})
+    for cid, p in camp_map.items():
+        if cid in seen or p["sp"] <= 0:
+            continue
+        payload.setdefault("campaigns", []).append(
+            {"campaign": p.get("n") or cid, "campaign_id": cid, "platform": p.get("src"),
+             "spend_usd": p["sp"], "leads": 0, "ql": 0, "orders": 0, "revenue": 0,
+             "impressions": p["im"], "clicks": p["cl"],
+             "ads": [{"ad_id": aid, "ad_name": pa.get("n"), "spend_usd": pa["sp"], "leads": 0,
+                      "ql": 0, "orders": 0, "revenue": 0, "impressions": pa["im"],
+                      "clicks": pa["cl"]} for aid, pa in (ads_by_cid.get(cid) or {}).items()
+                     if pa["sp"] > 0]})
 
 
 def _month_range(month, today):
@@ -82,7 +150,7 @@ def _utm(payload, camps_payload):
     return rows
 
 
-def build_mkt(c, dash_dir, today, force=False):
+def build_mkt(c, dash_dir, today, force=False, acc=None):
     """Ghi mkt-YYYYMM.json cho các tháng >= MKT_START. Tháng đóng băng (< tháng trước) đã có file
     thì giữ; tháng trong cửa sổ refetch (hiện tại + trước) hoặc force thì kéo lại."""
     cur = today.strftime("%Y%m")
@@ -109,7 +177,11 @@ def build_mkt(c, dash_dir, today, force=False):
             if ap is None or up is None:
                 fail = True
                 break
-            lines[line["code"]] = {"camps": _camps(ap), "utm": _utm(up, ap)}
+            plat = _platform_period(acc, line["code"], since, until, c["currency"]) if acc else None
+            if plat:
+                _merge_platform(ap, *plat)
+            lines[line["code"]] = {"camps": _camps(ap), "utm": _utm(up, ap),
+                                   "spx": 1 if plat else 0}  # 1 = chi phí campaign đã là platform
         if fail:
             print(f"[WARN] mkt-{month}: BI lỗi — giữ file cũ" if f.exists()
                   else f"[WARN] mkt-{month}: BI lỗi — bỏ qua tháng này", file=sys.stderr)
