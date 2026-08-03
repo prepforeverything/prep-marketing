@@ -1,0 +1,158 @@
+{
+ "date": "2026-08-02",
+ "send_day": "2026-08-03",
+ "product": "ielts-thai",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-03T10:07:39+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 36417460,
+ "day_budget_eve": 226473000,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 7,
+  "pct_off": 0,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 3,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 2
+ },
+ "accounts": {
+  "IELTS Thái 1": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120249309099580369",
+     "code": "",
+     "name": "260630-image-ielts-thai-intensive-study-",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120249924583460369",
+     "code": "",
+     "name": "260715-image-ielts-thai-roadmap-study200",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120249416302310369",
+     "code": "",
+     "name": "260702-video-ielts-thai-course-5stepboos",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120245355660150369",
+     "code": "",
+     "name": "260416-image-ielts-thai-roadmap-studypla",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250061081600369",
+     "code": "",
+     "name": "260720-image-ielts-thai-course-beach-fas",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120242246189480369",
+     "code": "",
+     "name": "260303-video-ielts-thai-course-ploy8inmo",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120250172856440369",
+     "code": "",
+     "name": "260724-image-ielts-thai-roadmap-forbegin",
+     "src": "nhóm TẮT",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [
+    {
+     "owner_id": "120250172856450369",
+     "code": "",
+     "name": "IEThai.260724.01-TH30-Inbox-testLead-Tha",
+     "dir": "up",
+     "morning": 4500000,
+     "evening": 4500000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120250061051750369",
+     "code": "",
+     "name": "IEThai.260720.01-TH30-Inbox-testLead-Tha",
+     "dir": "up",
+     "morning": 4800000,
+     "evening": 4800000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120243870305000369",
+     "code": "",
+     "name": "IEThai.260408.02-TH30-Inbox-Thao",
+     "dir": "down",
+     "morning": 1000000,
+     "evening": 1000000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120249688499730369",
+     "code": "",
+     "name": "IEThai.260708.02-TH30GIFT-Inbox-Thao",
+     "dir": "down",
+     "morning": 1000000,
+     "evening": 1000000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  },
+  "IEThai 01": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120250225479880313",
+     "code": "",
+     "name": "IEThai.260715.02-TH30-Inbox-entrytest-Th",
+     "dir": "up",
+     "morning": 255000000,
+     "evening": 170000000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  }
+ }
+}
