@@ -152,10 +152,18 @@ if THR_INLINE:                                  # ngưỡng nhúng config (sheet
     thr = {**thr, **THR_INLINE}
     thr_from_sheet = True                       # nguồn hợp lệ (khai trong config, không phải mặc định cũ)
 else:
-    for r in kpi_rows:
-        if len(r) > 7 and r[1].strip() == KPI_LINE and r[2].strip() == KPI_CHANNEL:
-            thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
-            thr_from_sheet = True
+    # File KPI mới (PHẦN 2 — BẢNG TRA CỨU): mỗi Line có 2 dòng (Meta Inbox = dòng ĐẦU, Meta Conversion = dòng sau),
+    # chỉ 1 mốc "RẤT TỆ (≥)". Lấy mốc Inbox làm TRẦN (yeu) rồi suy TỐT/TB theo tỷ lệ chuẩn hệ thống
+    # (kpi = 2/3 · trần, tb = 0.8 · trần; khớp mặc định cũ 900/1080/1350), zero_inbox ≈ trần/3.
+    _rt = R.kpi_rat_te(kpi_rows, KPI_LINE)
+    if _rt:
+        thr = {"kpi": round(_rt * 2 / 3), "tb": round(_rt * 0.8), "yeu": _rt, "zero_inbox": round(_rt / 3)}
+        thr_from_sheet = True
+    else:                                            # tương thích file cũ (Line + Mục tiêu + 4 mốc riêng)
+        for r in kpi_rows:
+            if len(r) > 7 and r[1].strip() == KPI_LINE and r[2].strip() == KPI_CHANNEL:
+                thr = {"kpi": num(r[3]), "tb": max(nums(r[4])), "yeu": max(nums(r[5])), "zero_inbox": num(r[7])}
+                thr_from_sheet = True
 # Ngân sách Inbox tuần/ngày — KPI Master 1-tab, nhiều SP: lọc KHỐI "▸ <SP>" + chọn cột tuần theo mốc ngày anchor.
 _amonth, _aday = int(cfg["anchor"][5:7]), int(cfg["anchor"][8:10])  # anchor = "YYYY-MM-DD"
 _wc, _dc = R.inbox_budget_cells(kpi_rows, BUDGET_BLOCK, KPI_CHANNEL, _amonth, _aday)
