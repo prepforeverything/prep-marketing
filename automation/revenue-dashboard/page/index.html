@@ -227,6 +227,7 @@
     </div>
     <div class="card" id="mkt-inbox-card">
       <h3>Hiệu quả Inbox theo campaign &amp; ad</h3>
+      <div class="chips" id="mi-lens" style="margin:8px 0 4px"></div>
       <div class="note" id="mi-note"></div>
       <div style="overflow-x:auto;padding-bottom:16px"><table id="mi-tbl"></table></div>
     </div>
@@ -1167,21 +1168,26 @@ function mktMonth(){ // tháng hiển thị = tháng chứa NGÀY CUỐI kỳ ch
   const m=state.mode==="month"?state.month:(state.to||"").slice(0,7).replace("-","");
   return m>="202606"?m:null;
 }
+function mktMonthsSel(){ // các tháng kỳ chọn CHẠM vào (>=202606) — bảng campaign cộng theo ngày qua nhiều tháng
+  const ms=[...new Set(selDays().map(d=>d.m))].filter(m=>m>="202606").sort();
+  return ms;
+}
 function renderMkt(codes){
-  const m=mktMonth(),show=SHOW_LEADS&&SHOW_CHANNELS&&!!m;
+  const ms=mktMonthsSel(),m=mktMonth(),show=SHOW_LEADS&&SHOW_CHANNELS&&ms.length>0;
   $("mkt-inbox-card").style.display=show?"":"none";
   $("mkt-utm-card").style.display=show?"":"none";
   if(!show)return;
-  if(MKTC[m]){renderMi(m,codes);renderMu(m,codes);return;}
-  if(MKTC[m+"_p"])return;
-  MKTC[m+"_p"]=1;
-  fetch("./mkt-"+m+".json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{
-    delete MKTC[m+"_p"];
-    if(d){MKTC[m]=d;render();}
-    else{$("mi-note").textContent="Chưa có dữ liệu tháng này.";
-         $("mu-note").textContent="Chưa có dữ liệu tháng này.";
-         $("mi-tbl").innerHTML="";$("mu-tbl").innerHTML="";}
-  });
+  const need=[...new Set(ms.concat(m?[m]:[]))].filter(x=>!MKTC[x]&&MKTC[x+"_f"]!==0);
+  if(!need.length){renderMi(codes);if(m&&MKTC[m])renderMu(m,codes);else{$("mu-note").textContent="Chưa có dữ liệu tháng này.";$("mu-tbl").innerHTML="";}return;}
+  for(const x of need){
+    if(MKTC[x+"_p"])continue;
+    MKTC[x+"_p"]=1;
+    fetch("./mkt-"+x+".json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{
+      delete MKTC[x+"_p"];
+      if(d)MKTC[x]=d;else MKTC[x+"_f"]=0; // _f=0: file không tồn tại — đừng fetch lặp vô hạn
+      render();
+    });
+  }
 }
 function esc2(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/'/g,"&#39;");}
 function grainNote(m){return "Grain THÁNG — đang hiện "+monthLabel(m)+" (tháng chứa ngày cuối kỳ chọn), tính đến "
@@ -1206,10 +1212,54 @@ function miRow(r,cls,label){
     +"<td>"+(r.crql!=null?r.crql.toFixed(1)+"%":"—")+"</td><td>"+(r.rv?vnd(r.rv):"—")+"</td>"
     +"<td style='font-weight:700' class='"+mc+"'>"+(r.mere!=null?r.mere.toFixed(0)+"%":"—")+"</td></tr>";
 }
-function renderMi(m,codes){
-  const camps=[];
-  for(const cd of codes){const L=(MKTC[m].lines||{})[cd];if(!L)continue;
-    for(const cp of L.camps)if((cp.p||"").startsWith("meta")&&!cp.cv)camps.push(cp);}
+function miAdd(t,e,daysSel,v2,full){ // cộng 1 entity (campaign/ad) vào dòng gộp theo kỳ chọn + lens
+  const map=v2?((state.miLens||"bk")==="co"?e.dc:e.d):null;
+  if(map){for(const k of daysSel){const v=map[k];if(v){t.ld+=v[0];t.ql+=v[1];t.od+=v[2];t.rv+=v[3];}}}
+  else if(full){t.ld+=e.ld||0;t.ql+=e.ql||0;t.od+=e.od||0;t.rv+=e.rv||0;}
+  const ds=v2?e.ds:null;
+  if(ds&&Object.keys(ds).length){for(const k of daysSel){const v=ds[k];if(v){t.sp+=v[0];t.im+=v[1];t.cl+=v[2];}}}
+  else if(full){t.sp+=e.sp||0;t.im+=e.im||0;t.cl+=e.cl||0;} // file v1/nguồn ngoài sổ: chỉ dùng tổng khi trọn tháng
+}
+function miAgg(codes){ // gộp campaign/ad theo NGÀY của kỳ chọn, qua nhiều tháng (BI đợt 3 — 03/08)
+  const byM={};
+  for(const d of selDays()){if(d.m<"202606")continue;(byM[d.m]=byM[d.m]||new Set()).add(String(d.i+1));}
+  const rows={},st={v1:[],spx:true,anyCo:false};
+  for(const m of Object.keys(byM)){
+    const F=MKTC[m];
+    if(!F){if(MKTC[m+"_f"]===0)continue;return null;} // 404 → bỏ tháng đó; đang tải → chờ
+    const v2=(F.v||0)>=2,daysSel=byM[m];
+    const dim=DATA.months[m]?Math.min(DATA.months[m].as_of_day,DATA.months[m].days_in_month):31;
+    let full=true;for(let i=1;i<=dim;i++)if(!daysSel.has(String(i))){full=false;break;}
+    if(!v2)st.v1.push(m);
+    for(const cd of codes){
+      const L=(F.lines||{})[cd];if(!L)continue;
+      if(!L.spx)st.spx=false;
+      for(const cp of L.camps){
+        if(!((cp.p||"").startsWith("meta"))||cp.cv)continue;
+        if(v2&&Object.keys(cp.dc||{}).length)st.anyCo=true;
+        const r=rows[cp.id]=rows[cp.id]||{c:cp.c,id:cp.id,p:cp.p,cv:cp.cv,sp:0,im:0,cl:0,ld:0,ql:0,od:0,rv:0,_ads:{}};
+        miAdd(r,cp,daysSel,v2,full);
+        for(const a of cp.ads||[]){
+          const ar=r._ads[a.id]=r._ads[a.id]||{id:a.id,n:a.n,sp:0,im:0,cl:0,ld:0,ql:0,od:0,rv:0};
+          miAdd(ar,a,daysSel,v2,full);
+        }
+      }
+    }
+  }
+  const out=Object.values(rows).filter(r=>r.sp>0||r.ld>0||r.od>0);
+  for(const r of out)r.ads=Object.values(r._ads).filter(a=>a.sp>0||a.ld>0||a.od>0).sort((a,b)=>b.sp-a.sp);
+  return {camps:out,st};
+}
+function renderMi(codes){
+  const agg=miAgg(codes);
+  if(!agg){$("mi-note").textContent="Đang tải dữ liệu…";return;}
+  const camps=agg.camps;
+  // chips lens — cùng ngữ nghĩa 2 lens của bảng kênh (booking mặc định như BI)
+  const cur=state.miLens||"bk";
+  $("mi-lens").innerHTML=[["bk","Booking — ghi nhận trong kỳ"],["co","Cohort — lead sinh trong kỳ"]]
+    .map(([k,l])=>'<span class="chip'+(cur===k?" on":"")+'" data-k="'+k+'"'
+      +(cur===k?' style="background:#111827"':'')+'><span class="dot" style="background:#111827"></span>'+l+'</span>').join("");
+  for(const el of $("mi-lens").children)el.onclick=()=>{state.miLens=el.dataset.k;renderMi(codes);};
   const rows=camps.map(miEn).sort((a,b)=>miSort.d*((a[miSort.k]??-1)>(b[miSort.k]??-1)?1:-1));
   let h="<thead><tr>"+MI_COLS.map(([k,l])=>"<th data-k='"+k+"' style='cursor:pointer'"
     +(miSort.k===k?" class='text-green'":"")+">"+l+(miSort.k===k?(miSort.d<0?" ↓":" ↑"):"")+"</th>").join("")+"</tr></thead><tbody>";
@@ -1229,18 +1279,20 @@ function renderMi(m,codes){
   const nReal=camps.filter(c=>!String(c.id).startsWith("_rest")).length;
   h+=miRow(t,"total-row","TỔNG ("+nReal+" campaign chi tiết"+(nReal<camps.length?" + phần còn lại":"")+")")+"</tbody>";
   $("mi-tbl").innerHTML=h;
-  $("mi-tbl").querySelectorAll("tr.camp").forEach(el=>el.onclick=()=>{miOpen[el.dataset.id]=!miOpen[el.dataset.id];renderMi(m,codes);});
+  $("mi-tbl").querySelectorAll("tr.camp").forEach(el=>el.onclick=()=>{miOpen[el.dataset.id]=!miOpen[el.dataset.id];renderMi(codes);});
   $("mi-tbl").querySelectorAll("th").forEach(el=>el.onclick=()=>{const k=el.dataset.k;
-    if(miSort.k===k)miSort.d*=-1;else miSort={k,d:-1};renderMi(m,codes);});
-  const spxAll=codes.filter(cd=>(MKTC[m].lines||{})[cd]).every(cd=>(MKTC[m].lines||{})[cd].spx);
-  $("mi-note").textContent=grainNote(m)+" Meta campaign KHÔNG chứa 'conv' (đúng luật tách Inbox/Conversion) · "
-    +"bấm dòng campaign để xổ từng ad id · lead/QL/đơn/doanh thu = lead-episode first-paid, đơn chốt trong kỳ (màn MKT của BI) — "
-    +"khác lens cohort của bảng kênh · chi tiết top 40 campaign/SP theo chi phí, phần đuôi gộp dòng "
-    +"'(… còn lại)' nên TỔNG = đủ nguồn · "
-    +(spxAll?"chi phí + Impr./CTR lấy TRỰC TIẾP từ Meta API (trùng nguồn bảng kênh; campaign/ad có chi "
-      +"nhưng 0 lead vẫn hiện dòng — lead/QL/đơn vẫn của BI nên CPL có thể '—' khi BI chưa sync)."
-     :"⚠️ chi phí bảng này đang tạm dùng warehouse BI (nguồn platform lỗi lượt build này), LỆCH ~5–8% so "
-      +"cột Chi phí bảng kênh — đối chiếu tổng chi tiêu thì theo bảng kênh.");
+    if(miSort.k===k)miSort.d*=-1;else miSort={k,d:-1};renderMi(codes);});
+  const rangeLbl=state.mode==="month"?monthLabel(state.month)
+    :fmtVi(state.from)+" – "+fmtVi(state.to);
+  $("mi-note").textContent="Theo ĐÚNG kỳ chọn ("+rangeLbl+", cộng từ dữ liệu ngày — vắt tháng được) · "
+    +((state.miLens||"bk")==="co"
+      ?"lens Cohort: QL/đơn/doanh thu của lead SINH trong kỳ, tích lũy đến lần build gần nhất · "
+      :"lens Booking: QL/đơn/doanh thu GHI NHẬN trong kỳ (kể cả lead kỳ trước) · ")
+    +"Meta campaign KHÔNG chứa 'conv' · bấm dòng campaign để xổ từng ad id · top 40 campaign/SP/tháng, "
+    +"phần đuôi gộp dòng '(… còn lại)' · "
+    +(agg.st.spx?"chi phí + Impr./CTR trực tiếp từ Meta API (trùng nguồn bảng kênh; campaign 0 lead vẫn hiện)."
+     :"⚠️ có tháng chi phí tạm dùng warehouse BI (nguồn platform lỗi lượt build) — đối chiếu tổng theo bảng kênh.")
+    +(agg.st.v1.length?" ⚠️ Tháng "+agg.st.v1.map(x=>+x.slice(4)).join(", ")+" là file đời cũ chưa có dữ liệu ngày — chỉ tính khi chọn trọn tháng.":"");
 }
 
 /* --- UTM Explorer: drill-down kiểu GA4 — chi phí CHÍNH CHỦ từ BI trên từng row

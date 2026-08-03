@@ -158,14 +158,21 @@ def lead_cohort(products, date_from, date_to, *, markets=None, channel_groups=No
         return None
 
 
-def mkt_ad_performance(products, date_from, date_to, *, markets=None, currency="VND", key=None):
+def mkt_ad_performance(products, date_from, date_to, *, markets=None, currency="VND",
+                       lens=None, group_by=None, key=None):
     """Raw payload mkt_ad_performance — hiệu quả quảng cáo grain CAMPAIGN + AD (mỗi campaign kèm
     ads[]: ad_id/ad_name/spend/leads/ql/orders/revenue). Spend platform thật (đủ từ 06/2026),
-    attribution first_paid theo lead-episode. Trả None nếu lỗi."""
+    attribution first_paid theo lead-episode. BI đợt 3 (03/08): lens='booking' (ghi nhận trong kỳ,
+    mặc định server) | 'cohort' (lead sinh trong kỳ → kết quả đến as_of); group_by='date' → mỗi
+    campaign/ad kèm days[] (tổng days = tổng kỳ, đã nghiệm thu). Trả None nếu lỗi."""
     key = key or _key()
     if not key:
         return None
     body = {"products": list(products), "from": date_from, "to": date_to, "currency": currency}
+    if lens:
+        body["lens"] = lens
+    if group_by:
+        body["group_by"] = group_by
     if markets:
         body["markets"] = list(markets)
     try:
