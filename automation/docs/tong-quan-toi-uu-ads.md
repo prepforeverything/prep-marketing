@@ -97,8 +97,8 @@ Trục: **Tuổi ad** (số ngày từ lúc bật/bật lại) × **Vùng CPL**.
 
 | Sản phẩm | Inbox | Conversion | Branding | ME/RE | Ghi chú |
 |---|---|---|---|---|---|
-| **TOEIC** | ✅ Đang chạy (2 TK) | ⏳ Phase 2 | ⏳ Phase 2 | Ma trận 4×4 ✅ | 10:07 · 14:07 · EOD |
-| **VSTEP** | ✅ Đang chạy (1 TK) | ⏳ Phase 2 | ⏳ Phase 2 | Ma trận 4×4 ✅ | 10:10 · 17:10 · EOD |
+| **TOEIC** | ✅ Đang chạy (2 TK) | ✅ **Đã chấm trong báo cáo mới** (TK "TOEIC 2" — 7 campaign, trước đây chưa ai chấm) | ✅ Mục riêng trong báo cáo | Ma trận 4×4 ✅ | 10:07 · 14:07 · EOD |
+| **VSTEP** | ✅ Đang chạy (1 TK) | ✅ Sẵn sàng — hiện **0 campaign chạy** dù KH cấp 10,9tr/tuần (pacing phơi khoảng trống) | ✅ Mục riêng trong báo cáo | Ma trận 4×4 ✅ | 10:10 · 17:10 · EOD |
 | **IELTS VN** | ✅ Đang chạy (3 TK) | — (chưa quy hoạch) | — | Ma trận 4×4 ✅ (bật 08/2026) | 10:07 · 14:07 |
 | **IELTS Thái** | ✅ Đang chạy (2 TK, gộp Nhóm QC) | ✅ Đang chạy (engine riêng theo campaign/UTM) | — | Ma trận 4×4 ✅ + cổng độ tin | THB→VND ×850 |
 | **HSK** | ✅ **Onboard xong + báo cáo mẫu mới** (3 TK) — PR #134 | ✅ **Đã chạy trong báo cáo mẫu mới** (lead theo BI) | ✅ Có mục riêng trong báo cáo | Ma trận 4×4 ✅ | Chờ merge + nhóm Telegram |
@@ -125,14 +125,14 @@ Báo cáo HTML mới thay dần bản 3-tab cũ, gồm 9 phần: **Tổng quan 2
 - Dựng báo cáo theo template NV, người phụ trách đã duyệt bản xem thử 04/08. Gộp trong **PR #134**.
 - Còn 2 việc vận hành để chạy hằng ngày: tạo nhóm Telegram HSK (secret `TELEGRAM_HSK_CHAT_ID`) + thêm `hsk` vào lịch chạy sáng.
 
-### Phase 2 — Conversion-theo-BI cho TOEIC / VSTEP (+ chuẩn hoá HSK) ⏳ **TIẾP THEO**
-- **Thiết kế sẽ trình duyệt TRƯỚC khi đụng TOEIC/VSTEP**, gồm: BI cấp lead/đơn/doanh thu theo Ad ID trong campaign như thế nào (mô hình first_paid, cửa sổ 7 ngày), định tuyến campaign theo tên ("inbox"/"conversion"/còn lại), KPI CPL kênh Conversion đọc từ KPI Master, và cách gộp vào báo cáo mẫu mới.
-- Việc kỹ thuật chính: config-hoá phần đọc sheet cào từng SP (mỗi SP cột trạng thái lead khác nhau) để engine mẫu mới dùng chung được.
-- Thứ tự áp: HSK (đã chạy trong pilot) → TOEIC → VSTEP. Mỗi SP chạy song song báo cáo cũ + mới vài ngày để đối chiếu rồi mới cắt.
+### Phase 2 — Conversion-theo-BI cho TOEIC / VSTEP ✅ **ĐÃ TRIỂN KHAI (04/08, cùng PR #134)**
+- Định tuyến theo tên campaign + lead/đơn/doanh thu kênh Conversion từ Prep BI (first_paid, cửa sổ 7 ngày), KPI CPL kênh Conversion đọc từ KPI Master; đã config-hoá phần đọc sheet cào từng SP để engine dùng chung.
+- **Giá trị lộ ra ngay khi bật:** (1) TOEIC — toàn bộ 7 campaign Conversion chạy ở TK "TOEIC 2" chưa từng được chấm (thiếu trong cấu hình cũ); ngày đầu chấm: CPL 437k vs KPI 275k, ME/RE ~2.191% → đề xuất 4 TẮT + 3 ngoại lệ xin duyệt. (2) VSTEP — không có campaign Conversion nào đang chạy dù kế hoạch cấp 10,9tr/tuần → mục pacing phơi rõ để quyết bơm hay cắt.
+- IELTS VN hiện không chạy Conversion → giữ nguyên nhánh Inbox.
 
-### Phase 3 — Chuẩn hoá tài liệu + gửi anh Ninh
-- Cập nhật tài liệu này theo kết quả Phase 1–2, mở PR giới thiệu để góp ý inline.
-- Thêm anh Ninh (ninh.nv@gmail.com) làm collaborator repo khi gửi.
+### Phase 3 — Chuẩn hoá tài liệu + gửi anh Ninh ▶️ **ĐANG GỬI**
+- Tài liệu này đã cập nhật theo kết quả Phase 1–2; PR giới thiệu để góp ý inline từng đoạn.
+- Việc còn lại sau merge PR #134: nhóm Telegram HSK, thêm `hsk` vào lịch chạy; theo dõi 3 SP chạy format mới vài ngày đầu.
 
 ---
 
