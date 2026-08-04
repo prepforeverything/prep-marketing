@@ -613,7 +613,7 @@ def main():
     html = REN.render(PCFG, {
         "asof": ASOF, "r7": R7, "r3": R3, "p7": P7, "mtd_days": MTD,
         "units": units, "branding": branding, "kpi": kpi, "pac_in": pac_in, "pac_cv": pac_cv,
-        "dq": dq, "bi_ok": bi_ok, "bi_recon": bi_recon, "waste": wf, "waste_top": waste_top, "n_shadow": n_shadow, "business_id": BUSINESS_ID, "mere_cfg": MERE, "min_leads": MIN_LEADS,
+        "dq": dq, "bi_ok": bi_ok, "ql_cfg": QLSTD, "bi_recon": bi_recon, "waste": wf, "waste_top": waste_top, "n_shadow": n_shadow, "business_id": BUSINESS_ID, "mere_cfg": MERE, "min_leads": MIN_LEADS,
         "accounts": ACCOUNTS, "lead_sheet": LS, "kpi_sheet": KS, "bi_product": BI_PRODUCT, "bi_market": BI_MARKET})
     with open(OUT, "w") as f:
         f.write(html)

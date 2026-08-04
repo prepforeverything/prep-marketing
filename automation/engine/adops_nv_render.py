@@ -387,7 +387,8 @@ def sec_pacing(ctx):
 PSWITCH = """<div class="pswitch"><span class="pslab">Góc nhìn tối ưu:</span>
 <button class="pstab" data-view="cpl">🎯 CPL — chi phí / lead</button>
 <button class="pstab" data-view="mere">💰 ME/RE — chi / doanh thu</button>
-<span class="pshint">Một ad chỉ có MỘT quyết định cuối (ad đủ cổng doanh thu thì ME/RE thắng CPL) — 2 nút là 2 góc soi cùng dữ liệu, nên danh sách TẮT ở 2 bên GIỐNG NHAU là đúng. Thẻ nào 2 góc lệch nhau sẽ có dòng "🎯 CPL nói / 💰 ME/RE nói" bên dưới.</span></div>"""
+<span class="pshint">Một ad chỉ có MỘT quyết định cuối (ad đủ cổng doanh thu thì ME/RE thắng CPL) — 2 nút là 2 góc soi cùng dữ liệu, nên danh sách TẮT ở 2 bên GIỐNG NHAU là đúng. Thẻ nào 2 góc lệch nhau sẽ có dòng "🎯 CPL nói / 💰 ME/RE nói" bên dưới.</span></div>
+"""
 
 ORDERNOTE = """<div class="ordernote">⏱ <b>Làm theo thứ tự:</b> <span class="on1">① TẮT (đỏ)</span> trước — vùng <b>Rất tệ</b> phải tắt <b>trước 14h ngày làm việc kế tiếp</b> → <span class="on2">② Scale (xanh)</span> các ad Tốt → <span class="on3">③ Giảm ngân sách (cam)</span>. Xong mỗi việc nhớ cập nhật file cào &amp; trạng thái ad. <b>Đề xuất CHỜ DUYỆT</b> — kit không tự thao tác trên Meta.</div>"""
 
@@ -582,6 +583,33 @@ def sec_waste(ctx):
                      f'<td class="camp">{esc(r["final"][:44])}</td></tr>')
         h.append('</tbody></table></div></div>')
     return "\n".join(h)
+
+
+def ql_note_html(ctx):
+    """Hộp tổng hợp tầng QL shadow — đặt ngay dưới nút chuyển góc nhìn."""
+    q = ctx.get("ql_cfg") or {}
+    if not q:
+        return ""
+    cv = f" · Conversion {q.get('std_cv')}%" if q.get("std_cv") else ""
+    return ('<div class="shq" style="margin:0 0 14px"><b>🌓 Tầng QL — đang CHẠY THỬ (shadow):</b> '
+            f'{ctx.get("n_shadow", 0)} ad sẽ bị phanh nếu bật luật (xem khối tím trên từng thẻ). '
+            f'Chuẩn %QL tháng này = số T7 từ BI: Inbox {q.get("std_in", "—")}%{cv} · '
+            f'ad đủ {q.get("min_leads", 5)} lead (R7) mới bị soi · QL chỉ phanh, không kéo lên — '
+            'so khớp vài ngày rồi mới bật thật.</div>')
+
+
+def ql_method_li(ctx):
+    """Bullet luật tầng QL trong mục Phương pháp."""
+    q = ctx.get("ql_cfg") or {}
+    if not q:
+        return ""
+    cv = f" · Conversion {q.get('std_cv')}%" if q.get("std_cv") else ""
+    return ('<li><b>Tầng QL — chốt chặn giữa (🌓 ĐANG CHẠY THỬ, chưa đổi đề xuất)</b> — bậc thang 3 tầng: '
+            f'CPL (từ ngày 0) → <b>QL</b> (khi đủ {q.get("min_leads", 5)} lead R7) → ME/RE (đủ cổng doanh thu thì thắng). '
+            'QL = chuẩn công ty (L3+ gồm đơn mua); %QL của ad so <b>chuẩn SP×kênh = số tháng trước từ BI</b> '
+            f'(tháng này: Inbox {q.get("std_in", "—")}%{cv}; từ T9 đọc từ KPI Master). '
+            'Luật: <b>QL chỉ kéo XUỐNG</b> — dưới chuẩn: chặn Scale; dưới 70% chuẩn: CPL Tốt/TB → GIẢM 20% soi tệp, '
+            'CPL Yếu/Rất tệ → TẮT. ME/RE vẫn là phán quyết cuối.</li>')
 
 
 def sec_console(ctx):
@@ -847,6 +875,7 @@ def sec_method(ctx):
 <li><b>Định tuyến kênh theo tên campaign</b> — chứa "inbox" → Inbox (lead = File cào theo ad_id) · chứa "conversion" → Conversion (lead = Prep BI) · còn lại → Branding (chỉ theo dõi chi).</li>
 <li><b>Vùng CPL vs KPI (KPI Master, tự dò tab tháng)</b> — Inbox: Tốt &lt;{vnd(ti['kpi'])} · TB &lt;{vnd(ti['tb'])} · Yếu &lt;{vnd(ti['yeu'])} · Rất tệ ≥{vnd(ti['yeu'])}. Conversion: Tốt &lt;{vnd(tc['kpi'])} · TB &lt;{vnd(tc['tb'])} · Yếu &lt;{vnd(tc['yeu'])} · Rất tệ ≥{vnd(tc['yeu'])}.</li>
 <li><b>Vòng đời (engine, KHÔNG mod-7)</b> — tuổi = chuỗi chi liên tục gần nhất (bật lại = tính lại). <b>Phiên 1</b> (≤3d, chấm R3): Yếu/Rất tệ → TẮT — <i>trừ khi lead &lt; {ctx['min_leads']} (chưa đủ mẫu) → Theo dõi, không tắt oan ad non</i>. <b>Phiên 2</b> (4–6d, chấm R3): Yếu → Giảm 20%, Rất tệ → TẮT. <b>Mốc 2+</b> (≥7d, chấm R7): nơi duy nhất Scale, theo ma trận 3d×7d + ME/RE.</li>
+{ql_method_li(ctx)}
 <li><b>ME/RE (Prep BI first_paid)</b> — ME/RE = chi 7d ÷ doanh thu BI 7d. Cổng áp dụng: tuổi ≥{mc.get('min_age_days', 7)}d HOẶC ≥{mc.get('min_orders', 3)} đơn/7d. Khi đủ cổng → <b>ma trận 4×4 CPL×ME/RE</b>: ME/RE &lt;{s}% + CPL Tốt → SCALE MẠNH +50% · ME/RE {s}–{w}% → GIỮ/GIẢM theo CPL · {w}–{h}% → TẮT trừ khi CPL Tốt (giảm 20%, xem lại tệp) · <b>≥{h}% → TẮT bắt buộc bất kể CPL</b>. CPL đòi tắt nhưng ma trận giữ → gom "XIN DUYỆT NGOẠI LỆ" cuối tab ME/RE.</li>
 <li><b>Pacing</b> — chi thực tế/ngày mỗi kênh vs KPI ngày (KPI tháng → tuần → ngày từ KPI Master). 🟠 vượt &gt;110% · 🟡 hụt &lt;90% · 🟢 đúng ±10%.</li>
 <li><b>Cơ chế</b> — CBO: chỉnh daily_budget CAMPAIGN (Scale ×1.2 / ×1.5, Giảm ×0.8, cooldown 24h); không CBO: chỉnh adset. TẮT: kill ad_id (LẺ) / adset (CỤM), deadline trước 14h ngày làm việc kế tiếp.</li>
@@ -942,6 +971,7 @@ def render(pc, ctx):
 {sec_waste(ctx)}
 {sec_pacing(ctx)}
 {PSWITCH}
+{ql_note_html(ctx)}
 {sec_console(ctx)}
 {sec_mere(ctx)}
 {sec_deep(ctx)}
