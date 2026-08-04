@@ -58,10 +58,11 @@ def ad_revenue(products, date_from, date_to, *, markets=None, currency="VND", at
             aid = "".join(ch for ch in str(a.get("ad_id") or "") if ch.isdigit())
             if not aid:
                 continue
-            e = out.setdefault(aid, {"revenue": 0, "orders": 0, "leads": 0})
+            e = out.setdefault(aid, {"revenue": 0, "orders": 0, "leads": 0, "ql": 0})
             e["revenue"] += a.get("revenue") or 0
             e["orders"] += a.get("orders") or 0
             e["leads"] += a.get("leads") or 0
+            e["ql"] += a.get("ql") or 0          # QL chuẩn công ty (L3+ gồm L6) — tầng QL kênh Conversion
     return out
 
 

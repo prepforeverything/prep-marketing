@@ -230,6 +230,12 @@ td.dcm-me{font-weight:800}.dcm-me.m-tot{color:var(--good-t)}.dcm-me.m-tb{color:v
 .dc-sv{font-size:13px;color:var(--ink-2)}.dc-sv b{font-size:15px;font-weight:800}
 .dc-ss{font-size:10.5px;color:var(--mut)}
 .dc-do{padding:10px 14px;border-top:1px solid var(--line-2)}
+.shq{margin-top:6px;padding:7px 11px;border-radius:7px;background:#f5f3ff;border:1px solid #ddd6fe;font-size:11.5px;color:#5b21b6}
+.shq b{font-weight:700}
+.wf-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:8px 0 12px}
+.wfc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;box-shadow:var(--sh-sm)}
+.wfc .n{font-size:19px;font-weight:800;letter-spacing:-.4px}.wfc .l{font-size:11px;color:var(--mut);margin-top:2px}.wfc .p{font-size:11px;font-weight:600;margin-top:1px}
+.wfc.wf-w0{border-top:2px solid var(--bad)}.wfc.wf-w1{border-top:2px solid var(--weak)}.wfc.wf-w2{border-top:2px solid var(--ok)}.wfc.wf-eff{border-top:2px solid var(--good)}
 .dc-dol{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px;font-weight:600;margin-right:8px}
 .ucid{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;color:var(--mut);margin-left:6px;font-weight:400}
 .cb{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;margin-right:4px;vertical-align:middle;letter-spacing:.2px}
@@ -505,7 +511,52 @@ def unit_card(u, ctx, view):
 <div class="dc-do"><span class="dc-dol">Việc cần làm</span> <b>{esc(action_label(u))}{(' — ' + esc(mech)) if mech else ''}</b>
 {('· <span class="dl">' + dl + '</span>') if dl else ''}
 <div class="mv-rsn">{esc(rsn)}</div>
+{shadow_html(u)}
 <a class="mv-meta" href="{link}" target="_blank" rel="noopener">⤴ Xem trên Meta để thao tác</a></div></div>"""
+
+
+def shadow_html(u, bare=False):
+    """Dòng SHADOW tầng QL — chỉ hiện khi phanh đổi đề xuất; chưa đổi hành động thật."""
+    if not u.get("ql_braked"):
+        return ""
+    inner = (f"🌓 <b>SHADOW tầng QL:</b> {esc(u['shadow_final'])} · %QL(R7) "
+             f"<b>{u['ql_pct']}%</b> vs chuẩn {u['ql_std']}% ({'kém' if u['ql_band']=='kem' else 'dưới chuẩn'}) "
+             f"— tham chiếu T7, chưa đổi hành động")
+    return inner if bare else f'<div class="shq">{inner}</div>'
+
+
+def sec_waste(ctx):
+    """Phễu lãng phí (yêu cầu anh Ninh 04/08): tiền chết ở từng chặng, R7, phân bổ chi đều theo lead trong ad."""
+    wf = ctx.get("waste")
+    if not wf:
+        return ""
+    h = ['<h2>Phễu lãng phí — tiền đang chết ở chặng nào (R7)</h2>',
+         '<p class="sub">Chi mỗi ad chia đều theo lead; đơn theo BI first_paid cùng cửa sổ nên cột "QL→chưa đơn" '
+         'gồm cả đơn đuôi sắp về — dùng để so tương đối, không phải phán quyết từng đồng. '
+         'QL = chuẩn công ty (L3+ gồm đơn mua).</p>']
+    for ch, label in (("in", "INBOX"), ("cv", "CONVERSION")):
+        t = wf.get(ch)
+        if not t or t["spend"] <= 0:
+            continue
+        pct = lambda x: f"{x / t['spend'] * 100:.0f}%"  # noqa: E731
+        h.append(f'<div class="tabsum"><b>{label}</b> — chi R7 {vnd(t["spend"])}</div><div class="wf-cards">')
+        for k, cls, lab in (("w0", "wf-w0", "🔴 Chi 0 lead"), ("w1", "wf-w1", "🟠 Lead → không QL"),
+                            ("w2", "wf-w2", "🟡 QL → chưa đơn"), ("eff", "wf-eff", "🟢 Chi ra đơn")):
+            h.append(f'<div class="wfc {cls}"><div class="n">{vnd(t[k])}</div><div class="l">{lab}</div>'
+                     f'<div class="p">{pct(t[k])}</div></div>')
+        h.append('</div>')
+    tops = ctx.get("waste_top") or []
+    if tops:
+        h.append('<div class="grp"><div class="tw"><table style="min-width:760px"><thead><tr>'
+                 '<th>Chặng</th><th>Đơn vị</th><th>Kênh</th><th class="n">Chi R7</th><th class="n">Lead</th>'
+                 '<th class="n">QL</th><th class="n">Đơn</th><th class="n">Tiền chết</th><th>Đề xuất hiện tại</th></tr></thead><tbody>')
+        for r in tops:
+            h.append(f'<tr class="umain"><td>{r["stage"]}</td><td class="nm" title="{esc(r["name"])}">{esc(r["name"][:44])}</td>'
+                     f'<td>{"Inbox" if r["ch"]=="in" else "Conv"}</td><td class="num">{vnd(r["spend"])}</td>'
+                     f'<td class="num">{r["lead"]}</td><td class="num">{r["ql"]}</td><td class="num">{r["order"]}</td>'
+                     f'<td class="num strong">{vnd(r["waste"])}</td><td class="camp">{esc(r["final"][:48])}</td></tr>')
+        h.append('</tbody></table></div></div>')
+    return "\n".join(h)
 
 
 def sec_console(ctx):
@@ -591,6 +642,7 @@ def deep_row(u, ctx):
     return f"""<tbody class="urow z-{u['zclass']} g-{u['gclass']}">
 <tr class="umain">{''.join(cells)}</tr>
 <tr class="sub"><td colspan="{ncol}" class="actrow {act_cls}"><span class="lbl">ACTION</span> {esc(u['final'])}{(' · <span class="mech">' + esc(mech) + '</span>') if mech else ''}{(' · <span class="dl">' + dl + '</span>') if dl else ''}</td></tr>
+{('<tr class="sub"><td colspan="' + str(ncol) + '"><div class="shq">' + shadow_html(u, bare=True) + '</div></td></tr>') if u.get('ql_braked') else ''}
 <tr class="sub"><td colspan="{ncol}" class="rsnrow"><span class="lbl">LÝ DO</span> {esc(reason(u, ctx))}</td></tr>
 </tbody>"""
 
@@ -820,6 +872,7 @@ def render(pc, ctx):
 <div class="wrap">
 {BANNER}
 {sec_overview(ctx)}
+{sec_waste(ctx)}
 {sec_pacing(ctx)}
 {PSWITCH}
 {sec_console(ctx)}

@@ -41,6 +41,7 @@ BI_PRODUCT = REPORT.get("bi_product")
 BI_MARKET = REPORT.get("bi_market")
 LOOKBACK = REPORT.get("age_lookback_days", 30)
 BUSINESS_ID = (PCFG["meta"].get("business_id") or "").strip()
+QLSTD = REPORT.get("ql") or {}                     # {"std_in": %, "std_cv": %, "min_leads": 5} — chuẩn %QL (T8 = số T7 từ BI)
 
 # routing kênh theo tên campaign (quyết định 3) — cho phép override trong config report.route
 ROUTE = REPORT.get("route") or {}
@@ -325,10 +326,11 @@ def fetch_bi():
                 aid = digits(a.get("ad_id"))
                 if not aid:
                     continue
-                e = per.setdefault(aid, {"revenue": 0, "orders": 0, "leads": 0})
+                e = per.setdefault(aid, {"revenue": 0, "orders": 0, "leads": 0, "ql": 0})
                 e["revenue"] += a.get("revenue") or 0
                 e["orders"] += a.get("orders") or 0
                 e["leads"] += a.get("leads") or 0
+                e["ql"] += a.get("ql") or 0      # QL chuẩn công ty (L3+ gồm L6) — tầng QL kênh Conversion
                 if cname and aid not in camp_of:
                     camp_of[aid] = cname
         out[wname] = per
@@ -399,6 +401,7 @@ def _mwin(acc_ads, mids, leads, bi_w, ch, days, bi_days_ok=True):
             m["re"] += b.get("revenue", 0)
             if ch == "cv":
                 m["lead"] += b.get("leads", 0)
+                m["ql"] += b.get("ql", 0)
     m["spend"] = int(round(m["spend"]))
     return m
 
@@ -468,6 +471,17 @@ def score_units(units, kpi):
                   "mere": mere, "mere_on": mere_on, "cpl_rec": cpl_rec, "final": final, "exception": exc,
                   "basis": "mere" if mere_on else ("cpl7" if u["win_kind"] == "r7" else "cpl"),
                   "bucket": _bucket(final)})
+        # Tầng 2 QL — SHADOW (chốt Quân 04/08: QL = L3+ gồm L6, chuẩn = số T7 BI; chỉ hiển thị, chưa đổi hành động)
+        std = QLSTD.get("std_in") if u["channel"] == "in" else QLSTD.get("std_cv")
+        ql_min = QLSTD.get("min_leads", 5)
+        ql_pct = round(w7["ql"] / w7["lead"] * 100, 1) if w7["lead"] else None
+        band = R.ql_band(ql_pct, std) if w7["lead"] >= ql_min else None
+        if mere_on:                                   # tầng 3 thắng — QL không can thiệp
+            shadow, braked = final, False
+        else:
+            shadow, braked = R.ql_brake(cpl_rec, zone, band)
+        u.update({"ql_pct": ql_pct, "ql_band": band, "ql_std": std,
+                  "shadow_final": shadow, "ql_braked": braked})
         u["zclass"] = _zclass(u)
         u["gclass"] = "moi" if (u["age"] or 99) <= 7 else ("dang" if u["age"] <= 21 else "lau")
     return units
@@ -548,6 +562,41 @@ def main():
 
     units, branding = build_units(meta, leads, bi)
     units = score_units(units, kpi)
+    wf, tops = {"in": None, "cv": None}, []
+    for ch in ("in", "cv"):
+        t = {"spend": 0, "w0": 0, "w1": 0, "w2": 0, "eff": 0}
+        for u in units:
+            if u["channel"] != ch:
+                continue
+            s, l = u["w7"]["spend"], u["w7"]["lead"]
+            # đơn mua = QL theo định nghĩa công ty → ql hiệu dụng ít nhất bằng số đơn (khách tự mua
+            # chưa kịp lên trạng thái), và không vượt số lead
+            q = min(l, max(u["w7"]["ql"], u["w7"]["order"]))
+            o = min(u["w7"]["order"], q) if q else 0
+            t["spend"] += s
+            if l == 0:
+                t["w0"] += s
+                tops.append({"stage": "🔴 0 lead", "waste": s, "u": u})
+            else:
+                w1 = s * (1 - q / l)
+                w2 = s * (q / l) * (1 - o / q) if q else 0
+                t["w1"] += w1
+                t["w2"] += w2
+                t["eff"] += s - w1 - w2
+                if w1 > 0:
+                    tops.append({"stage": "🟠 lead→không QL", "waste": w1, "u": u})
+                if w2 > 0:
+                    tops.append({"stage": "🟡 QL→chưa đơn", "waste": w2, "u": u})
+        for k in t:
+            t[k] = int(round(t[k]))
+        wf[ch] = t if t["spend"] > 0 else None
+    tops.sort(key=lambda r: -r["waste"])
+    waste_top = [{"stage": r["stage"], "name": r["u"]["name"], "ch": r["u"]["channel"],
+                  "spend": r["u"]["w7"]["spend"], "lead": r["u"]["w7"]["lead"], "ql": r["u"]["w7"]["ql"],
+                  "order": r["u"]["w7"]["order"], "waste": int(r["waste"]), "final": r["u"]["final"]}
+                 for r in tops[:10]]
+    n_shadow = sum(1 for u in units if u.get("ql_braked") and u["active"])
+
     bi_recon = {"bi_orders": sum(x.get("orders", 0) for x in bi.get("r7", {}).values()),
                 "bi_re": sum(x.get("revenue", 0) for x in bi.get("r7", {}).values()),
                 "unit_orders": sum(u["w7"]["order"] for u in units),
@@ -559,7 +608,7 @@ def main():
     html = REN.render(PCFG, {
         "asof": ASOF, "r7": R7, "r3": R3, "p7": P7, "mtd_days": MTD,
         "units": units, "branding": branding, "kpi": kpi, "pac_in": pac_in, "pac_cv": pac_cv,
-        "dq": dq, "bi_ok": bi_ok, "bi_recon": bi_recon, "business_id": BUSINESS_ID, "mere_cfg": MERE, "min_leads": MIN_LEADS,
+        "dq": dq, "bi_ok": bi_ok, "bi_recon": bi_recon, "waste": wf, "waste_top": waste_top, "n_shadow": n_shadow, "business_id": BUSINESS_ID, "mere_cfg": MERE, "min_leads": MIN_LEADS,
         "accounts": ACCOUNTS, "lead_sheet": LS, "kpi_sheet": KS, "bi_product": BI_PRODUCT, "bi_market": BI_MARKET})
     with open(OUT, "w") as f:
         f.write(html)
