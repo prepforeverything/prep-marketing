@@ -1,0 +1,166 @@
+{
+ "date": "2026-08-03",
+ "send_day": "2026-08-04",
+ "product": "toeic",
+ "per_ad_action": false,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-04T10:07:48+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 14728742,
+ "day_budget_eve": 11260599,
+ "cbo_missing": 0,
+ "totals": {
+  "off_ok": 5,
+  "off_late": 0,
+  "off": 6,
+  "pct_off": 83,
+  "bud_ok": 0,
+  "bud": 7,
+  "sc_up": 0,
+  "sc_owner": 0,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "TOEIC 3": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120258200554190586",
+     "code": "62126",
+     "name": "062126_TRUNGCAP_Sinh viên nổi loạn",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120259855251500586",
+     "code": "71226",
+     "name": "071226_NENTANG_Lấy gốc nhàn_101692360119",
+     "src": "ad lẻ",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260110195850586",
+     "code": "70126",
+     "name": "070126_HBTO_Đầu tư cho con 2K8_100603335",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260182926640586",
+     "code": "72126",
+     "name": "072126_TRUNGCAP_NDL ví tiền_102763332345",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260265878520586",
+     "code": "72426",
+     "name": "072426_S25_Chị Quỳnh rep stpry",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    },
+    {
+     "id": "120260266998600586",
+     "code": "72426",
+     "name": "072426_S25_Chị Quỳnh rep stpry_103018130",
+     "src": "ad lẻ",
+     "verdict": "ok",
+     "done": true,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [],
+   "codes": [
+    {
+     "code": "51425",
+     "dir": "up",
+     "morning": 2122368,
+     "evening": 2122368,
+     "ads_eve": 3,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "50826",
+     "dir": "up",
+     "morning": 1674000,
+     "evening": 1674000,
+     "ads_eve": 4,
+     "verdict": "pending",
+     "label": "chưa scale"
+    },
+    {
+     "code": "44825",
+     "dir": "up",
+     "morning": 1008000,
+     "evening": 908000,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "71726",
+     "dir": "up",
+     "morning": 932000,
+     "evening": 832000,
+     "ads_eve": 2,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "70126",
+     "dir": "up",
+     "morning": 308000,
+     "evening": 0,
+     "ads_eve": 0,
+     "verdict": "wrong",
+     "label": "đề xuất scale nhưng giảm/tắt"
+    },
+    {
+     "code": "71226",
+     "dir": "up",
+     "morning": 658000,
+     "evening": 658000,
+     "ads_eve": 2,
+     "verdict": "pending",
+     "label": "chưa scale"
+    }
+   ]
+  },
+  "TOEIC 5": {
+   "skipped": false,
+   "off": [],
+   "scale": [],
+   "codes": [
+    {
+     "code": "34625",
+     "dir": "up",
+     "morning": 860000,
+     "evening": 860000,
+     "ads_eve": 1,
+     "verdict": "pending",
+     "label": "chưa scale"
+    }
+   ]
+  }
+ }
+}
