@@ -1,0 +1,63 @@
+name: Báo cáo tuần VN Paid Marketing (sáng thứ 2)
+
+# Đọc data.json/kpi.json của dashboard VN1 đã publish (KHÔNG gọi Prep BI/Meta trực tiếp) →
+# soát chất lượng data (thiếu ngày / lead=0 dù có chi phí → CẢNH BÁO Telegram TRƯỚC khi build) →
+# build HTML tuần (4 SP, mỗi SP 1 tab) → publish bi-mkt-paid/weekly/ → gửi Telegram file + link.
+# 2 lượt cron: lượt chính 09:15 VN (sau các lượt build daily 07:50–08:50 + n8n 08:10);
+# lượt dự phòng 10:00 VN chạy --skip-if-sent (marker weekly/sent.txt) vì GH cron hay trễ/bỏ lượt.
+# ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
+on:
+  schedule:
+    - cron: "15 2 * * 1"   # 09:15 VN thứ 2
+    - cron: "0 3 * * 1"    # 10:00 VN thứ 2 — dự phòng
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chạy thử — build ra artifact, KHÔNG gửi Telegram / publish"
+        type: boolean
+        default: false
+      date:
+        description: "Giả lập ngày chạy YYYY-MM-DD (để build lại tuần cũ)"
+        type: string
+        required: false
+
+concurrency:
+  group: revdash-weekly
+  cancel-in-progress: false
+
+permissions:
+  contents: read           # push sang repo publish bằng PUBLISH_REPO_TOKEN
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      PUBLISH_REPO_TOKEN: ${{ secrets.PUBLISH_REPO_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_ALERT_CHAT_ID: ${{ secrets.TELEGRAM_ALERT_CHAT_ID }}
+      # nhóm nhận báo cáo tuần (group "Quân x Chew x Digital Bot" — user chốt 03/08)
+      TELEGRAM_WEEKLY_CHAT_ID: ${{ secrets.TELEGRAM_WEEKLY_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build & gửi báo cáo tuần
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then ARGS="--dry-run"; fi
+          if [ -n "${{ github.event.inputs.date }}" ]; then ARGS="$ARGS --date ${{ github.event.inputs.date }}"; fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then ARGS="$ARGS --skip-if-sent"; fi
+          python3 automation/revenue-dashboard/weekly_report.py --out out $ARGS
+
+      - name: Upload artifact (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report-dry-run
+          path: out/
+          retention-days: 3
