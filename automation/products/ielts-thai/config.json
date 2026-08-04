@@ -39,7 +39,7 @@
     }
   },
   "lead_sheet": {
-    "id": "1Y5kSCcnGlxeuaJ9j7bDUH-T-EbWdjJ4--1eAUMSvxPw",
+    "id": "16tIk-qqDVRr_wwCBU-P8uueBPJsHJ5xYqxTVmNVWjss",
     "phone_tab": "lead_feed",
     "join": "ad_id",
     "col_adid": 0,
@@ -58,7 +58,7 @@
   },
   "min_leads": 3,
   "ads_report": {
-    "sheet_id": "1Y5kSCcnGlxeuaJ9j7bDUH-T-EbWdjJ4--1eAUMSvxPw",
+    "sheet_id": "16tIk-qqDVRr_wwCBU-P8uueBPJsHJ5xYqxTVmNVWjss",
     "gid": "1799361808",
     "data_start_row": 3,
     "cols": {
