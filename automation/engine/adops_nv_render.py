@@ -236,6 +236,23 @@ td.dcm-me{font-weight:800}.dcm-me.m-tot{color:var(--good-t)}.dcm-me.m-tb{color:v
 .crow.copen .crarr{transform:rotate(90deg)}
 .crn{font-size:10.5px;font-weight:600;background:var(--surface);border:1px solid var(--line);color:var(--mut);padding:1px 9px;border-radius:20px}
 .crstat{font-size:11px;color:var(--mut);margin-left:auto;font-variant-numeric:tabular-nums}
+.td-blk{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);margin:10px 0;overflow:hidden;box-shadow:var(--sh-sm)}
+.td-hd{display:flex;align-items:center;gap:10px;font-weight:800;font-size:14px;padding:12px 16px}
+.td-off .td-hd{background:var(--bad-bg);color:var(--bad-t)}.td-scale .td-hd{background:var(--good-bg);color:var(--good-t)}.td-cut .td-hd{background:var(--weak-bg);color:var(--weak-t)}
+.td-cnt{margin-left:auto;font-size:12px;font-weight:700;background:rgba(255,255,255,.75);padding:1px 11px;border-radius:20px;border:1px solid rgba(0,0,0,.08)}
+.td-row{display:flex;align-items:baseline;gap:9px;padding:9px 16px;border-top:1px solid var(--line-2);flex-wrap:wrap;font-size:12.5px}
+.td-nm{font-weight:600;color:var(--ink-2);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.td-id{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;color:var(--mut)}
+.td-num{font-variant-numeric:tabular-nums;white-space:nowrap}.td-num b{font-weight:700}
+.td-why{flex-basis:100%;font-size:11px;color:var(--mut);padding-left:2px}
+.td-more{padding:9px 16px;border-top:1px dashed var(--line);font-size:12px;color:var(--mut)}
+details.secfold{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);margin:14px 0;box-shadow:var(--sh-sm)}
+details.secfold>summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:14px;color:var(--ink);list-style:none;display:flex;align-items:center;gap:10px}
+details.secfold>summary::before{content:"▸";color:var(--mut);transition:transform .12s}
+details.secfold[open]>summary::before{transform:rotate(90deg)}
+details.secfold>summary .sfsub{font-weight:400;font-size:11.5px;color:var(--mut)}
+details.secfold>.sfbody{padding:0 18px 16px}
+details.secfold h2{margin-top:8px}
 .shq{margin-top:6px;padding:7px 11px;border-radius:7px;background:#f5f3ff;border:1px solid #ddd6fe;font-size:11.5px;color:#5b21b6}
 .shq b{font-weight:700}
 .wf-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:8px 0 12px}
@@ -568,7 +585,7 @@ def sec_waste(ctx):
         h.append('<div class="grp"><div class="tw"><table style="min-width:860px"><thead><tr>'
                  '<th>Chặng</th><th>Đơn vị (ad_id)</th><th>Kênh</th><th class="n">Chi R7</th>'
                  '<th>Vì sao vào chặng này</th><th class="n">Tiền chết</th><th>Đề xuất hiện tại</th></tr></thead><tbody>')
-        for r in tops:
+        for r in tops[:3]:
             if r["stage"].startswith("🔴"):
                 why = "0 lead dù có chi"
             elif r["stage"].startswith("🟠"):
@@ -954,6 +971,59 @@ show('off');})();
 </script>"""
 
 
+
+def _today_row(u, ctx):
+    thr = u["thr"]
+    if u.get("mere_on") and u.get("mere") is not None:
+        num = f'ME/RE <b>{u["mere"]:.0f}%</b> ({u["w7"]["order"]} đơn · chi 7d {vnd(u["w7"]["spend"])})'
+    else:
+        w = u["wc"]
+        num = f'CPL <b>{vnd(u["cpl"]) if u["cpl"] else "—"}</b> vs KPI {vnd(thr["kpi"])} ({w["lead"]} lead · chi {vnd(w["spend"])})'
+    why = reason(u, ctx)
+    why = why[:150] + "…" if len(why) > 150 else why
+    return (f'<div class="td-row"><span class="cb {"cb-in" if u["channel"] == "in" else "cb-cv"}">'
+            f'{"INBOX" if u["channel"] == "in" else "CONV"}</span>'
+            f'<span class="td-nm" title="{esc(u["name"])}">{esc(disp_name(u["name"]))}</span>'
+            f'<span class="td-id">{"CỤM" if u["kind"] == "cum" else "LẺ"} · {u["id"]}</span>'
+            f'<span class="td-num">{num}</span>'
+            f'<a class="mv-meta" href="{meta_link(ctx["business_id"], u["acct_id"], u["ad_ids"] if u["kind"] == "cum" else [u["id"]])}" target="_blank" rel="noopener">⤴ Meta</a>'
+            f'<span class="td-why">{esc(why)}</span></div>')
+
+
+def sec_today(ctx):
+    """⚡ VIỆC HÔM NAY — action-first (chốt Quân 04/08 tối: bản gọn, chỉ chỗ cần đụng tay)."""
+    act = [u for u in ctx["units"] if u["active"]]
+    blocks = []
+    for bk, cls, label, dl in (("off", "td-off", "🔴 TẮT", " — trước 14h ngày làm việc kế tiếp"),
+                               ("scale", "td-scale", "🟢 SCALE", ""),
+                               ("cut", "td-cut", "🟠 GIẢM ngân sách", "")):
+        us = sorted((u for u in act if u["bucket"] == bk), key=lambda x: -x["w7"]["spend"])
+        if not us:
+            continue
+        rows = "".join(_today_row(u, ctx) for u in us)
+        blocks.append(f'<div class="td-blk {cls}"><div class="td-hd">{label}{dl}'
+                      f'<span class="td-cnt">{len(us)}</span></div>{rows}</div>')
+    exc = [u for u in act if u["exception"]]
+    if exc:
+        rows = "".join(_today_row(u, ctx) for u in exc)
+        blocks.append(f'<div class="td-blk td-cut"><div class="td-hd">⚠️ XIN DUYỆT NGOẠI LỆ — CPL đòi tắt, ME/RE còn giữ '
+                      f'<span class="td-cnt">{len(exc)}</span></div>{rows}</div>')
+    n_keep = sum(1 for u in act if u["bucket"] == "keep")
+    n_watch = sum(1 for u in act if u["bucket"] == "watch")
+    more = (f'<div class="td-more">⚪ Giữ nguyên: <b>{n_keep}</b> · 👀 Theo dõi: <b>{n_watch}</b> — '
+            'không cần đụng tay hôm nay; chi tiết trong "Toàn bộ ad & 2 góc nhìn" bên dưới.</div>')
+    if not blocks:
+        blocks.append('<div class="empty">Hôm nay không có ad nào cần thao tác — giữ nguyên, theo dõi.</div>')
+    return ('<h2>⚡ Việc hôm nay — chỉ những chỗ cần đụng tay</h2>'
+            '<p class="sub">Làm từ trên xuống: TẮT trước 14h → Scale → Giảm. Mỗi dòng đủ: con số quyết định + lý do + link mở Meta. '
+            'Đề xuất CHỜ DUYỆT — hệ thống không tự thao tác.</p>' + "".join(blocks) + more)
+
+
+def _fold(title, sub, inner, open_=False):
+    return (f'<details class="secfold"{" open" if open_ else ""}><summary>{title}'
+            f'{f"<span class=sfsub>{sub}</span>" if sub else ""}</summary><div class="sfbody">{inner}</div></details>')
+
+
 def render(pc, ctx):
     accs = ", ".join(f"{k} ({v})" for k, v in ctx["accounts"].items())
     foot = (f"Prep {esc(pc.display)} · {esc(accs)} · KPI: KPI Master tab \"KPI Tháng {ctx['asof'].month}\" · "
@@ -968,17 +1038,13 @@ def render(pc, ctx):
 <div class="wrap">
 {BANNER}
 {sec_overview(ctx)}
-{sec_waste(ctx)}
 {sec_pacing(ctx)}
-{PSWITCH}
+{sec_today(ctx)}
 {ql_note_html(ctx)}
-{sec_console(ctx)}
-{sec_mere(ctx)}
-{sec_deep(ctx)}
-{sec_branding(ctx)}
-{sec_quality(ctx)}
-{sec_method(ctx)}
-{sec_sources(ctx)}
+{sec_waste(ctx)}
+{_fold("🔎 Toàn bộ ad & 2 góc nhìn (CPL / ME-RE)", "tìm kiếm · lọc · thẻ chi tiết từng ad", PSWITCH + sec_console(ctx) + sec_mere(ctx))}
+{_fold("📊 Bảng phân tích sâu theo campaign", "20 cột Inbox / 18 cột Conversion · gồm cả ad đã pause", sec_deep(ctx))}
+{_fold("📌 Branding · Cờ chất lượng dữ liệu · Phương pháp · Nguồn", "đọc khi cần kiểm chứng", sec_branding(ctx) + sec_quality(ctx) + sec_method(ctx) + sec_sources(ctx))}
 <footer>{foot}</footer>
 </div>
 {SCRIPT}
