@@ -1,0 +1,65 @@
+{
+  "product": "hsk",
+  "display": "HSK",
+  "brand": {
+    "primary": "#dc2626",
+    "dark": "#b91c1c",
+    "tint": "#fee2e2"
+  },
+  "meta": {
+    "accounts": {
+      "HSK - 01": "2747619145410625",
+      "HSK - 02": "467960226273623",
+      "HSK - 03": "1020252384216810"
+    },
+    "api_versions": [
+      "v23.0",
+      "v22.0",
+      "v21.0",
+      "v20.0"
+    ],
+    "campaign_name_include": "inbox"
+  },
+  "kpi_sheet": {
+    "id": "1qo74NExBVKtd4dC5saIejUoMffX30qziOPkfCSh4VK8",
+    "gid": "1724818552",
+    "tab_prefix": "KPI Tháng",
+    "line": "HSK",
+    "channel": "Inbox"
+  },
+  "lead_sheet": {
+    "id": "1ArOFMg-HY-ttHSGqWSPZQItihhy_iW_KYqz9WkKAjJI",
+    "phone_tab": "File cào",
+    "gid": "147267548",
+    "join": "code",
+    "col_date": 2,
+    "col_adid": 5,
+    "col_code": 7,
+    "col_account": 8,
+    "col_ql": 6,
+    "min_cols": 9
+  },
+  "min_leads": 3,
+  "report": {
+    "primary_days": 3,
+    "confirm_days": 7,
+    "age_lookback_days": 30,
+    "adid_overlay": true,
+    "per_ad_mere": true,
+    "bi_product": 5,
+    "bi_market": 1,
+    "mere": {
+      "scale": 50,
+      "watch": 70,
+      "hard_loss": 100,
+      "min_orders": 3,
+      "min_age_days": 7,
+      "matrix": true
+    },
+    "telegram_doc": "html"
+  },
+  "telegram": {
+    "token_env": "TELEGRAM_BOT_TOKEN",
+    "chat_env": "TELEGRAM_HSK_CHAT_ID"
+  }
+}
