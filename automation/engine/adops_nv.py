@@ -554,6 +554,41 @@ def main():
         "accounts": ACCOUNTS, "lead_sheet": LS, "kpi_sheet": KS, "bi_product": BI_PRODUCT, "bi_market": BI_MARKET})
     with open(OUT, "w") as f:
         f.write(html)
+
+    sj = BM.os.environ.get("ADOPS_SUMMARY_JSON", "").strip()
+    if sj:
+        def chan_tot(ch):
+            t = {"spend": 0, "lead": 0, "ql": 0, "order": 0, "re": 0}
+            for u in units:
+                if u["channel"] == ch:
+                    for k in t:
+                        t[k] += u["w7"][k]
+            t["cpl"] = round(t["spend"] / t["lead"]) if t["lead"] else 0
+            t["mere"] = round(t["spend"] / t["re"] * 100, 1) if t["re"] else None
+            return t
+        buckets = {}
+        items = []
+        for u in sorted(units, key=lambda x: -x["w7"]["spend"]):
+            if not u["active"]:
+                continue
+            buckets[u["bucket"]] = buckets.get(u["bucket"], 0) + 1
+            items.append({"id": u["id"], "name": u["name"], "kind": u["kind"], "channel": u["channel"],
+                          "bucket": u["bucket"], "final": u["final"], "spend7": u["w7"]["spend"],
+                          "exception": u["exception"], "acct": u["acct"]})
+        summary = {"mode": "nv", "window": [R7[0], R7[-1]],
+                   "kpi_warn": kpi["warn"],
+                   "channels": {"in": {**chan_tot("in"), "kpi": kpi["thr_in"]["kpi"]},
+                                "cv": {**chan_tot("cv"), "kpi": kpi["thr_cv"]["kpi"]}},
+                   "pacing": {"in": {k: pac_in[k] for k in ("mtd", "month_kpi", "week_kpi", "week_spend",
+                                                            "per_day", "yesterday", "pct_plan", "flag")},
+                              "cv": {k: pac_cv[k] for k in ("mtd", "month_kpi", "week_kpi", "week_spend",
+                                                            "per_day", "yesterday", "pct_plan", "flag")}},
+                   "buckets": buckets, "items": items,
+                   "exceptions": [i for i in items if i["exception"]]}
+        with open(sj, "w", encoding="utf-8") as f:
+            json.dump(summary, f, ensure_ascii=False)
+        log(f"  summary → {sj}")
+
     n_in = sum(1 for u in units if u["channel"] == "in")
     n_cv = len(units) - n_in
     log(f"OK → {OUT} ({n_in} đơn vị Inbox, {n_cv} Conversion, {len(branding)} branding)")
