@@ -584,17 +584,22 @@ def main():
                 t["w2"] += w2
                 t["eff"] += s - w1 - w2
                 if w1 > 0:
-                    tops.append({"stage": "🟠 lead→không QL", "waste": w1, "u": u})
+                    tops.append({"stage": "🟠 lead CHƯA thành QL", "waste": w1, "u": u})
                 if w2 > 0:
-                    tops.append({"stage": "🟡 QL→chưa đơn", "waste": w2, "u": u})
+                    tops.append({"stage": "🟡 QL CHƯA ra đơn", "waste": w2, "u": u})
         for k in t:
             t[k] = int(round(t[k]))
         wf[ch] = t if t["spend"] > 0 else None
     tops.sort(key=lambda r: -r["waste"])
-    waste_top = [{"stage": r["stage"], "name": r["u"]["name"], "ch": r["u"]["channel"],
-                  "spend": r["u"]["w7"]["spend"], "lead": r["u"]["w7"]["lead"], "ql": r["u"]["w7"]["ql"],
-                  "order": r["u"]["w7"]["order"], "waste": int(r["waste"]), "final": r["u"]["final"]}
-                 for r in tops[:10]]
+    def _wt(r):
+        u = r["u"]
+        l, q_raw, o_raw = u["w7"]["lead"], u["w7"]["ql"], u["w7"]["order"]
+        q = min(l, max(q_raw, o_raw))
+        return {"stage": r["stage"], "name": u["name"], "id": u["id"], "kind": u["kind"],
+                "ch": u["channel"], "spend": u["w7"]["spend"], "lead": l, "ql": q, "order": o_raw,
+                "no_ql": max(l - q, 0), "ql_no_o": max(q - min(o_raw, q), 0),
+                "waste": int(r["waste"]), "final": u["final"]}
+    waste_top = [_wt(r) for r in tops[:10]]
     n_shadow = sum(1 for u in units if u.get("ql_braked") and u["active"])
 
     bi_recon = {"bi_orders": sum(x.get("orders", 0) for x in bi.get("r7", {}).values()),

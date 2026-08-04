@@ -230,6 +230,12 @@ td.dcm-me{font-weight:800}.dcm-me.m-tot{color:var(--good-t)}.dcm-me.m-tb{color:v
 .dc-sv{font-size:13px;color:var(--ink-2)}.dc-sv b{font-size:15px;font-weight:800}
 .dc-ss{font-size:10.5px;color:var(--mut)}
 .dc-do{padding:10px 14px;border-top:1px solid var(--line-2)}
+.crow .crhd{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#eef2f7;border-top:2px solid var(--line);cursor:pointer;flex-wrap:wrap}
+.crow .crhd:hover{background:#e4eaf2}
+.crarr{font-style:normal;color:var(--mut);transition:transform .12s;display:inline-block}
+.crow.copen .crarr{transform:rotate(90deg)}
+.crn{font-size:10.5px;font-weight:600;background:var(--surface);border:1px solid var(--line);color:var(--mut);padding:1px 9px;border-radius:20px}
+.crstat{font-size:11px;color:var(--mut);margin-left:auto;font-variant-numeric:tabular-nums}
 .shq{margin-top:6px;padding:7px 11px;border-radius:7px;background:#f5f3ff;border:1px solid #ddd6fe;font-size:11.5px;color:#5b21b6}
 .shq b{font-weight:700}
 .wf-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:8px 0 12px}
@@ -381,7 +387,7 @@ def sec_pacing(ctx):
 PSWITCH = """<div class="pswitch"><span class="pslab">Góc nhìn tối ưu:</span>
 <button class="pstab" data-view="cpl">🎯 CPL — chi phí / lead</button>
 <button class="pstab" data-view="mere">💰 ME/RE — chi / doanh thu</button>
-<span class="pshint">Cùng một dữ liệu, 2 cách chấm. CPL bắt nhiều ad (lead về sớm); ME/RE đo lãi thật (cần đã có order).</span></div>"""
+<span class="pshint">Một ad chỉ có MỘT quyết định cuối (ad đủ cổng doanh thu thì ME/RE thắng CPL) — 2 nút là 2 góc soi cùng dữ liệu, nên danh sách TẮT ở 2 bên GIỐNG NHAU là đúng. Thẻ nào 2 góc lệch nhau sẽ có dòng "🎯 CPL nói / 💰 ME/RE nói" bên dưới.</span></div>"""
 
 ORDERNOTE = """<div class="ordernote">⏱ <b>Làm theo thứ tự:</b> <span class="on1">① TẮT (đỏ)</span> trước — vùng <b>Rất tệ</b> phải tắt <b>trước 14h ngày làm việc kế tiếp</b> → <span class="on2">② Scale (xanh)</span> các ad Tốt → <span class="on3">③ Giảm ngân sách (cam)</span>. Xong mỗi việc nhớ cập nhật file cào &amp; trạng thái ad. <b>Đề xuất CHỜ DUYỆT</b> — kit không tự thao tác trên Meta.</div>"""
 
@@ -511,8 +517,17 @@ def unit_card(u, ctx, view):
 <div class="dc-do"><span class="dc-dol">Việc cần làm</span> <b>{esc(action_label(u))}{(' — ' + esc(mech)) if mech else ''}</b>
 {('· <span class="dl">' + dl + '</span>') if dl else ''}
 <div class="mv-rsn">{esc(rsn)}</div>
-{shadow_html(u)}
+{lens_html(u)}{shadow_html(u)}
 <a class="mv-meta" href="{link}" target="_blank" rel="noopener">⤴ Xem trên Meta để thao tác</a></div></div>"""
+
+
+def lens_html(u):
+    """Dòng so 2 góc chiếu khi CPL và ME/RE nói khác nhau — trả lời thắc mắc 'sao 2 view giống nhau'."""
+    if not u.get("mere_on") or (u.get("cpl_rec") or "") == (u.get("final") or ""):
+        return ""
+    return ('<div class="mv-rsn">🎯 Chấm CPL thuần: <b>' + esc(u["cpl_rec"]) + '</b> · 💰 Chấm ME/RE '
+            + (f"{u['mere']:.0f}%" if u.get("mere") is not None else "—")
+            + ': <b>' + esc(u["final"]) + '</b> ← đang áp dụng (ME/RE thắng khi đủ cổng)</div>')
 
 
 def shadow_html(u, bare=False):
@@ -531,8 +546,10 @@ def sec_waste(ctx):
     if not wf:
         return ""
     h = ['<h2>Phễu lãng phí — tiền đang chết ở chặng nào (R7)</h2>',
-         '<p class="sub">Chi mỗi ad chia đều theo lead; đơn theo BI first_paid cùng cửa sổ nên cột "QL→chưa đơn" '
-         'gồm cả đơn đuôi sắp về — dùng để so tương đối, không phải phán quyết từng đồng. '
+         '<p class="sub"><b>Cách đọc:</b> chi của MỖI ad được chia đều cho các lead của nó rồi xếp vào chặng — '
+         'ví dụ ad chi 10tr có 49 lead / 18 QL thì 31/49 phần chi (6,3tr) nằm ở "lead chưa thành QL". '
+         'Ad xuất hiện ở bảng dưới KHÔNG có nghĩa là ad không có QL/đơn — chỉ là phần tiền chưa chuyển hoá '
+         'của nó lớn. Đơn theo BI first_paid cùng cửa sổ nên "QL chưa ra đơn" gồm cả đơn đuôi sắp về. '
          'QL = chuẩn công ty (L3+ gồm đơn mua).</p>']
     for ch, label in (("in", "INBOX"), ("cv", "CONVERSION")):
         t = wf.get(ch)
@@ -540,21 +557,29 @@ def sec_waste(ctx):
             continue
         pct = lambda x: f"{x / t['spend'] * 100:.0f}%"  # noqa: E731
         h.append(f'<div class="tabsum"><b>{label}</b> — chi R7 {vnd(t["spend"])}</div><div class="wf-cards">')
-        for k, cls, lab in (("w0", "wf-w0", "🔴 Chi 0 lead"), ("w1", "wf-w1", "🟠 Lead → không QL"),
-                            ("w2", "wf-w2", "🟡 QL → chưa đơn"), ("eff", "wf-eff", "🟢 Chi ra đơn")):
+        for k, cls, lab in (("w0", "wf-w0", "🔴 Chi 0 lead"), ("w1", "wf-w1", "🟠 Chi cho lead CHƯA thành QL"),
+                            ("w2", "wf-w2", "🟡 Chi cho QL CHƯA ra đơn"), ("eff", "wf-eff", "🟢 Chi ra đơn")):
             h.append(f'<div class="wfc {cls}"><div class="n">{vnd(t[k])}</div><div class="l">{lab}</div>'
                      f'<div class="p">{pct(t[k])}</div></div>')
         h.append('</div>')
     tops = ctx.get("waste_top") or []
     if tops:
-        h.append('<div class="grp"><div class="tw"><table style="min-width:760px"><thead><tr>'
-                 '<th>Chặng</th><th>Đơn vị</th><th>Kênh</th><th class="n">Chi R7</th><th class="n">Lead</th>'
-                 '<th class="n">QL</th><th class="n">Đơn</th><th class="n">Tiền chết</th><th>Đề xuất hiện tại</th></tr></thead><tbody>')
+        h.append('<div class="grp"><div class="tw"><table style="min-width:860px"><thead><tr>'
+                 '<th>Chặng</th><th>Đơn vị (ad_id)</th><th>Kênh</th><th class="n">Chi R7</th>'
+                 '<th>Vì sao vào chặng này</th><th class="n">Tiền chết</th><th>Đề xuất hiện tại</th></tr></thead><tbody>')
         for r in tops:
-            h.append(f'<tr class="umain"><td>{r["stage"]}</td><td class="nm" title="{esc(r["name"])}">{esc(r["name"][:44])}</td>'
+            if r["stage"].startswith("🔴"):
+                why = "0 lead dù có chi"
+            elif r["stage"].startswith("🟠"):
+                why = f'<b>{r["no_ql"]}/{r["lead"]}</b> lead chưa thành QL'
+            else:
+                why = f'<b>{r["ql_no_o"]}/{r["ql"]}</b> QL chưa ra đơn (đơn: {r["order"]})'
+            uid = f'<div class="idmono">{r.get("kind","LẺ")} · {r["id"]}</div>'
+            h.append(f'<tr class="umain"><td>{r["stage"]}</td>'
+                     f'<td class="nm" title="{esc(r["name"])}">{esc(r["name"][:40])}{uid}</td>'
                      f'<td>{"Inbox" if r["ch"]=="in" else "Conv"}</td><td class="num">{vnd(r["spend"])}</td>'
-                     f'<td class="num">{r["lead"]}</td><td class="num">{r["ql"]}</td><td class="num">{r["order"]}</td>'
-                     f'<td class="num strong">{vnd(r["waste"])}</td><td class="camp">{esc(r["final"][:48])}</td></tr>')
+                     f'<td>{why}</td><td class="num strong">{vnd(r["waste"])}</td>'
+                     f'<td class="camp">{esc(r["final"][:44])}</td></tr>')
         h.append('</tbody></table></div></div>')
     return "\n".join(h)
 
@@ -628,9 +653,9 @@ def deep_row(u, ctx):
     if ch == "in":
         cells += [f"""<td class="num">{pct(lead_mess, 0) if wc['mess'] else '—'}</td>"""]
     cells += [
-        f"""<td class="num">{vnd0(wc['ql']) if ch == 'in' else '—'}</td>""",
-        f"""<td class="num">{vnd(cpql) if (ch == 'in' and cpql) else '—'}</td>""",
-        f"""<td class="num">{pct(ql_lead, 0) if (ch == 'in' and wc['lead']) else '—'}</td>""",
+        f"""<td class="num">{vnd0(wc['ql'])}</td>""",
+        f"""<td class="num">{vnd(cpql) if cpql else '—'}</td>""",
+        f"""<td class="num">{pct(ql_lead, 0) if wc['lead'] else '—'}</td>""",
         f"""<td class="num">{vnd0(wc['order'])}</td>""",
         f"""<td class="num">{vnd(wc['re'])}</td>""",
         f"""<td class="num">{pct(o_lead, 1) if wc['lead'] else '—'}</td>""",
@@ -639,7 +664,8 @@ def deep_row(u, ctx):
     mech = mechanism(u)
     dl = deadline(u)
     act_cls = {"off": "a-off", "scale": "a-scale", "cut": "a-cut"}.get(u["bucket"], "a-keep")
-    return f"""<tbody class="urow z-{u['zclass']} g-{u['gclass']}">
+    cid = u.get("camp_id") or (u.get("camp") or "khac")
+    return f"""<tbody class="urow z-{u['zclass']} g-{u['gclass']}" data-cid="{esc(str(cid))}">
 <tr class="umain">{''.join(cells)}</tr>
 <tr class="sub"><td colspan="{ncol}" class="actrow {act_cls}"><span class="lbl">ACTION</span> {esc(u['final'])}{(' · <span class="mech">' + esc(mech) + '</span>') if mech else ''}{(' · <span class="dl">' + dl + '</span>') if dl else ''}</td></tr>
 {('<tr class="sub"><td colspan="' + str(ncol) + '"><div class="shq">' + shadow_html(u, bare=True) + '</div></td></tr>') if u.get('ql_braked') else ''}
@@ -661,19 +687,48 @@ def _thead(spec):
     return "<thead><tr>" + "".join(out) + "</tr></thead>"
 
 
+def _camp_header(cid, camp, us, ncol):
+    s = sum(u["wc"]["spend"] for u in us)
+    l = sum(u["wc"]["lead"] for u in us)
+    q = sum(u["wc"]["ql"] for u in us)
+    o = sum(u["w7"]["order"] for u in us)
+    re7 = sum(u["w7"]["re"] for u in us)
+    mere = f" · ME/RE {s7 / re7 * 100:.0f}%" if re7 and (s7 := sum(u["w7"]["spend"] for u in us)) else ""
+    return (f'<tbody class="crow" data-cid="{esc(str(cid))}"><tr><td colspan="{ncol}">'
+            f'<div class="crhd"><i class="crarr">▸</i> <b>{esc(camp or "(không rõ campaign)")}</b>'
+            f'<span class="crn">{len(us)} đơn vị</span>'
+            f'<span class="crstat">chi {vnd(s)} · {vnd0(l)} lead · {vnd0(q)} QL · {vnd0(o)} đơn{mere}</span>'
+            f'</div></td></tr></tbody>')
+
+
+def _deep_rows_grouped(units, ctx, ch, ncol):
+    """Nhóm theo campaign (thứ tự: tổng chi giảm dần); trong campaign giữ thứ tự vùng."""
+    groups = {}
+    for u in units:
+        if u["channel"] != ch:
+            continue
+        cid = u.get("camp_id") or (u.get("camp") or "khac")
+        groups.setdefault(cid, []).append(u)
+    out = []
+    for cid, us in sorted(groups.items(), key=lambda kv: -sum(u["wc"]["spend"] for u in kv[1])):
+        out.append(_camp_header(cid, us[0].get("camp"), us, ncol))
+        out.extend(deep_row(u, ctx) for u in us)
+    return "\n".join(out)
+
+
 def sec_deep(ctx):
     units = sorted(ctx["units"], key=lambda u: (ZORD.get(u["zclass"], 9), -u["wc"]["spend"]))
     n_in = sum(1 for u in units if u["channel"] == "in")
     n_cv = len(units) - n_in
-    rows_in = "\n".join(deep_row(u, ctx) for u in units if u["channel"] == "in")
-    rows_cv = "\n".join(deep_row(u, ctx) for u in units if u["channel"] == "cv")
+    rows_in = _deep_rows_grouped(units, ctx, "in", 20)
+    rows_cv = _deep_rows_grouped(units, ctx, "cv", 18)
     chips_z = "".join(f'<button class="dchip" data-f="z" data-v="{v}">{l}</button>'
                       for v, l in (("all", "Tất cả"), ("tot", "Tốt"), ("tb", "Trung bình"), ("yeu", "Yếu"),
                                    ("rat", "Rất yếu"), ("zero", "0 lead"), ("few", "Chưa đủ mẫu"), ("spec", "Đặc biệt")))
     chips_g = "".join(f'<button class="dchip" data-f="g" data-v="{v}">{l}</button>'
                       for v, l in (("all", "Tất cả"), ("moi", "Mới"), ("dang", "Đang chạy"), ("lau", "Đã chạy lâu")))
     return f"""<h2>Bảng đầy đủ — phân tích sâu ({20} cột Inbox / {18} cột Conversion)</h2>
-<p class="sub">"0 lead" = ad có chi nhưng khách chưa để SĐT (đủ số liệu, chỉ là 0 lead nên không tính được CPL). "Chưa đủ mẫu" = mới 1 lead (&lt;2) — chưa đủ để chấm vùng, giữ &amp; theo dõi tiếp. Gồm cả ad đã pause (console phía trên chỉ hiện ad đang chạy).</p>
+<p class="sub">"0 lead" = ad có chi nhưng khách chưa để SĐT (đủ số liệu, chỉ là 0 lead nên không tính được CPL). "Chưa đủ mẫu" = mới 1 lead (&lt;2) — chưa đủ để chấm vùng, giữ &amp; theo dõi tiếp. Gồm cả ad đã pause (console phía trên chỉ hiện ad đang chạy). <b>Xếp theo CAMPAIGN</b>: bấm dòng campaign để xổ/đóng các ad bên trong; khi lọc Trạng thái/Nhóm tuổi ≠ "Tất cả" thì tự xổ hết để không sót kết quả.</p>
 <div id="deepbox">
 <div class="chtabs">
 <button class="chtab" data-ch="in">INBOX (Messenger) <span class="chn">{n_in}</span></button>
@@ -831,13 +886,21 @@ this.classList.add('on');apply();});});
 Array.prototype.forEach.call(document.querySelectorAll('.fchip[data-v="all"]'),function(x){x.classList.add('on');});
 apply();})();
 (function(){var box=document.getElementById('deepbox');if(!box)return;var F={z:'all',g:'all',ch:'in'};
-var rows=box.querySelectorAll('tbody.urow');function apply(){var n=0;
+var OPEN={};var rows=box.querySelectorAll('tbody.urow');var camps=box.querySelectorAll('tbody.crow');
+function apply(){var n=0;var noFilter=(F.z==='all'&&F.g==='all');var shown={};
 Array.prototype.forEach.call(box.querySelectorAll('.dsec'),function(s){s.style.display=s.classList.contains('dsec-'+F.ch)?'':'none';});
-Array.prototype.forEach.call(rows,function(t){var sec=t.closest('.dsec');
-var vis=sec&&sec.classList.contains('dsec-'+F.ch)&&(F.z==='all'||t.classList.contains('z-'+F.z))&&(F.g==='all'||t.classList.contains('g-'+F.g));
+Array.prototype.forEach.call(rows,function(t){var sec=t.closest('.dsec');var cid=t.dataset.cid||'';
+var match=sec&&sec.classList.contains('dsec-'+F.ch)&&(F.z==='all'||t.classList.contains('z-'+F.z))&&(F.g==='all'||t.classList.contains('g-'+F.g));
+if(match)shown[cid]=(shown[cid]||0)+1;
+var vis=match&&(noFilter?!!OPEN[cid]:true);
 t.style.display=vis?'':'none';if(vis)n++;});
+Array.prototype.forEach.call(camps,function(c){var sec=c.closest('.dsec');var cid=c.dataset.cid||'';
+var cvis=sec&&sec.classList.contains('dsec-'+F.ch)&&(shown[cid]>0);
+c.style.display=cvis?'':'none';c.classList.toggle('copen',!noFilter||!!OPEN[cid]);});
 document.getElementById('dempty').style.display=n===0?'block':'none';
-document.getElementById('dcount').textContent=n+' đơn vị hiển thị';}
+document.getElementById('dcount').textContent=n+' đơn vị hiển thị — bấm dòng campaign để xổ ad';}
+Array.prototype.forEach.call(camps,function(c){c.addEventListener('click',function(){
+var cid=this.dataset.cid||'';OPEN[cid]=!OPEN[cid];apply();});});
 Array.prototype.forEach.call(box.querySelectorAll('#dfilters .dchip'),function(b){b.addEventListener('click',function(){
 F[this.dataset.f]=this.dataset.v;var g=this.dataset.f;
 Array.prototype.forEach.call(box.querySelectorAll('.dchip[data-f="'+g+'"]'),function(x){x.classList.remove('on');});
