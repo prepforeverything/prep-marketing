@@ -465,7 +465,12 @@ def reason(u, ctx):
     if u["exception"]:
         parts.append("⚠ CPL đòi tắt nhưng ma trận ME/RE giữ → XIN DUYỆT NGOẠI LỆ (gom cuối checklist)")
     lead7, leadp = u["w7"]["lead"], u["wp"]["lead"]
-    parts.append(f"Bằng chứng: lead 7d {lead7} (nhịp {leadp / 7:.1f}→{lead7 / 7:.1f}/ngày), "
+    ev = ""
+    if u["win_kind"] != "r7":                       # ad chấm R3 → bằng chứng dẫn số R3 TRƯỚC (khớp cửa sổ chấm)
+        w3 = u["w3"]
+        ev = (f"Số chấm (R3): chi {vnd(w3['spend'])} · {w3['lead']} lead"
+              + (f" · CPL {vnd(round(w3['spend'] / w3['lead']))}" if w3["lead"] else "") + " · ")
+    parts.append(f"Bằng chứng: {ev}lead 7d {lead7} (nhịp {leadp / 7:.1f}→{lead7 / 7:.1f}/ngày), "
                  f"doanh thu 7d {vnd(u['w7']['re'])} vs tuần trước {vnd(u['wp']['re'])}.")
     return " · ".join(parts)
 
