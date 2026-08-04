@@ -19,6 +19,10 @@ từng ad, tóm tắt máy-đọc cho caption/tin Ad ID. Gate cào-lead hoạt �
 ⚠️ 2026-07-06: tab `lead_feed` dừng ở **30/06** (lead 1–5/7 chưa cào) → hệ thống gửi cảnh báo vào nhóm thay vì
 báo cáo. Khi team cào xong: `python3 automation/engine/run_daily.py --product ielts-thai` là ra báo cáo đầy đủ.
 ⏳ Còn lại: lịch tự động (n8n/GitHub Actions workflow riêng cho Thái).
+🔄 **2026-08-04 — đổi file cào lead:** file cào theo KỲ, file `1Y5kSCcn…` dừng ở lead **31/07** (không có dữ liệu
+tháng 8 → báo cáo đọc ra 0 lead, đề xuất tắt sai hàng loạt). `lead_sheet.id` + `ads_report.sheet_id` đã trỏ sang
+`16tIk-qqDVRr_wwCBU-P8uueBPJsHJ5xYqxTVmNVWjss` — bản copy cùng cấu trúc (tab `lead_feed`, tab ads-report
+`gid=1799361808`) nên **chỉ cần thay 2 id, không sửa engine**. Đây là thao tác chuẩn mỗi khi team Thái sang file kỳ mới.
 
 ## Trạng thái 2026-06-22 (lịch sử)
 
