@@ -73,7 +73,7 @@ MTD = [(MSTART + datetime.timedelta(days=i)).isoformat()
 LOOK_SINCE = (ASOF - datetime.timedelta(days=LOOKBACK - 1)).isoformat()
 
 MESS_ACTION = "onsite_conversion.messaging_conversation_started_7d"
-REG_ACTIONS = {"lead", "offsite_conversion.fb_pixel_lead"}
+REG_ACTIONS = {"lead"}          # "lead" là TỔNG của Meta (đã gồm fb_pixel_lead) — cộng thêm là đếm đôi
 
 
 def log(msg):
@@ -151,14 +151,20 @@ def fetch_meta():
 
 # ---- 2) File cào: lead/QL theo ngày mỗi ad_id -------------------------------------------------
 def fetch_leads():
-    """({ad_id: {date: [lead, ql]}}, dq) — QL = 'Trạng thái Lead' ≥L3 hoặc có RE (khớp định nghĩa template).
-    Ngày ưu tiên cột Time ISO 'YYYY-MM-DD…'; fallback cột date D-M-YYYY (đã xác minh trên sheet 04/08)."""
+    """({ad_id: {date: [lead, ql]}}, dq) — join theo ad_id (an toàn nhiều TK).
+
+    QL theo config lead_sheet (mỗi SP sheet khác nhau):
+    - có `col_status` → QL = trạng thái L3–L6 HOẶC cột `col_re` có tiền (kiểu HSK — cột Sub luôn =1 nên
+      col_ql không mang nghĩa QL);
+    - không có → QL = r[col_ql] == "1" (kiểu TOEIC/VSTEP, khớp adops.py).
+    Ngày: ưu tiên ISO 'YYYY-MM-DD…' ở col_date; fallback D-M-YYYY cột 0 (đã xác minh cả 3 sheet 04/08)."""
     url = (f"https://docs.google.com/spreadsheets/d/{LS['id']}/gviz/tq?tqx=out:csv"
            f"&sheet={urllib.parse.quote(LS.get('phone_tab') or 'File cào')}")
     import csv, io
     rows = list(csv.reader(io.StringIO(BM.http_get(url, timeout=90))))[1:]
     per = defaultdict(lambda: defaultdict(lambda: [0, 0]))
     dq = {"no_adid": 0, "no_account": 0, "bad_date": 0, "rows": 0}
+    col_status, col_re, col_ql = LS.get("col_status"), LS.get("col_re"), LS.get("col_ql")
     for r in rows:
         if len(r) < LS.get("min_cols", 9):
             continue
@@ -173,9 +179,12 @@ def fetch_leads():
         if not d:
             dq["bad_date"] += 1
             continue
-        status = (r[10].strip() if len(r) > 10 else "")
-        re_cell = (r[11].strip() if len(r) > 11 else "")
-        isql = bool(re.match(r"L[3-6]", status)) or bool(re_cell)
+        if col_status is not None:
+            status = (r[col_status].strip() if len(r) > col_status else "")
+            re_cell = (r[col_re].strip() if col_re is not None and len(r) > col_re else "")
+            isql = bool(re.match(r"L[3-6]", status)) or bool(re_cell)
+        else:
+            isql = col_ql is not None and len(r) > col_ql and r[col_ql].strip() == "1"
         per[aid][d][0] += 1
         if isql:
             per[aid][d][1] += 1

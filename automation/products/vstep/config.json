@@ -53,7 +53,8 @@
       "min_age_days": 7,
       "matrix": true
     },
-    "telegram_doc": "html"
+    "telegram_doc": "html",
+    "engine": "nv"
   },
   "gate_labels": {
     "morning": "10h10",

@@ -9,7 +9,8 @@
   "meta": {
     "accounts": {
       "TOEIC 3": "829372215242475",
-      "TOEIC 5": "555686623359807"
+      "TOEIC 5": "555686623359807",
+      "TOEIC 2": "183860110693045"
     },
     "api_versions": [
       "v23.0",
@@ -53,7 +54,8 @@
       "min_age_days": 7,
       "matrix": true
     },
-    "telegram_doc": "html"
+    "telegram_doc": "html",
+    "engine": "nv"
   },
   "telegram": {
     "token_env": "TELEGRAM_BOT_TOKEN",

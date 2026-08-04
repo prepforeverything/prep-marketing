@@ -37,7 +37,9 @@
     "col_code": 7,
     "col_account": 8,
     "col_ql": 6,
-    "min_cols": 9
+    "min_cols": 9,
+    "col_status": 10,
+    "col_re": 11
   },
   "min_leads": 3,
   "report": {
