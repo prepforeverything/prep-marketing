@@ -750,7 +750,9 @@ MV_META = (("off", "🔴 TẮT ngay", "Không ra doanh thu hoặc lỗ nặng (M
 
 
 def sec_mere(ctx):
-    units = [u for u in ctx["units"] if u["active"]]
+    all_active = [u for u in ctx["units"] if u["active"]]
+    units = [u for u in all_active if u["mere_on"]]        # chốt Quân 04/08 chiều: tab này CHỈ ad đủ cổng ME/RE
+    n_cpl_only = len(all_active) - len(units)
     mc = ctx["mere_cfg"]
     s, w, h = mc.get("scale", 50), mc.get("watch", 70), mc.get("hard_loss", 100)
     tabs, panes = [], []
@@ -769,8 +771,10 @@ def sec_mere(ctx):
                        f"ME/RE {pct(u['mere'])} ({u['w7']['order']} đơn) → ma trận giữ: {esc(u['final'])}</li>" for u in exc)
         exc_html = f"""<div class="note"><b>⚠ XIN DUYỆT NGOẠI LỆ ({len(exc)})</b> — CPL đòi tắt nhưng ma trận ME/RE giữ; gom về đây để người duyệt quyết:<ul>{rows}</ul></div>"""
     return f"""<div class="pview" id="view-mere">
-<h2>Việc cần làm theo ME/RE (ưu tiên 1) — chia theo hành động</h2>
-<p class="sub">Mỗi tab = 1 hành động; mỗi ad = 1 thẻ với 3 dòng cửa sổ (Chu kỳ · R3 · R7 = mốc quyết định).
+<h2>Việc cần làm theo ME/RE (ưu tiên 1) — CHỈ các ad đủ cổng doanh thu</h2>
+<p class="sub"><b>Tab này chỉ gồm {len(units)} ad ĐỦ ĐIỀU KIỆN vòng ME/RE</b> (có doanh thu và ≥{mc.get('min_orders', 3)} đơn
+hoặc ≥{mc.get('min_age_days', 7)} ngày tuổi) — {n_cpl_only} ad còn lại chưa đủ cổng, nằm bên góc 🎯 CPL (chấm theo quy tắc lead).
+Mỗi tab = 1 hành động; mỗi ad = 1 thẻ với 3 dòng cửa sổ (Chu kỳ · R3 · R7 = mốc quyết định).
 <b>Lead · QL</b> theo ngày lead (File cào, kênh Inbox); <b>Order · RE · ME/RE</b> theo <b>Prep BI (first_paid)</b> — cả 2 kênh.
 Vùng ME/RE: Tốt &lt;{s}% · Giữ {s}–{w}% · Yếu {w}–{h}% · <b>≥{h}% = vượt trần lỗ → TẮT bắt buộc, bất kể CPL</b>.
 Ad mới (tuổi &lt;{mc.get('min_age_days', 7)}d &amp; &lt;{mc.get('min_orders', 3)} đơn) chấm theo CPL tới khi đủ cổng ME/RE.</p>
