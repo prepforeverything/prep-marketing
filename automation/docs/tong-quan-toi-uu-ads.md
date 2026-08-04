@@ -97,12 +97,12 @@ Trục: **Tuổi ad** (số ngày từ lúc bật/bật lại) × **Vùng CPL**.
 
 | Sản phẩm | Inbox | Conversion | Branding | ME/RE | Ghi chú |
 |---|---|---|---|---|---|
-| **TOEIC** | ✅ Đang chạy (2 TK) | ✅ **Đã chấm trong báo cáo mới** (TK "TOEIC 2" — 7 campaign, trước đây chưa ai chấm) | ✅ Mục riêng trong báo cáo | Ma trận 4×4 ✅ | 10:07 · 14:07 · EOD |
-| **VSTEP** | ✅ Đang chạy (1 TK) | ✅ Sẵn sàng — hiện **0 campaign chạy** dù KH cấp 10,9tr/tuần (pacing phơi khoảng trống) | ✅ Mục riêng trong báo cáo | Ma trận 4×4 ✅ | 10:10 · 17:10 · EOD |
-| **IELTS VN** | ✅ Đang chạy (3 TK) | — (chưa quy hoạch) | — | Ma trận 4×4 ✅ (bật 08/2026) | 10:07 · 14:07 |
+| **TOEIC** | ✅ Đang chạy (2 TK Inbox) | ✅ **Đã chấm trong báo cáo mới** (1 TK riêng — "TOEIC 2", 7 campaign, trước đây chưa ai chấm) | ✅ Mục riêng trong báo cáo | Ma trận 4×4 ✅ | 10:07 · 14:07 · EOD |
+| **VSTEP** | ✅ Đang chạy (1 TK) | ⏸️ **Đầu tháng 8 chưa chạy lại — theo kế hoạch SẼ CÓ** (KH cấp 10,9tr/tuần); hệ thống đã sẵn sàng chấm ngay khi bật | ✅ Mục riêng trong báo cáo | Ma trận 4×4 ✅ | 10:10 · 17:10 · EOD |
+| **IELTS VN** | ✅ Đang chạy (3 TK) | ⏸️ **Conversion đang DỪNG** (chốt 04/08 — không chấm nhánh này) | — | Ma trận 4×4 ✅ (bật 08/2026) | 10:07 · 14:07 |
 | **IELTS Thái** | ✅ Đang chạy (2 TK, gộp Nhóm QC) | ✅ Đang chạy (engine riêng theo campaign/UTM) | — | Ma trận 4×4 ✅ + cổng độ tin | THB→VND ×850 |
 | **HSK** | ✅ **Onboard xong + báo cáo mẫu mới** (3 TK) — PR #134 | ✅ **Đã chạy trong báo cáo mẫu mới** (lead theo BI) | ✅ Có mục riêng trong báo cáo | Ma trận 4×4 ✅ | Chờ merge + nhóm Telegram |
-| **PTE** | ⏸️ Tạm dừng (dừng ads từ T8) | — | — | ME/RE band | 2 workflow đã disable |
+| **PTE** | ⏸️ **Tạm dừng TOÀN BỘ ads** (từ T8) | ⏸️ (cùng trạng thái) | — | ME/RE band | 2 workflow đã disable; bật lại = enable workflow |
 
 Ghi chú: mỗi sản phẩm 1 nhóm Telegram riêng. Engine dùng **chung một bộ code**; khác biệt nằm ở file cấu hình từng sản phẩm.
 
@@ -110,11 +110,27 @@ Ghi chú: mỗi sản phẩm 1 nhóm Telegram riêng. Engine dùng **chung một
 
 ## 6. Báo cáo thế hệ mới (mẫu chuẩn từ bản NV build — pilot HSK)
 
-Báo cáo HTML mới thay dần bản 3-tab cũ, gồm 9 phần: **Tổng quan 2 kênh** (chi/lead/CPL/QL/đơn/doanh thu/ME-RE) → **Pacing ngân sách** tháng→tuần→ngày so KPI Master (cờ 🟠 vượt >110% · 🟡 hụt <90% · 🟢 đúng ±10%) → **Việc cần làm** (thẻ từng ad, tìm kiếm + lọc) → **Bảng phân tích sâu** (20 cột Inbox / 18 cột Conversion) → **Việc theo ME/RE** chia 5 nhóm hành động + danh sách ngoại lệ xin duyệt → **Branding** → **Cờ chất lượng dữ liệu** → **Phương pháp** → **Nguồn dữ liệu**.
+Báo cáo HTML mới thay dần bản 3-tab cũ. **Xem file mẫu thật (HSK, dữ liệu 03/08):** [`examples/bao-cao-mau-hsk-2026-08-04.html`](./examples/bao-cao-mau-hsk-2026-08-04.html) — tải về mở bằng trình duyệt.
+
+9 phần, mỗi phần trả lời một câu hỏi vận hành:
+
+| # | Phần | Trả lời câu hỏi |
+|---|---|---|
+| 1 | **Tổng quan 2 kênh** | Tuần này mỗi kênh tiêu bao nhiêu, ra bao nhiêu lead/đơn, lời hay lỗ (ME/RE)? |
+| 2 | **Pacing ngân sách** (cờ 🟠 vượt >110% · 🟡 hụt <90% · 🟢 đúng ±10%) | Đang bám hay lệch kế hoạch tháng/tuần? Hôm nay cần chi bao nhiêu? |
+| 3 | **Việc cần làm** (thẻ từng ad, tìm kiếm + lọc) | Hôm nay phải đụng vào ad nào, theo thứ tự ưu tiên nào? (tắt → scale → giảm) |
+| 4 | **Bảng phân tích sâu** (20 cột Inbox / 18 cột Conversion) | Soi mọi chỉ số của từng ad khi cần kiểm chứng một đề xuất |
+| 5 | **Việc theo ME/RE** (5 nhóm hành động + ngoại lệ xin duyệt) | Ad nào lời thật / lỗ thật; ca nào máy không tự quyết mà chờ người duyệt |
+| 6 | **Branding** | Kênh nhận diện tiêu bao nhiêu (không áp luật CPL) |
+| 7 | **Cờ chất lượng dữ liệu** | Số nào tin được đến đâu; dữ liệu hôm nay có lỗ hổng gì |
+| 8 | **Phương pháp** | Máy chấm theo luật nào (đúng bộ 2 ma trận ở Mục 4) |
+| 9 | **Nguồn dữ liệu** | Từng con số lấy từ đâu, bấm link kiểm tra được |
+
+Mỗi ad luôn đi kèm **hành động đề xuất + lý do + link mở thẳng Meta** — người chạy ads không phải tự suy luận.
 
 - Tin Telegram **chỉ tóm tắt ~6 dòng** (2 dòng kênh + pacing + đếm việc) — chi tiết nằm hết trong file HTML.
 - Báo cáo tự khai **cờ chất lượng dữ liệu** mỗi ngày (dòng cào thiếu Ad ID, tuổi ad xấp xỉ, doanh thu "đuôi" của ad đã tắt…) để người đọc biết tin số nào đến đâu.
-- Đã chạy thật với HSK ngày 04/08: 41 đơn vị Inbox / 26 Conversion, số pacing khớp KPI Master từng đồng.
+- Đã chạy thật 04/08 với cả 3 SP: HSK 41 Inbox / 26 Conversion · TOEIC 67 / 7 · VSTEP 50 / 0 — số pacing khớp KPI Master từng đồng.
 
 ---
 
