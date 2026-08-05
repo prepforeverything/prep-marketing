@@ -1,0 +1,156 @@
+{
+ "date": "2026-08-04",
+ "send_day": "2026-08-05",
+ "product": "toeic",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-05T12:54:29+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 14728742,
+ "day_budget_eve": 11680074,
+ "cbo_missing": 4,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 0,
+  "pct_off": null,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 12,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "TOEIC 3": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120231590022560586",
+     "code": "",
+     "name": "051425_S25_Khóa cấp tốc duy nhất_6713803",
+     "dir": "up",
+     "morning": 909291,
+     "evening": 909291,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120253245039870586",
+     "code": "",
+     "name": "044825_S25_prep mở 35 suất_6557658339740",
+     "dir": "up",
+     "morning": 439000,
+     "evening": 439000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120254624600730586",
+     "code": "",
+     "name": "044825_S25_prep mở 35 suất_6557658339740",
+     "dir": "up",
+     "morning": 369000,
+     "evening": 369000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120255588611010586",
+     "code": "",
+     "name": "051425_S25_Khóa cấp tốc duy nhất_6713803",
+     "dir": "up",
+     "morning": 1007077,
+     "evening": 1007077,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120256864660480586",
+     "code": "",
+     "name": "050826_TRUNGCAP_Hoàng Minh Quý_960348286",
+     "dir": "up",
+     "morning": 308000,
+     "evening": 308000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120256864678170586",
+     "code": "",
+     "name": "050826_TRUNGCAP_Hoàng Minh Quý_960348286",
+     "dir": "up",
+     "morning": 788000,
+     "evening": 788000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260010885270586",
+     "code": "",
+     "name": "071726_S25_Khoảnh khắc nhận ra_102176546",
+     "dir": "up",
+     "morning": 509000,
+     "evening": 509000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260014255820586",
+     "code": "",
+     "name": "071226_NENTANG_Lấy gốc nhàn_101692360119",
+     "dir": "up",
+     "morning": 269000,
+     "evening": 269000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260111275380586",
+     "code": "",
+     "name": "071726_S25_Khoảnh khắc nhận ra_102176546",
+     "dir": "up",
+     "morning": 323000,
+     "evening": 323000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260115536480586",
+     "code": "",
+     "name": "062126_TRUNGCAP_Sinh viên nổi loạn_99388",
+     "dir": "up",
+     "morning": 328000,
+     "evening": 328000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260137393980586",
+     "code": "",
+     "name": "062726_NENTANG_Thế mà lại hay_9980240597",
+     "dir": "up",
+     "morning": 229000,
+     "evening": 229000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  },
+  "TOEIC 5": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120218174039620170",
+     "code": "",
+     "name": "034625_S25_phải flex thôi remake_6304055",
+     "dir": "up",
+     "morning": 860000,
+     "evening": 860000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  },
+  "TOEIC 2": {
+   "skipped": false,
+   "off": [],
+   "scale": [],
+   "codes": []
+  }
+ }
+}
