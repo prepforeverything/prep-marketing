@@ -455,3 +455,39 @@ def match_account(cell, accounts):
                 break
             i = s.find(n, i + 1)            # còn khớp phía sau (vd tên xuất hiện 2 lần) → thử tiếp
     return best
+
+
+# ---- Tầng 2: chốt chặn QL (chuẩn công ty: QL = L3+ gồm cả L6) — spec Quân + anh Ninh 04/08/2026 ----
+def ql_band(ql_pct, std, *, weak_ratio=0.7):
+    """Băng %QL so CHUẨN sản phẩm×kênh: 'khoe' ≥ std · 'tb' ∈ [std*weak_ratio, std) · 'kem' < std*weak_ratio.
+    ql_pct/std theo % (0–100). std<=0 → None (SP/kênh chưa có chuẩn → tầng QL không áp)."""
+    if std is None or std <= 0 or ql_pct is None:
+        return None
+    if ql_pct >= std:
+        return "khoe"
+    if ql_pct >= std * weak_ratio:
+        return "tb"
+    return "kem"
+
+
+def ql_brake(cpl_rec, cpl_zone, band):
+    """Phanh tầng QL lên đề xuất CPL — CHỈ KÉO XUỐNG, không kéo lên (chốt Quân 04/08).
+
+    Ma trận CPL×QL (áp khi đủ mẫu lead và CHƯA đủ cổng ME/RE; tầng 3 ME/RE vẫn thắng tất cả):
+      khoe → giữ nguyên đề xuất CPL;  tb → chặn SCALE (hạ về GIỮ);  kem → hạ 1 nấc:
+        CPL Tốt  → GIẢM 20% (soi tệp/inbox) · CPL TB → GIẢM 20% · CPL Yếu → TẮT · CPL Rất tệ → TẮT.
+    Trả (rec_mới, braked: bool)."""
+    if band in (None, "khoe"):
+        return cpl_rec, False
+    up = (cpl_rec or "").upper()
+    if band == "tb":
+        if up.startswith("SCALE"):
+            return "GIỮ · %QL dưới chuẩn — chưa scale", True
+        return cpl_rec, False
+    # band == "kem"
+    up_kill = up.startswith(("TẮT", "XEM XÉT TẮT", "CÂN NHẮC TẮT", "ĐỀ XUẤT TẮT"))
+    if up_kill:
+        return cpl_rec, False                        # đã tắt sẵn thì thôi
+    if cpl_zone in ("YẾU", "RẤT TỆ"):
+        return "ĐỀ XUẤT TẮT · %QL kém (khách không chất lượng)", True
+    return "GIẢM 20% · %QL kém — soi tệp/kịch bản inbox", True

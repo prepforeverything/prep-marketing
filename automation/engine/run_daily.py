@@ -284,6 +284,35 @@ def build_adid_message(cfg, summary):
     return "\n".join(L) if any_item else ""
 
 
+def build_caption_nv(cfg, s):
+    """Caption cho engine 'nv' (báo cáo template NV, 2 kênh) — TÓM TẮT THẬT GỌN (chốt Quân 04/08):
+    file HTML đã đầy đủ chi tiết nên Telegram chỉ đưa con số kênh + pacing + đếm hành động, KHÔNG gửi tin Ad ID."""
+    w = s["window"]
+    L = [f"📊 <b>{cfg.display} — tối ưu Meta ({dmy(w[0])}–{dmy(w[1])})</b>"]
+    for _w in (s.get("kpi_warn") or [])[:2]:
+        L.append(f"⚠️ {_esc(_w)}")
+    names = {"in": "Inbox", "cv": "Conv"}
+    for ch in ("in", "cv"):
+        c = s["channels"].get(ch) or {}
+        if not c.get("spend"):
+            continue
+        mark = "🔴" if c.get("cpl", 0) >= c.get("kpi", 0) else "🟢"
+        mere = f" · ME/RE {str(c['mere']).replace('.', ',')}%" if c.get("mere") is not None else ""
+        L.append(f"{mark} {names[ch]}: chi {vnd(c['spend'])} · {c['lead']} lead · CPL {vnd(c['cpl'])}"
+                 f" (KPI {vnd(c['kpi'])}) · {c['order']} đơn{mere}")
+    p = (s.get("pacing") or {}).get("in") or {}
+    if p.get("week_kpi"):
+        fl = {"p-over": "🟠 vượt", "p-under": "🟡 hụt", "p-ok": "🟢 đúng nhịp"}.get(p.get("flag"), "")
+        L.append(f"💰 Pacing Inbox: {fl} KH ({round(p.get('pct_plan') or 0)}%) · cần {vnd(p['per_day'])}/ngày")
+    b = s.get("buckets") or {}
+    acts = " · ".join(f"{lbl} {b[k]}" for k, lbl in
+                      (("off", "🔴 tắt"), ("scale", "🟢 scale"), ("cut", "🟠 giảm"), ("watch", "👀 theo dõi")) if b.get(k))
+    if acts:
+        L.append(f"✅ Việc hôm nay: {acts}" + (f" · ⚠️ {len(s['exceptions'])} ngoại lệ xin duyệt" if s.get("exceptions") else ""))
+    L.append("📂 Chi tiết từng ad + lý do: mở file HTML.")
+    return "\n".join(L)
+
+
 def build_caption_conv(cfg, s, doc_fmt="html"):
     """Caption cho engine 'conv' (FB Conversion — grain CAMPAIGN, join utm_content) — summary mode='conv'."""
     w, t, k = s["window"], s["totals"], s["kpi"]
@@ -466,16 +495,17 @@ def run_report(cfg, target):
     html = cfg.report_html(today)
     html.parent.mkdir(parents=True, exist_ok=True)
     doc_fmt = (cfg.get("report") or {}).get("telegram_doc", "pdf")  # "html" gửi HTML (cuộn ngang được) | "pdf"
-    engine = (cfg.get("report") or {}).get("engine", "adops")       # "inbox" (gộp Nhóm QC) | "conv" (FB Conversion, theo camp) | "adops"
-    script = {"inbox": "adops_inbox.py", "conv": "adops_conv.py"}.get(engine, "adops.py")
+    engine = (cfg.get("report") or {}).get("engine", "adops")       # "inbox" | "conv" | "nv" (template NV, 2 kênh) | "adops"
+    script = {"inbox": "adops_inbox.py", "conv": "adops_conv.py", "nv": "adops_nv.py"}.get(engine, "adops.py")
 
-    # engine "conv" tự fetch Meta (campaign-level theo ngày) — không đi qua build_meta (grain ad-level)
-    if engine != "conv" and subprocess.run([PY, str(ENGINE / "build_meta.py")], env=env).returncode != 0:
+    # engine "conv" và "nv" tự fetch Meta — không đi qua build_meta (conv: campaign-level; nv: daily 30d + actions)
+    if engine not in ("conv", "nv") and subprocess.run([PY, str(ENGINE / "build_meta.py")], env=env).returncode != 0:
         return fail(cfg, "build_meta.py (Meta Graph API) thất bại sau nhiều lần thử lại — kiểm tra mạng/Graph API hoặc META_ACCESS_TOKEN")
     env2 = {**env, "ADOPS_SUMMARY_JSON": str(cfg.summary_json)}
-    if not DRY and engine != "conv":  # baseline đối soát cuối ngày — engine adops + inbox (conv theo camp: chưa hỗ trợ)
+    if not DRY and engine != "conv":  # baseline đối soát cuối ngày — adops + inbox + nv (nv tự ghi schema per_ad_action)
         env2["ADOPS_BASELINE_JSON"] = str(cfg.state / f"baseline-{target.isoformat()}.json")
-    if subprocess.run([PY, str(ENGINE / script), str(meta_json), str(html)], env=env2).returncode != 0:
+    args = [str(html)] if engine == "nv" else [str(meta_json), str(html)]   # nv: chỉ nhận out.html
+    if subprocess.run([PY, str(ENGINE / script), *args], env=env2).returncode != 0:
         return fail(cfg, f"{script} thất bại")
 
     # File gửi Telegram: HTML (mặc bảng rộng cuộn ngang được) hoặc PDF (xuất qua Chrome).
@@ -493,7 +523,10 @@ def run_report(cfg, target):
             return fail(cfg, f"xuất PDF thất bại (CHROME_BIN={chrome})")
     try:
         summary = json.load(open(cfg.summary_json, encoding="utf-8"))
-        if summary.get("mode") == "inbox":
+        if summary.get("mode") == "nv":
+            caption = build_caption_nv(cfg, summary)
+            adid_msg = ""                       # chốt Quân 04/08: file HTML đã chi tiết — Telegram CHỈ tóm tắt gọn
+        elif summary.get("mode") == "inbox":
             caption = build_caption_inbox(cfg, summary, doc_fmt)
             adid_msg = build_adid_message_inbox(cfg, summary)
         elif summary.get("mode") == "conv":
