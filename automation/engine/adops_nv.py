@@ -652,6 +652,31 @@ def main():
             json.dump(summary, f, ensure_ascii=False)
         log(f"  summary → {sj}")
 
+    blp = BM.os.environ.get("ADOPS_BASELINE_JSON", "").strip()
+    if blp:
+        # Baseline đối soát EOD — cùng schema adops.py (per_ad_action): TẮT chấm theo TỪNG ad_id,
+        # SCALE/GIẢM theo dõi theo chủ ngân sách (CBO=campaign, ABO=adset).
+        # Ngoại lệ "CPL đòi tắt nhưng ma trận giữ" KHÔNG vào kill_ads (chờ người duyệt — spec 23/07).
+        accounts_bl = {key: {"codes": [], "kill_ads": [], "scale_track": []} for key in ACCOUNTS}
+        for u in units:
+            e = accounts_bl.get(u["acct"])
+            if e is None or not u["active"]:
+                continue
+            if u["bucket"] == "off" and not u["exception"]:
+                for aid in (u["ad_ids"] if u["kind"] == "cum" else [u["id"]]):
+                    e["kill_ads"].append({"id": aid, "code": "", "name": u["name"], "src": "nv"})
+            elif u["bucket"] in ("scale", "cut"):
+                e["scale_track"].append({"owner_id": (u["camp_id"] if u["cbo"] else u["adset_id"]) or None,
+                                         "code": "", "name": u["name"],
+                                         "dir": "up" if u["bucket"] == "scale" else "down",
+                                         "budget": u["daily_budget"] or 0})
+        with open(blp, "w", encoding="utf-8") as f:
+            json.dump({"window": [R7[0], R7[-1]], "anchor": ASOF.isoformat(),
+                       "kpi_day": (kpi.get("bud_in") or {}).get("day") or 0,
+                       "per_ad_action": True, "accounts": accounts_bl,
+                       "sent_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}, f, ensure_ascii=False)
+        log(f"  baseline EOD → {blp}")
+
     n_in = sum(1 for u in units if u["channel"] == "in")
     n_cv = len(units) - n_in
     log(f"OK → {OUT} ({n_in} đơn vị Inbox, {n_cv} Conversion, {len(branding)} branding)")
