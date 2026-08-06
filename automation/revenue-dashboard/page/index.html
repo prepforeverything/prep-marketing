@@ -1292,6 +1292,7 @@ function renderMi(codes){
     +"phần đuôi gộp dòng '(… còn lại)' · "
     +(agg.st.spx?"chi phí + Impr./CTR trực tiếp từ Meta API (trùng nguồn bảng kênh; campaign 0 lead vẫn hiện)."
      :"⚠️ có tháng chi phí tạm dùng warehouse BI (nguồn platform lỗi lượt build) — đối chiếu tổng theo bảng kênh.")
+    +" Lead/QL ~2 ngày gần nhất có thể chưa đủ (BI gán ad_id trễ, đối soát 06/08) — tổng theo SP vẫn đủ ở bảng kênh, số tự cập nhật các lượt build sau."
     +(agg.st.v1.length?" ⚠️ Tháng "+agg.st.v1.map(x=>+x.slice(4)).join(", ")+" là file đời cũ chưa có dữ liệu ngày — chỉ tính khi chọn trọn tháng.":"");
 }
 
