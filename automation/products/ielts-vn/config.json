@@ -37,7 +37,9 @@
     "col_code": 7,
     "col_account": 8,
     "col_ql": 12,
-    "min_cols": 13
+    "min_cols": 13,
+    "col_status": 10,
+    "col_re": 11
   },
   "min_leads": 3,
   "report": {
@@ -57,7 +59,14 @@
       "min_age_days": 7,
       "matrix": true
     },
-    "telegram_doc": "html"
+    "telegram_doc": "html",
+    "engine": "nv",
+    "ql": {
+      "std_in": 56,
+      "std_cv": null,
+      "min_leads": 5,
+      "note": "chuẩn %QL = số T7/2026 từ BI (Inbox 56%); Conversion đang dừng — từ T9 vào KPI Master"
+    }
   },
   "telegram": {
     "token_env": "TELEGRAM_BOT_TOKEN",
