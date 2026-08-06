@@ -182,3 +182,19 @@ Publish. (Đã xảy ra với workflow EOD 27–28/6: chưa publish → đối s
   đo tỷ lệ fail; nếu 1504044 lác đác → là Meta flaky, retry sẽ xuyên.
 - **Lưu ý vận hành:** lịch chạy GitHub Actions **checkout `main`** → fix phải nằm trên `main` mới có tác dụng cho
   lịch (fix commit ở nhánh feature KHÔNG ảnh hưởng scheduled run). GHA cron cũng hay trễ vài chục phút (phía GitHub).
+
+## 06/08/2026 — Ba bài học từ ngày cutover báo cáo format mới
+
+### 1. Secret có trong repo ≠ workflow được dùng (mất ME/RE im lặng nhiều tuần)
+- **Sự cố:** `PREP_BI_API_KEY` có trong GitHub Secrets từ 10/07 nhưng KHÔNG workflow nào truyền vào `env:` → mọi báo cáo gửi từ Actions chạy không có doanh thu/ME-RE. Không ai phát hiện vì engine thiết kế "BI lỗi thì lùi êm về CPL" (trả `{}`), log chỉ thiếu một dòng.
+- **Quy tắc rút ra:**
+  - GitHub Actions không tự truyền secrets — mỗi secret engine cần PHẢI khai tường minh trong `env:` của từng workflow. Khi thêm SP/feature mới: rà checklist "engine đọc env nào → workflow đã truyền chưa".
+  - **Degrade phải kêu to:** mọi nhánh "lùi êm" (mất nguồn dữ liệu nhưng báo cáo vẫn chạy) phải kèm cảnh báo ĐỎ ở đầu báo cáo + caption Telegram. Đã thêm cho BI (06/08); nguồn mới nào thêm sau cũng theo chuẩn này.
+
+### 2. Một hàm parse ngày không thể "đoán" mọi format sheet
+- **Sự cố:** `check_leads.parse_date` lấy token cuối chuỗi (thiết kế cho lead_feed Thái `HH:MM DD/MM/YYYY`), gặp cột Time HSK `YYYY-MM-DD HH:MM:SS` thì token cuối là GIỜ → 0 dòng dùng được → daily_gate báo "chưa cào lead" oan dù sheet có 37 dòng.
+- **Quy tắc rút ra:** onboard SP mới phải test `daily_gate`/`check_leads` với sheet THẬT của SP đó (không chỉ test engine); parse ngày bắt ISO đầu chuỗi trước, token cuối sau.
+
+### 3. So sánh với None nổ chậm
+- **Sự cố:** `(age or 99) <= 7` — ad không dò được tuổi (`age=None`) lọt nhánh `else` rồi so `None <= 21` → TypeError, rớt nguyên báo cáo TOEIC sáng 06/08. Hai ngày đầu không lộ vì chưa gặp ad nào age=None.
+- **Quy tắc rút ra:** field nào có thể None (age, cpl, mere, budget) phải gán mặc định TƯỜNG MINH một lần ở đầu (`x = v if v is not None else default`) rồi mới so sánh — không dùng `(v or d)` trong biểu thức so sánh nhiều nhánh; nhánh dữ-liệu-thiếu phải có test riêng.

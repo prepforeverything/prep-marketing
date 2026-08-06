@@ -639,7 +639,7 @@ def main():
             items.append({"id": u["id"], "name": u["name"], "kind": u["kind"], "channel": u["channel"],
                           "bucket": u["bucket"], "final": u["final"], "spend7": u["w7"]["spend"],
                           "exception": u["exception"], "acct": u["acct"]})
-        summary = {"mode": "nv", "window": [R7[0], R7[-1]],
+        summary = {"mode": "nv", "window": [R7[0], R7[-1]], "bi_ok": bi_ok,
                    "kpi_warn": kpi["warn"],
                    "channels": {"in": {**chan_tot("in"), "kpi": kpi["thr_in"]["kpi"]},
                                 "cv": {**chan_tot("cv"), "kpi": kpi["thr_cv"]["kpi"]}},

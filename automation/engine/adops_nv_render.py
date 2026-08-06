@@ -1042,6 +1042,7 @@ def render(pc, ctx):
 {sec_header(pc, ctx)}
 <div class="wrap">
 {BANNER}
+{'<div class="banner" style="border-left-color:var(--bad);background:var(--bad-bg);color:var(--bad-t)"><b>⛔ BÁO CÁO NÀY THIẾU DOANH THU / ME-RE</b> — Prep BI không kết nối (thiếu PREP_BI_API_KEY trong môi trường chạy, hoặc BI lỗi). Mọi đề xuất bên dưới CHỈ dựa CPL; các quyết định tắt-vì-lỗ / scale-vì-lãi KHÔNG có hôm nay. Báo người vận hành kiểm tra ngay.</div>' if not ctx["bi_ok"] else ''}
 {sec_overview(ctx)}
 {sec_pacing(ctx)}
 {sec_today(ctx)}

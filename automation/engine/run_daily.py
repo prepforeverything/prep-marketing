@@ -289,6 +289,8 @@ def build_caption_nv(cfg, s):
     file HTML đã đầy đủ chi tiết nên Telegram chỉ đưa con số kênh + pacing + đếm hành động, KHÔNG gửi tin Ad ID."""
     w = s["window"]
     L = [f"📊 <b>{cfg.display} — tối ưu Meta ({dmy(w[0])}–{dmy(w[1])})</b>"]
+    if s.get("bi_ok") is False:
+        L.append("⛔ <b>BÁO CÁO THIẾU DOANH THU/ME-RE</b> — Prep BI không kết nối (thiếu PREP_BI_API_KEY hoặc BI lỗi). Đề xuất chỉ dựa CPL — KHÔNG tắt/scale theo ME/RE hôm nay. Cần kiểm tra ngay.")
     for _w in (s.get("kpi_warn") or [])[:2]:
         L.append(f"⚠️ {_esc(_w)}")
     names = {"in": "Inbox", "cv": "Conv"}
