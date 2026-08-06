@@ -60,7 +60,8 @@
       "std_in": 65,
       "std_cv": 23,
       "min_leads": 5,
-      "note": "chuẩn %QL = số T7/2026 từ BI (chốt Quân 04/08); từ T9 chuyển vào KPI Master"
+      "note": "chuẩn %QL = số T7/2026 từ BI (chốt Quân 04/08); từ T9 chuyển vào KPI Master",
+      "enforce": true
     }
   },
   "telegram": {

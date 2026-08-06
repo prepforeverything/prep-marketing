@@ -480,8 +480,12 @@ def score_units(units, kpi):
             shadow, braked = final, False
         else:
             shadow, braked = R.ql_brake(cpl_rec, zone, band)
-        u.update({"ql_pct": ql_pct, "ql_band": band, "ql_std": std,
-                  "shadow_final": shadow, "ql_braked": braked})
+        if QLSTD.get("enforce") and braked:           # 🟣→CHÍNH THỨC (Quân bật 06/08): phanh QL ăn vào đề xuất cuối
+            final = shadow
+            u["final"] = final
+            u["bucket"] = _bucket(final)
+        u.update({"ql_pct": ql_pct, "ql_band": band, "ql_std": std, "shadow_final": shadow,
+                  "ql_braked": braked, "ql_enforced": bool(QLSTD.get("enforce") and braked)})
         u["zclass"] = _zclass(u)
         _age = u["age"] if u["age"] is not None else 99   # không dò được tuổi trong 30d → coi như ad cũ
         u["gclass"] = "moi" if _age <= 7 else ("dang" if _age <= 21 else "lau")

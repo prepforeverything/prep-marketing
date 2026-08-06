@@ -65,7 +65,8 @@
       "std_in": 56,
       "std_cv": null,
       "min_leads": 5,
-      "note": "chuẩn %QL = số T7/2026 từ BI (Inbox 56%); Conversion đang dừng — từ T9 vào KPI Master"
+      "note": "chuẩn %QL = số T7/2026 từ BI (Inbox 56%); Conversion đang dừng — từ T9 vào KPI Master",
+      "enforce": true
     }
   },
   "telegram": {

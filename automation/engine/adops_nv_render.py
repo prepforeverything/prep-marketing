@@ -461,6 +461,8 @@ def reason(u, ctx):
     else:
         why = ("chưa đủ đơn/tuổi cho ME/RE" if u["w7"]["re"] else "chưa có doanh thu BI")
         parts.append(f"CPL {u['zone']}" + (f" (R7 {u['zone7']})" if u["zone7"] != u["zone"] else "") + f" · {why}")
+    if u.get("ql_enforced"):
+        parts.append(f"🟣 Phanh tầng QL: %QL(R7) {u['ql_pct']}% < chuẩn {u['ql_std']}%")
     parts.append(f"→ {u['final']}")
     if u["exception"]:
         parts.append("⚠ CPL đòi tắt nhưng ma trận ME/RE giữ → XIN DUYỆT NGOẠI LỆ (gom cuối checklist)")
@@ -557,9 +559,13 @@ def shadow_html(u, bare=False):
     """Dòng SHADOW tầng QL — chỉ hiện khi phanh đổi đề xuất; chưa đổi hành động thật."""
     if not u.get("ql_braked"):
         return ""
-    inner = (f"🌓 <b>SHADOW tầng QL:</b> {esc(u['shadow_final'])} · %QL(R7) "
-             f"<b>{u['ql_pct']}%</b> vs chuẩn {u['ql_std']}% ({'kém' if u['ql_band']=='kem' else 'dưới chuẩn'}) "
-             f"— tham chiếu T7, chưa đổi hành động")
+    if u.get("ql_enforced"):
+        inner = (f"🟣 <b>Phanh tầng QL (đang áp dụng):</b> %QL(R7) <b>{u['ql_pct']}%</b> vs chuẩn "
+                 f"{u['ql_std']}% ({'kém' if u['ql_band']=='kem' else 'dưới chuẩn'}) — đề xuất ở trên ĐÃ tính phanh này")
+    else:
+        inner = (f"🌓 <b>SHADOW tầng QL:</b> {esc(u['shadow_final'])} · %QL(R7) "
+                 f"<b>{u['ql_pct']}%</b> vs chuẩn {u['ql_std']}% ({'kém' if u['ql_band']=='kem' else 'dưới chuẩn'}) "
+                 f"— tham chiếu T7, chưa đổi hành động")
     return inner if bare else f'<div class="shq">{inner}</div>'
 
 
@@ -613,6 +619,12 @@ def ql_note_html(ctx):
     if not q:
         return ""
     cv = f" · Conversion {q.get('std_cv')}%" if q.get("std_cv") else ""
+    if q.get("enforce"):
+        cv2 = f" · Conversion {q.get('std_cv')}%" if q.get("std_cv") else ""
+        return ('<div class="shq" style="margin:0 0 14px"><b>🟣 Tầng QL — ĐANG ÁP DỤNG (bật 06/08):</b> '
+                f'{ctx.get("n_shadow", 0)} ad bị phanh hôm nay (chặn scale / giảm / tắt vì %QL dưới chuẩn — ghi rõ trong lý do từng thẻ). '
+                f'Chuẩn %QL = số T7 từ BI: Inbox {q.get("std_in", "—")}%{cv2} · đủ {q.get("min_leads", 5)} lead (R7) mới soi · '
+                'QL chỉ phanh, không kéo lên · ME/RE vẫn quyết cuối.</div>')
     return ('<div class="shq" style="margin:0 0 14px"><b>🌓 Tầng QL — đang CHẠY THỬ (shadow):</b> '
             f'{ctx.get("n_shadow", 0)} ad sẽ bị phanh nếu bật luật (xem khối tím trên từng thẻ). '
             f'Chuẩn %QL tháng này = số T7 từ BI: Inbox {q.get("std_in", "—")}%{cv} · '
@@ -626,7 +638,8 @@ def ql_method_li(ctx):
     if not q:
         return ""
     cv = f" · Conversion {q.get('std_cv')}%" if q.get("std_cv") else ""
-    return ('<li><b>Tầng QL — chốt chặn giữa (🌓 ĐANG CHẠY THỬ, chưa đổi đề xuất)</b> — bậc thang 3 tầng: '
+    lbl = "🟣 ĐANG ÁP DỤNG (bật 06/08)" if q.get("enforce") else "🌓 ĐANG CHẠY THỬ, chưa đổi đề xuất"
+    return (f'<li><b>Tầng QL — chốt chặn giữa ({lbl})</b> — bậc thang 3 tầng: '
             f'CPL (từ ngày 0) → <b>QL</b> (khi đủ {q.get("min_leads", 5)} lead R7) → ME/RE (đủ cổng doanh thu thì thắng). '
             'QL = chuẩn công ty (L3+ gồm đơn mua); %QL của ad so <b>chuẩn SP×kênh = số tháng trước từ BI</b> '
             f'(tháng này: Inbox {q.get("std_in", "—")}%{cv}; từ T9 đọc từ KPI Master). '
