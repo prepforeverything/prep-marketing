@@ -483,7 +483,8 @@ def score_units(units, kpi):
         u.update({"ql_pct": ql_pct, "ql_band": band, "ql_std": std,
                   "shadow_final": shadow, "ql_braked": braked})
         u["zclass"] = _zclass(u)
-        u["gclass"] = "moi" if (u["age"] or 99) <= 7 else ("dang" if u["age"] <= 21 else "lau")
+        _age = u["age"] if u["age"] is not None else 99   # không dò được tuổi trong 30d → coi như ad cũ
+        u["gclass"] = "moi" if _age <= 7 else ("dang" if _age <= 21 else "lau")
     return units
 
 
