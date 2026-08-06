@@ -11,6 +11,8 @@ on:
     - cron: "50 0 * * *"   # 07:50 VN
     - cron: "20 1 * * *"   # 08:20 VN
     - cron: "50 1 * * *"   # 08:50 VN
+    - cron: "0 3 * * *"    # 10:00 VN — lượt BẮT KỊP batch gán ad_id của BI (chạy FULL, không skip;
+                           #   đo 06/08: 08:38 credit ad 4-5/8 còn 0, ~trưa BI gán xong — user chốt 10h)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -47,6 +49,8 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       TELEGRAM_ALERT_CHAT_ID: ${{ secrets.TELEGRAM_ALERT_CHAT_ID }}
+      # Mã hóa file số liệu + đăng nhập trang (user duyệt 06/08)
+      DASH_ENC_KEY: ${{ secrets.DASH_ENC_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,13 +58,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cài thư viện mã hóa
+        run: pip install cryptography
+
       - name: Build & publish dashboard
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python3 automation/revenue-dashboard/build_dashboard.py --dry-run --out out
           elif [ "${{ github.event.inputs.force_backfill }}" = "true" ]; then
             python3 automation/revenue-dashboard/build_dashboard.py --force-backfill
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
+          elif [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" != "0 3 * * *" ]; then
             python3 automation/revenue-dashboard/build_dashboard.py --skip-if-fresh
           else
             python3 automation/revenue-dashboard/build_dashboard.py
