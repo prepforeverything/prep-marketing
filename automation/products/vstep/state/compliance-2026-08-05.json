@@ -1,0 +1,53 @@
+{
+ "date": "2026-08-05",
+ "send_day": "2026-08-06",
+ "product": "vstep",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-06T10:11:01+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 7403440,
+ "day_budget_eve": 1990999,
+ "cbo_missing": 10,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 0,
+  "pct_off": null,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 2,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 0
+ },
+ "accounts": {
+  "VSTEP - 01": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120249736211360223",
+     "code": "",
+     "name": "Prep.071926-2_VSTEP25_Vstep toàn năng 2_",
+     "dir": "up",
+     "morning": 409000,
+     "evening": 0,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120250039664650223",
+     "code": "",
+     "name": "Prep.190626_VSTEP25_Lộ trình - Quỳnh 180",
+     "dir": "up",
+     "morning": 289000,
+     "evening": 289000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  }
+ }
+}
