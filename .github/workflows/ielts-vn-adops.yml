@@ -30,6 +30,7 @@ jobs:
       META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_IELTS_CHAT_ID: ${{ secrets.TELEGRAM_IELTS_CHAT_ID }}
+      PREP_BI_API_KEY: ${{ secrets.PREP_BI_API_KEY }}
     steps:
       - uses: actions/checkout@v4   # lấy main mới nhất → gồm cờ "đã gửi" của lần chạy trước trong ngày
 

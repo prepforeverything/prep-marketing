@@ -1,7 +1,7 @@
-name: TOEIC ad-ops hằng ngày
+name: HSK ad-ops hằng ngày
 
-# Engine ad-ops headless trên GitHub Actions (always-on). Cron LUÔN theo UTC → 10:07 VN = 03:07 UTC, 14:07 VN = 07:07 UTC.
-# Chống gửi trùng BỀN VỮNG: cờ "đã gửi" commit vào repo (automation/products/toeic/state/). Mỗi lần chạy đọc
+# HSK (engine nv, 3 TK Meta) — nhóm "Digital HSK". Engine ad-ops headless trên GitHub Actions (always-on). Cron LUÔN theo UTC → 10:07 VN = 03:07 UTC, 14:07 VN = 07:07 UTC.
+# Chống gửi trùng BỀN VỮNG: cờ "đã gửi" commit vào repo (automation/products/hsk/state/). Mỗi lần chạy đọc
 # cờ mới nhất từ main → đã có cờ ngày mục tiêu thì SKIP. Đảm bảo gửi đúng 1 lần dù cron bị trễ/lặp.
 # ⚠️ Lịch chỉ chạy khi file này nằm trên nhánh mặc định (main).
 on:
@@ -16,7 +16,7 @@ on:
         default: false
 
 concurrency:
-  group: toeic-adops      # serialize: lần chạy sau chỉ bắt đầu (và checkout cờ mới) sau khi lần trước xong
+  group: hsk-adops      # serialize: lần chạy sau chỉ bắt đầu (và checkout cờ mới) sau khi lần trước xong
   cancel-in-progress: false
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
       TZ: Asia/Ho_Chi_Minh
       META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_HSK_CHAT_ID: ${{ secrets.TELEGRAM_HSK_CHAT_ID }}
       PREP_BI_API_KEY: ${{ secrets.PREP_BI_API_KEY }}
     steps:
       - uses: actions/checkout@v4   # lấy main mới nhất → gồm cờ "đã gửi" của lần chạy trước trong ngày
@@ -48,19 +48,19 @@ jobs:
           CHROME_EXTRA_ARGS: "--no-sandbox --disable-dev-shm-usage"
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            python3 automation/engine/run_daily.py --product toeic --dry-run
+            python3 automation/engine/run_daily.py --product hsk --dry-run
           else
-            python3 automation/engine/run_daily.py --product toeic
+            python3 automation/engine/run_daily.py --product hsk
           fi
 
       - name: Lưu cờ "đã gửi" vào repo (chống gửi trùng)
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
-          if [ -n "$(git status --porcelain automation/products/toeic/state)" ]; then
+          if [ -n "$(git status --porcelain automation/products/hsk/state)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add automation/products/toeic/state
-            git commit -m "chore(adops): TOEIC đã gửi báo cáo $(date +%F) [skip ci]"
+            git add automation/products/hsk/state
+            git commit -m "chore(adops): HSK đã gửi báo cáo $(date +%F) [skip ci]"
             for i in 1 2 3; do
               git pull --rebase origin main && git push origin HEAD:main && break
               echo "push lần $i trượt (PTE/commit khác vừa vào main) — rebase & thử lại"; sleep 3
