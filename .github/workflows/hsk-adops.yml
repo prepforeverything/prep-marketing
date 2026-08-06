@@ -42,7 +42,7 @@ jobs:
         id: chrome
         uses: browser-actions/setup-chrome@v1
 
-      - name: Chạy ad-ops TOEIC
+      - name: Chạy ad-ops HSK
         env:
           CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
           CHROME_EXTRA_ARGS: "--no-sandbox --disable-dev-shm-usage"

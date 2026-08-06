@@ -31,6 +31,12 @@ def parse_date(s):
     """Định dạng DD-M-YYYY (ngày-tháng-năm), vd '18-6-2026'. Năm = số >= 2000.
     Chấp nhận cả timestamp 'HH:MM DD/MM/YYYY' (lead_feed IELTS Thái) — lấy token cuối."""
     s = (s or "").strip()
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", s)   # ISO 'YYYY-MM-DD[ HH:MM]' (cột Time HSK) — token cuối là GIỜ, phải bắt trước
+    if m:
+        try:
+            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            return None
     s = s.split()[-1] if s else ""
     p = [int(x) for x in re.split(r"[-/]", s) if x.isdigit()]
     if len(p) != 3:
