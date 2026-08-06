@@ -33,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "engine"))
 sys.path.insert(0, str(HERE))
 import prep_bi  # noqa: E402
+import enc  # noqa: E402 — mã hóa file số liệu (user duyệt 06/08)
 import spend  # noqa: E402
 
 VN_TZ = dt.timezone(dt.timedelta(hours=7))
@@ -454,8 +455,8 @@ def build_data(c, publish_dir, fixture_dir=None, force=False):
     prev_file = publish_dir / "data.json" if publish_dir else None
     if prev_file and prev_file.exists():
         try:
-            old = json.loads(prev_file.read_text(encoding="utf-8")).get("months", {})
-        except (json.JSONDecodeError, OSError):
+            old = enc.load(prev_file).get("months", {})
+        except (json.JSONDecodeError, OSError, ValueError):
             old = {}
     refetch = set(months) if force else set(months[-2:])  # mặc định: tháng hiện tại + tháng trước
 
@@ -494,16 +495,18 @@ def ensure_kpi(c, publish_dir, months):
     kpi = {"_note": f"KPI doanh thu A1+B1 theo tháng ({c['currency']}) — điền số cho từng dòng; null = chưa có KPI."}
     if f.exists():
         try:
-            kpi = json.loads(f.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            kpi = enc.load(f)
+        except (json.JSONDecodeError, OSError, ValueError):
             print("[WARN] kpi.json hỏng — tạo lại khung rỗng", file=sys.stderr)
     changed = not f.exists()
+    if enc.ACTIVE and f.exists() and not enc.is_encrypted(f):
+        changed = True  # cutover: kpi.json còn plaintext → ghi lại bản mã hóa 1 lần
     for m in months:
         if m not in kpi:
             kpi[m] = {l["code"]: None for l in c["lines"]}
             changed = True
     if changed:
-        f.write_text(json.dumps(kpi, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        f.write_text(enc.dumps(kpi, indent=2) + "\n", encoding="utf-8")
     return kpi
 
 
@@ -577,6 +580,16 @@ def main():
     a = ap.parse_args()
     c = cfg(a.config)
 
+    # Mã hóa file số liệu (user duyệt 06/08): bật theo config publish.encrypt + secret DASH_ENC_KEY.
+    # Flag bật mà thiếu khóa khi chạy THẬT → dừng ngay (không được lặng lẽ đẩy plaintext lên).
+    enc.ACTIVE = bool(c["publish"].get("encrypt")) and enc.key() is not None
+    if c["publish"].get("encrypt") and enc.key() is None:
+        if a.dry_run or a.from_fixture:
+            print("[WARN] publish.encrypt bật nhưng thiếu DASH_ENC_KEY — dry-run xuất plaintext", file=sys.stderr)
+        else:
+            print("[LỖI] publish.encrypt bật nhưng thiếu DASH_ENC_KEY — không đẩy plaintext", file=sys.stderr)
+            sys.exit(1)
+
     token = os.environ.get("PUBLISH_REPO_TOKEN", "").strip()
     push = not a.dry_run and not a.from_fixture
     if push and not token:
@@ -601,7 +614,7 @@ def main():
     if a.skip_if_fresh and (dash_dir / "data.json").exists():
         # Lượt cron dự phòng: hôm qua đã có số (kể cả đủ trường spend/orders) thì khỏi chạy lại
         try:
-            cur = json.loads((dash_dir / "data.json").read_text(encoding="utf-8"))
+            cur = enc.load(dash_dir / "data.json")
             yd = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=1)
             mm = cur.get("months", {}).get(yd.strftime("%Y%m"), {})
             ls = mm.get("lines") or {}
@@ -610,11 +623,11 @@ def main():
                 if tmp:
                     shutil.rmtree(tmp, ignore_errors=True)
                 return
-        except (json.JSONDecodeError, OSError):
-            pass  # data.json hỏng → cứ build lại như thường
+        except (json.JSONDecodeError, OSError, ValueError):
+            pass  # data.json hỏng/thiếu khóa giải mã → cứ build lại như thường
 
     data = build_data(c, dash_dir, a.from_fixture, force=a.force_backfill)
-    (dash_dir / "data.json").write_text(json.dumps(data, ensure_ascii=False) + "\n", encoding="utf-8")
+    (dash_dir / "data.json").write_text(enc.dumps(data) + "\n", encoding="utf-8")
     ensure_kpi(c, dash_dir, list(data["months"].keys()))
     if not a.from_fixture:  # 2 bảng chi tiết Inbox/UTM (grain tháng, từ 202606) — user duyệt 19/07
         import mkt_detail

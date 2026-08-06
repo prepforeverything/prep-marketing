@@ -9,6 +9,7 @@ import datetime as dt
 import json
 import sys
 
+import enc
 import prep_bi
 import spend
 
@@ -209,10 +210,10 @@ def build_mkt(c, dash_dir, today, force=False, acc=None):
     for month in months:
         f = dash_dir / f"mkt-{month}.json"
         if f.exists() and month not in (cur, prev) and not force:
-            try:  # tháng đóng băng nhưng file đời cũ (chưa có map ngày v2) → refetch 1 lần backfill
-                if (json.loads(f.read_text(encoding="utf-8")).get("v") or 0) >= 2:
+            try:  # tháng đóng băng: file đời cũ (chưa map ngày v2) HOẶC chưa mã hóa khi bật enc → refetch
+                if (enc.load(f).get("v") or 0) >= 2 and (not enc.ACTIVE or enc.is_encrypted(f)):
                     continue
-            except (json.JSONDecodeError, OSError):
+            except (json.JSONDecodeError, OSError, ValueError):
                 pass
         since, until = _month_range(month, today)
         if until < since:
@@ -245,7 +246,6 @@ def build_mkt(c, dash_dir, today, force=False, acc=None):
             print(f"[WARN] mkt-{month}: BI lỗi — giữ file cũ" if f.exists()
                   else f"[WARN] mkt-{month}: BI lỗi — bỏ qua tháng này", file=sys.stderr)
             continue
-        f.write_text(json.dumps({"month": month, "as_of": until, "v": 2,
-                                 "built": today.isoformat(), "lines": lines},
-                                ensure_ascii=False) + "\n", encoding="utf-8")
+        f.write_text(enc.dumps({"month": month, "as_of": until, "v": 2,
+                                "built": today.isoformat(), "lines": lines}) + "\n", encoding="utf-8")
         print(f"mkt-{month}.json: OK ({f.stat().st_size // 1024} KB)")

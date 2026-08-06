@@ -18,6 +18,7 @@
     "branch": "main",
     "base_url": "https://lp.prepedu.com",
     "dir_prefix": "bi-",
-    "marker": "revenue-dashboard"
+    "marker": "revenue-dashboard",
+    "encrypt": true
   }
 }

@@ -114,9 +114,25 @@
     border-radius:8px;font-size:.75rem;line-height:1.45;opacity:0;transition:opacity .08s;z-index:9;max-width:260px}
   .footer{text-align:center;color:#9ca3af;font-size:.72rem;margin-top:32px;padding:16px 0;line-height:1.6}
   @media(max-width:640px){.container{padding:14px}.kpi-value{font-size:1.3rem}.timebar{margin-left:0}}
+/* --- màn đăng nhập (user duyệt 06/08 — dữ liệu mã hóa, cần khóa để xem) --- */
+#login-ovl{display:none;position:fixed;inset:0;background:#f1f5f9;z-index:99;align-items:center;justify-content:center}
+#login-ovl .card{max-width:360px;width:92%;padding:28px 26px}
+#login-ovl h2{margin:0 0 4px;font-size:1.1rem}
+#login-ovl .note{margin-bottom:14px}
+#login-ovl input{width:100%;box-sizing:border-box;margin:6px 0;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem}
+#login-ovl button{width:100%;margin-top:10px;padding:10px;border:0;border-radius:8px;background:#111827;color:#fff;font-weight:600;font-size:.95rem;cursor:pointer}
+#lg-err{color:#dc2626;font-size:.85rem;min-height:18px;margin-top:8px}
 </style>
 </head>
 <body>
+<div id="login-ovl"><div class="card">
+  <h2>VN1 Paid Marketing Performance</h2>
+  <div class="note">Dashboard nội bộ — đăng nhập để xem.</div>
+  <input id="lg-user" placeholder="Tên đăng nhập" autocomplete="username">
+  <input id="lg-pass" type="password" placeholder="Mật khẩu" autocomplete="current-password">
+  <button id="lg-btn">Đăng nhập</button>
+  <div id="lg-err"></div>
+</div></div>
 <div class="container">
   <header>
     <h1>VN1 Paid Marketing Performance</h1>
@@ -1182,11 +1198,11 @@ function renderMkt(codes){
   for(const x of need){
     if(MKTC[x+"_p"])continue;
     MKTC[x+"_p"]=1;
-    fetch("./mkt-"+x+".json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{
+    fetchJson("./mkt-"+x+".json").then(d=>{
       delete MKTC[x+"_p"];
       if(d)MKTC[x]=d;else MKTC[x+"_f"]=0; // _f=0: file không tồn tại — đừng fetch lặp vô hạn
       render();
-    });
+    }).catch(()=>{delete MKTC[x+"_p"];MKTC[x+"_f"]=0;render();});
   }
 }
 function esc2(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/'/g,"&#39;");}
@@ -1652,11 +1668,60 @@ function trendHtml(pct,goodUp,unit){ // goodUp=null → trung tính (không tô 
 }
 function pctChange(cur,prev){return prev>0?(cur/prev-1)*100:null;}
 
+/* ---------- Khóa đăng nhập (user duyệt 06/08): file số liệu mã hóa AES-GCM, khóa nội dung
+   nằm trong auth.json BỌC theo mật khẩu từng người (PBKDF2) — trang tĩnh, không backend.
+   Máy chủ nhân sự: mở link #k=<hex> 1 lần → khóa lưu localStorage, không cần mật khẩu. ---------- */
+const ENC={k:null};
+(function(){
+  const m=(location.hash||"").match(/^#k=([0-9a-f]{64})$/i);
+  if(m){localStorage.setItem("dash_k",m[1].toLowerCase());history.replaceState(null,"",location.pathname+location.search);}
+  ENC.k=localStorage.getItem("dash_k")||null;
+})();
+function b64b(s){const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
+function hexb(h){const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;}
+async function decObj(j){
+  const key=await crypto.subtle.importKey("raw",hexb(ENC.k),"AES-GCM",false,["decrypt"]);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64b(j.iv)},key,b64b(j.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function fetchJson(url){
+  const r=await fetch(url,{cache:"no-store"});
+  if(!r.ok)throw new Error(url+" HTTP "+r.status);
+  const j=await r.json();
+  if(j&&j.enc===1){
+    if(!ENC.k)throw {needLogin:1};
+    try{return await decObj(j);}
+    catch(e){localStorage.removeItem("dash_k");ENC.k=null;throw {needLogin:1};} // khóa cũ sau xoay khóa
+  }
+  return j;
+}
+async function doLogin(){
+  const u=$("lg-user").value.trim().toLowerCase(),p=$("lg-pass").value,err=$("lg-err");
+  err.textContent="";
+  if(!u||!p){err.textContent="Nhập đủ tên đăng nhập và mật khẩu.";return;}
+  try{
+    const a=await fetch("./auth.json",{cache:"no-store"}).then(r=>r.json());
+    const w=(a.users||{})[u];
+    if(!w){err.textContent="Không có người dùng này.";return;}
+    const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(p),"PBKDF2",false,["deriveKey"]);
+    const kek=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64b(w.salt),iterations:w.iter,hash:"SHA-256"},
+      base,{name:"AES-GCM",length:256},false,["decrypt"]);
+    const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64b(w.iv)},kek,b64b(w.ct));
+    localStorage.setItem("dash_k",new TextDecoder().decode(pt));
+    location.reload();
+  }catch(e){err.textContent="Mật khẩu không đúng.";}
+}
+function showLogin(){
+  $("login-ovl").style.display="flex";
+  $("lg-btn").onclick=doLogin;
+  $("lg-pass").onkeydown=e=>{if(e.key==="Enter")doLogin();};
+  $("lg-user").focus();
+}
 async function boot(){
-  const [d,k]=await Promise.all([
-    fetch("./data.json",{cache:"no-store"}).then(r=>r.json()),
-    fetch("./kpi.json",{cache:"no-store"}).then(r=>r.json()).catch(()=>({}))
-  ]);
+  let d;
+  try{d=await fetchJson("./data.json");}
+  catch(e){if(e&&e.needLogin){showLogin();return;}throw e;}
+  const k=await fetchJson("./kpi.json").catch(()=>({}));
   DATA=d;KPI=k;
   state.cur=d.currency;  // tiền tệ hiển thị mặc định = tiền tệ bản địa của data.json
   if(d.title)document.querySelector("header h1").textContent=d.title;  // Thái đặt tiêu đề riêng; VN giữ mặc định

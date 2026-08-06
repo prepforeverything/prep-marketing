@@ -12,6 +12,8 @@ import sys
 import urllib.parse
 import urllib.request
 
+import enc
+
 CPL_OVER = 1.2
 CPL_DAYS = 3
 PACE_TOL = 0.15
@@ -41,7 +43,7 @@ def check(data, dash_dir):
     if n <= 0:
         return msgs
     try:
-        kpi = json.loads((dash_dir / "kpi.json").read_text(encoding="utf-8")).get(m) or {}
+        kpi = enc.load(dash_dir / "kpi.json").get(m) or {}
     except Exception:  # noqa: BLE001 — thiếu kpi.json thì chỉ chạy được check #1
         kpi = {}
     for code, v in M["lines"].items():
