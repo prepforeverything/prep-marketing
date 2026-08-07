@@ -1,0 +1,150 @@
+{
+ "date": "2026-08-06",
+ "send_day": "2026-08-07",
+ "product": "toeic",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-07T10:09:13+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 14728742,
+ "day_budget_eve": 10294074,
+ "cbo_missing": 4,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 1,
+  "pct_off": 0,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 5,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 0,
+  "dn_owner": 5
+ },
+ "accounts": {
+  "TOEIC 3": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120231590022560586",
+     "code": "",
+     "name": "051425_S25_Khóa cấp tốc duy nhất_6713803",
+     "dir": "down",
+     "morning": 709291,
+     "evening": 709291,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120255588611010586",
+     "code": "",
+     "name": "051425_S25_Khóa cấp tốc duy nhất_6713803",
+     "dir": "down",
+     "morning": 1007077,
+     "evening": 1007077,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120256864678170586",
+     "code": "",
+     "name": "050826_TRUNGCAP_Hoàng Minh Quý_960348286",
+     "dir": "up",
+     "morning": 788000,
+     "evening": 788000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260014255820586",
+     "code": "",
+     "name": "071226_NENTANG_Lấy gốc nhàn_101692360119",
+     "dir": "down",
+     "morning": 269000,
+     "evening": 269000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260115536480586",
+     "code": "",
+     "name": "062126_TRUNGCAP_Sinh viên nổi loạn_99388",
+     "dir": "up",
+     "morning": 428000,
+     "evening": 428000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260137393980586",
+     "code": "",
+     "name": "062726_NENTANG_Thế mà lại hay_9980240597",
+     "dir": "down",
+     "morning": 329000,
+     "evening": 329000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260263650420586",
+     "code": "",
+     "name": "050826_TRUNGCAP_Hoàng Minh Quý_960348286",
+     "dir": "up",
+     "morning": 289000,
+     "evening": 289000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120260265878430586",
+     "code": "",
+     "name": "072426_S25_Chị Quỳnh rep stpry_103018130",
+     "dir": "down",
+     "morning": 289000,
+     "evening": 289000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  },
+  "TOEIC 5": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120218174039620170",
+     "code": "",
+     "name": "034625_S25_phải flex thôi remake_6304055",
+     "dir": "up",
+     "morning": 860000,
+     "evening": 860000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  },
+  "TOEIC 2": {
+   "skipped": false,
+   "off": [
+    {
+     "id": "120248486185720244",
+     "code": "",
+     "name": "080426_H25_TOEIC ref hsk_103290879292645",
+     "src": "nv",
+     "verdict": "pending",
+     "done": false,
+     "paused_at": null,
+     "time_known": false
+    }
+   ],
+   "scale": [
+    {
+     "owner_id": "120247846586140244",
+     "code": "",
+     "name": "070926_NENTANG_Hạ Minh_ 1012451161638883",
+     "dir": "up",
+     "morning": 239000,
+     "evening": 239000,
+     "verdict": "flat"
+    }
+   ],
+   "codes": []
+  }
+ }
+}
