@@ -1,0 +1,125 @@
+{
+ "date": "2026-08-07",
+ "send_day": "2026-08-08",
+ "product": "vstep",
+ "per_ad_action": true,
+ "off_deadline": "14:00",
+ "sent_at": "2026-08-08T11:12:22+07:00",
+ "grace_late_checklist": false,
+ "kpi_day": 7403440,
+ "day_budget_eve": 2090999,
+ "cbo_missing": 15,
+ "totals": {
+  "off_ok": 0,
+  "off_late": 0,
+  "off": 0,
+  "pct_off": null,
+  "bud_ok": 0,
+  "bud": 0,
+  "sc_up": 0,
+  "sc_owner": 3,
+  "sc_delta": 0,
+  "sc_unread": 0,
+  "dn_done": 4,
+  "dn_owner": 7
+ },
+ "accounts": {
+  "VSTEP - 01": {
+   "skipped": false,
+   "off": [],
+   "scale": [
+    {
+     "owner_id": "120249243137070223",
+     "code": "",
+     "name": "Prep.070226_VSTEP25_Chào hè_122128161579",
+     "dir": "down",
+     "morning": 310000,
+     "evening": 0,
+     "verdict": "done"
+    },
+    {
+     "owner_id": "120249530986330223",
+     "code": "",
+     "name": "Prep.071926-2_VSTEP25_Vstep toàn năng 2_",
+     "dir": "up",
+     "morning": 359000,
+     "evening": 359000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120249715717770223",
+     "code": "",
+     "name": "Prep.190626_VSTEP25_Lộ trình - Quỳnh 180",
+     "dir": "down",
+     "morning": 309000,
+     "evening": 309000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120249736211360223",
+     "code": "",
+     "name": "Prep.071926-2_VSTEP25_Vstep toàn năng 2_",
+     "dir": "down",
+     "morning": 409000,
+     "evening": 0,
+     "verdict": "done"
+    },
+    {
+     "owner_id": "120249925953640223",
+     "code": "",
+     "name": "Prep.072626_VSTEP25_Minhminhminh_1221309",
+     "dir": "down",
+     "morning": 208000,
+     "evening": 208000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120250039664650223",
+     "code": "",
+     "name": "Prep.190626_VSTEP25_Lộ trình - Quỳnh 180",
+     "dir": "up",
+     "morning": 289000,
+     "evening": 289000,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120250063875320223",
+     "code": "",
+     "name": "Prep.071926-2_VSTEP25_Vstep toàn năng 2_",
+     "dir": "down",
+     "morning": 299000,
+     "evening": 0,
+     "verdict": "done"
+    },
+    {
+     "owner_id": "120250066156110223",
+     "code": "",
+     "name": "Prep.072026-2_VSTEP25_Lộ trình 3 bước h2",
+     "dir": "down",
+     "morning": 299999,
+     "evening": 299999,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120250069811120223",
+     "code": "",
+     "name": "Prep.080126_VSTEP25_Mmminh caption mới_1",
+     "dir": "up",
+     "morning": 369999,
+     "evening": 0,
+     "verdict": "flat"
+    },
+    {
+     "owner_id": "120250106200400223",
+     "code": "",
+     "name": "Prep.070226_VSTEP25_Ưu đãi - Chào hè_122",
+     "dir": "down",
+     "morning": 309999,
+     "evening": 0,
+     "verdict": "done"
+    }
+   ],
+   "codes": []
+  }
+ }
+}
