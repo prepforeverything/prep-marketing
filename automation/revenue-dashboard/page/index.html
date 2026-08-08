@@ -169,6 +169,11 @@
   <div class="chips" id="chips"></div>
   <div id="tab-rev">
     <div class="kpi-grid" id="summary"></div>
+    <div class="card" id="qtr-card" style="display:none">
+      <h3 id="qtr-title">KPI quý</h3>
+      <div class="note" id="qtr-note"></div>
+      <div style="overflow-x:auto"><table id="qtr-tbl"></table></div>
+    </div>
     <div class="card">
       <h3>Lũy kế so với KPI</h3>
       <div class="note" id="cum-note"></div>
@@ -451,6 +456,7 @@ function renderRev(days,codes){
   }
   $("summary").innerHTML=cards.join("");
 
+  renderQuarter(days,codes);
   renderCum(days,a1,b1,kpi);
   renderDaily(days,codes);
   renderAllRev(days,codes);
@@ -460,6 +466,47 @@ function renderRev(days,codes){
   $("daily-note").textContent=(state.scope==="ALL"
     ?"Cột chồng theo sản phẩm — bấm chip sản phẩm để xem riêng. ":"Sản phẩm: "+lineLabel(state.scope)+". ")
     +(state.mode==="range"?"Kỳ: "+rangeLabel+".":"");
+}
+function renderQuarter(days,codes){ // card KPI QUÝ — CHỈ hiện với preset "Quý này" (user 08/08)
+  const el=$("qtr-card");
+  if(state.preset!=="tq"){el.style.display="none";return;}
+  const qm=Math.floor((+state.from.slice(5,7)-1)/3);           // 0-based quarter
+  const y=+state.from.slice(0,4),q=qm+1;
+  const months=[0,1,2].map(i=>y+""+pad2(qm*3+1+i));            // 3 tháng của quý
+  let kpiQ=0,any=false;
+  for(const m of months)for(const c of codes){
+    const v=kpiMetricVal(m,c,"revenue");
+    if(v!=null){kpiQ+=v;any=true;}
+  }
+  if(!any){el.style.display="none";return;}
+  el.style.display="";
+  const act=sum(seriesDays(days,codes,"a1"))+sum(seriesDays(days,codes,"b1"));
+  const qEnd=new Date(Date.UTC(y,qm*3+3,0));                   // ngày cuối quý
+  const qStart=new Date(Date.UTC(y,qm*3,1));
+  const asOf=parseIso(days[days.length-1].iso);
+  const totalDays=Math.round((qEnd-qStart)/864e5)+1;
+  const gone=Math.round((asOf-qStart)/864e5)+1;
+  const left=totalDays-gone;
+  const attain=act/kpiQ*100,timePct=gone/totalDays*100;
+  $("qtr-title").textContent="KPI Quý "+q+"/"+y+" — mốc cần chạy mỗi ngày";
+  $("qtr-note").textContent="KPI quý = tổng KPI doanh thu A1+B1 của "+months.map(m=>"T"+ +m.slice(4)).join(" + ")
+    +" ("+(state.scope==="ALL"?"tất cả sản phẩm":lineLabel(state.scope))+") = "+short2(kpiQ)+" · đã đạt "
+    +short2(act)+" ("+attain.toFixed(1)+"%) sau "+gone+"/"+totalDays+" ngày (thời gian trôi "
+    +timePct.toFixed(0)+"%) · còn "+left+" ngày đến "+fmtVi(qEnd.toISOString().slice(0,10))+".";
+  let h="<thead><tr><th>Mốc KPI quý</th><th>Doanh thu mục tiêu</th><th>Còn thiếu</th>"
+    +"<th>Cần/ngày ("+left+" ngày còn lại)</th><th>So nhịp hiện tại</th></tr></thead><tbody>";
+  const curPace=gone?act/gone:0;
+  for(const p of [100,90,80]){
+    const target=kpiQ*p/100,gap=target-act;
+    const need=gap>0?gap/Math.max(left,1):0;
+    const vs=curPace>0&&need>0?(need/curPace*100-100):null;
+    h+="<tr><td style='font-weight:700'>"+p+"%</td><td>"+vnd(Math.round(target))+"</td>"
+      +"<td>"+(gap>0?vnd(Math.round(gap)):"<span class='text-green'>đã đạt ✓</span>")+"</td>"
+      +"<td style='font-weight:700'>"+(gap>0?(left>0?vnd(Math.round(need)):"—"):"—")+"</td>"
+      +"<td>"+(vs==null?"—":(vs>0?"<span class='text-red'>gấp "+(need/curPace).toFixed(2)+"× nhịp đang chạy</span>"
+        :"<span class='text-green'>nhịp hiện tại đủ ("+(need/curPace).toFixed(2)+"×)</span>"))+"</td></tr>";
+  }
+  $("qtr-tbl").innerHTML=h+"</tbody>";
 }
 function sparkSvg(arr,color){ // sparkline mini — lớp visual thứ 4 của stat card; ngày null bỏ qua
   const n=(arr||[]).length;
@@ -1562,6 +1609,8 @@ const PRESETS=[
   {k:"tm",label:"Tháng này",month:()=>monKey(DMAX)},
   {k:"lm",label:"Tháng trước",month:()=>{const t=parseIso(DMAX.slice(0,8)+"01");
     t.setUTCDate(0);return monKey(t.toISOString().slice(0,10));}},
+  {k:"tq",label:"Quý này",range:()=>{const qm=Math.floor((+DMAX.slice(5,7)-1)/3)*3+1; // đầu quý → hết dữ liệu
+    return [clampIso(DMAX.slice(0,4)+"-"+pad2(qm)+"-01"),DMAX];}},
   {k:"custom",label:"Khoảng tùy chọn"}
 ];
 function presetRange(p){ // [from,to] của 1 preset (preset tháng = trọn phần có dữ liệu của tháng)
